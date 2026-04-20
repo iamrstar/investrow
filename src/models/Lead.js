@@ -1,0 +1,93 @@
+import mongoose from 'mongoose';
+
+const SERVICES = [
+  'Mutual Funds',
+  'Life Insurance',
+  'Health Insurance',
+  'Tax Planning',
+  'General Insurance',
+  'FD & Bond',
+  'Stock Market & Demat',
+  'NPS',
+];
+
+const LeadSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Lead name is required'],
+    trim: true,
+  },
+  email: {
+    type: String,
+    lowercase: true,
+    trim: true,
+    default: '',
+  },
+  phone: {
+    type: String,
+    required: [true, 'Phone number is required'],
+    trim: true,
+  },
+  service: {
+    type: String,
+    enum: SERVICES,
+    required: [true, 'Service type is required'],
+  },
+  leadReference: {
+    type: String,
+    default: '',
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  response: {
+    type: String,
+    enum: ['Positive', 'Negative', 'Pending', 'Converted'],
+    default: 'Pending',
+  },
+  interestedInService: {
+    type: String,
+    enum: ['Yes', 'No', 'Pending'],
+    default: 'Pending',
+  },
+  serviceTaken: {
+    type: String,
+    enum: ['Yes', 'No', 'Pending'],
+    default: 'Pending',
+  },
+  nextCallDate: {
+    type: Date,
+    default: null,
+  },
+  followUpDate: {
+    type: Date,
+    default: null,
+  },
+  remarks: {
+    type: String,
+    default: '',
+  },
+  callStatus: {
+    type: String,
+    enum: ['Received', 'Not Received', 'Pending'],
+    default: 'Pending',
+  },
+}, {
+  timestamps: true,
+});
+
+LeadSchema.index({ assignedTo: 1 });
+LeadSchema.index({ createdBy: 1 });
+LeadSchema.index({ service: 1 });
+LeadSchema.index({ response: 1 });
+LeadSchema.index({ callStatus: 1 });
+
+export { SERVICES };
+export default mongoose.models.Lead || mongoose.model('Lead', LeadSchema);
