@@ -19,7 +19,7 @@ export async function GET(request) {
   const criteria = [];
 
   if (authUser.role === 'manager') {
-    criteria.push({ managerId: authUser._id, role: 'user' });
+    criteria.push({ role: 'user' });
   } else if (role) {
     criteria.push({ role });
   }
