@@ -1,103 +1,129 @@
 import nodemailer from 'nodemailer';
+import path from 'path';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT),
-  secure: process.env.SMTP_PORT === '465',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: (process.env.SMTP_PORT === '465'), // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  requireTLS: process.env.SMTP_PORT === '587' || process.env.SMTP_PORT === '25',
 });
+
+const wrapTemplate = (content) => `
+  <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f9; padding: 20px;">
+    <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e8ed;">
+      <div style="background: #1e293b; padding: 25px; text-align: center;">
+        <img src="cid:logo" alt="Investrow Logo" style="height: 45px;">
+      </div>
+      <div style="padding: 35px 30px; color: #334155; line-height: 1.6;">
+        ${content}
+      </div>
+      <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #edf2f7; color: #64748b; font-size: 13px;">
+        <strong>Investrow Financial Services</strong><br>
+        Transforming Wealth Management<br><br>
+        &copy; ${new Date().getFullYear()} Investrow. All rights reserved.
+      </div>
+    </div>
+  </div>
+`;
 
 export const sendEmail = async ({ to, subject, html }) => {
   try {
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+    
     const info = await transporter.sendMail({
       from: `"${process.env.COMPANY_NAME || 'Investrow'}" <${process.env.SMTP_USER}>`,
       to,
       subject,
       html,
+      attachments: [{
+        filename: 'logo.png',
+        path: logoPath,
+        cid: 'logo' // matches src="cid:logo" in html
+      }]
     });
     console.log('Email sent: %s', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Email send error:', error);
-    return { success: false, error: error.message };
+    if (error.response) console.error('SMTP Response:', error.response);
+    return { success: false, error: error.message, code: error.code };
   }
 };
 
 export const templates = {
   welcome: (name, role) => ({
     subject: `Welcome to ${process.env.COMPANY_NAME}!`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #0ea5e9;">Welcome, ${name}!</h2>
-        <p>Your account has been created on the <strong>Investrow CRM</strong> as a <strong>${role}</strong>.</p>
-        <p>You can now log in using your email address and the password provided by your administrator.</p>
-        <div style="margin: 20px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" 
-             style="background: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            Login Now
-          </a>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee;">
-        <p style="color: #666; font-size: 0.8rem;">This is an automated message. Please do not reply.</p>
+    html: wrapTemplate(`
+      <h2 style="color: #0ea5e9; margin-top: 0;">Welcome, ${name}!</h2>
+      <p>We are excited to have you on board. Your account has been successfully created on the <strong>Investrow CRM</strong> with the role of <strong>${role}</strong>.</p>
+      <p>You can now access your dashboard using your registered email address and the secure password provided by your administrator.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" 
+           style="background-color: #0ea5e9; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; transition: background 0.3s ease;">
+          Login to Dashboard
+        </a>
       </div>
-    `,
+      <p style="font-size: 0.9rem; color: #64748b;">If you have any trouble logging in, please contact your system administrator.</p>
+    `),
   }),
   
   sipReminder: (clientName, serviceName) => ({
-    subject: `Friendly Reminder: Your ${serviceName} Next Step`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #f97316;">Hello ${clientName},</h2>
-        <p>This is a friendly reminder from <strong>Investrow Financial Services</strong> regarding your interest in <strong>${serviceName}</strong>.</p>
-        <p>It's a great time to start your SIP or review your investment goals. Our experts are ready to assist you with the next steps.</p>
-        <p>If you have any questions, feel free to contact your dedicated executive.</p>
-        <div style="margin: 20px 0; background: #fff7ed; padding: 15px; border-left: 4px solid #f97316;">
-          <strong>Tip:</strong> Even small monthly contributions can grow significantly over time through the power of compounding.
-        </div>
-        <p>Best Regards,<br>Team Investrow</p>
+    subject: `Friendly Reminder: Your ${serviceName} Investment`,
+    html: wrapTemplate(`
+      <h2 style="color: #f97316; margin-top: 0;">Hello ${clientName},</h2>
+      <p>This is a friendly follow-up from <strong>Investrow Financial Services</strong> regarding your interest in <strong>${serviceName}</strong>.</p>
+      <p>Consistency is key to wealth creation. It's a great time to start your SIP or review your investment portfolio. Our experts are ready to guide you through the next steps.</p>
+      <div style="margin: 25px 0; background: #fff7ed; padding: 20px; border-radius: 10px; border-left: 5px solid #f97316;">
+        <strong style="color: #c2410c;">Wealth Tip:</strong> Rupee cost averaging through SIPs helps you navigate market volatility effectively.
       </div>
-    `,
+      <p>Feel free to reach out if you have any questions or need further assistance.</p>
+      <p>Best Regards,<br><strong>Team Investrow</strong></p>
+    `),
   }),
 
   taskAlert: (taskTitle, dueDate, createdBy) => ({
     subject: `New Task Assigned: ${taskTitle}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #8b5cf6;">New Task Assignment</h2>
-        <p>You have been assigned a new task: <strong>${taskTitle}</strong></p>
-        <p><strong>Assigned By:</strong> ${createdBy}</p>
-        <p><strong>Due Date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A'}</p>
-        <div style="margin: 20px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/tasks" 
-             style="background: #8b5cf6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            View Task
-          </a>
-        </div>
+    html: wrapTemplate(`
+      <h2 style="color: #8b5cf6; margin-top: 0;">Action Required: New Task</h2>
+      <p>You have been assigned a new task on the CRM portal.</p>
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 12px; margin: 20px 0;">
+        <p style="margin: 5px 0;"><strong>Task:</strong> ${taskTitle}</p>
+        <p style="margin: 5px 0;"><strong>Assigned By:</strong> ${createdBy}</p>
+        <p style="margin: 5px 0;"><strong>Due Date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A'}</p>
       </div>
-    `,
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/tasks" 
+           style="background-color: #8b5cf6; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          View Task Details
+        </a>
+      </div>
+    `),
   }),
 
   taskReminder: (name, taskTitle, dueDate, managerName) => ({
-    subject: `Reminder: Action Required on ${taskTitle}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #ef4444;">Task Reminder</h2>
-        <p>Hi ${name},</p>
-        <p>This is a reminder from your manager, <strong>${managerName}</strong>, regarding the pending task: <strong>${taskTitle}</strong>.</p>
-        <p><strong>Due Date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'Urgent'}</p>
-        <p>Please provide an update or complete this task as soon as possible.</p>
-        <div style="margin: 20px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/tasks" 
-             style="background: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            View Task Details
-          </a>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee;">
-        <p style="color: #666; font-size: 0.8rem;">Investrow Management System</p>
+    subject: `Reminder: Task Overdue or Pending - ${taskTitle}`,
+    html: wrapTemplate(`
+      <h2 style="color: #ef4444; margin-top: 0;">Task Reminder</h2>
+      <p>Hi ${name},</p>
+      <p>This is a follow-up reminder from <strong>${managerName}</strong> regarding your pending task: <strong>${taskTitle}</strong>.</p>
+      <div style="border-left: 4px solid #ef4444; padding-left: 15px; margin: 20px 0;">
+        <p><strong>Status:</strong> Pending Action</p>
+        <p><strong>Due Date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'Immediate'}</p>
       </div>
-    `,
+      <p>Please update the task status or complete the required actions as soon as possible.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/tasks" 
+           style="background-color: #ef4444; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Open Tasks
+        </a>
+      </div>
+    `),
   }),
 };

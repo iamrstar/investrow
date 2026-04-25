@@ -63,7 +63,12 @@ export async function GET(request) {
   }
 
   if (service) criteria.push({ service });
-  if (response) criteria.push({ response });
+  if (response) {
+    criteria.push({ response });
+  } else {
+    // Default: exclude converted leads from lead management
+    criteria.push({ response: { $ne: 'Converted' } });
+  }
   if (callStatus) criteria.push({ callStatus });
 
   // Exclude unassigned leads from general list unless explicitly requested

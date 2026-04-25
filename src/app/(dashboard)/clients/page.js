@@ -6,7 +6,7 @@ import { useToast } from '@/context/ToastContext';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical
+  MoreVertical, Users
 } from 'lucide-react';
 
 const SERVICES = [
@@ -14,35 +14,34 @@ const SERVICES = [
   'General Insurance', 'FD & Bond', 'Stock Market & Demat', 'NPS',
 ];
 
-export default function LeadsPage() {
+export default function ClientsPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [leads, setLeads] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [search, setSearch] = useState('');
   const [filterService, setFilterService] = useState('');
-  const [filterResponse, setFilterResponse] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('');
   const [filterUser, setFilterUser] = useState('');
   const [filterManager, setFilterManager] = useState('');
   const [managers, setManagers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editingLead, setEditingLead] = useState(null);
+  const [editingClient, setEditingClient] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignLead, setAssignLead] = useState(null);
+  const [assignClient, setAssignClient] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [showDetail, setShowDetail] = useState(null);
   const [detailData, setDetailData] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailLead, setEmailLead] = useState(null);
+  const [emailClient, setEmailClient] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
   const [expandedActivities, setExpandedActivities] = useState({});
   const [showFollowUp, setShowFollowUp] = useState(false);
-  const [followUpLead, setFollowUpLead] = useState(null);
+  const [followUpClient, setFollowUpClient] = useState(null);
   const [filterDate, setFilterDate] = useState('');
-  const [activeMenuLead, setActiveMenuLead] = useState(null);
-  const [assignRole, setAssignRole] = useState(''); // 'manager' or 'user'
+  const [activeMenuClient, setActiveMenuClient] = useState(null);
+  const [assignRole, setAssignRole] = useState(''); 
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -52,13 +51,16 @@ export default function LeadsPage() {
   const canAssign = user?.role === 'admin' || user?.role === 'manager';
   const canDelete = user?.role === 'admin';
 
-  const fetchLeads = useCallback(async (page = 1) => {
+  const fetchClients = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 15 });
+      const params = new URLSearchParams({ 
+        page, 
+        limit: 15,
+        response: 'Converted' // Force filter to only show Converted leads (Clients)
+      });
       if (search) params.set('search', search);
       if (filterService) params.set('service', filterService);
-      if (filterResponse) params.set('response', filterResponse);
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
       if (filterUser) params.set('assignedTo', filterUser);
       if (filterManager) params.set('managerId', filterManager);
@@ -66,22 +68,21 @@ export default function LeadsPage() {
 
       const res = await fetch(`/api/leads?${params}`);
       const data = await res.json();
-      setLeads(data.leads || []);
+      setClients(data.leads || []);
       setPagination(data.pagination || { total: 0, page: 1, pages: 1 });
     } catch (err) {
-      addToast('Failed to load leads', 'error');
+      addToast('Failed to load clients', 'error');
     } finally {
       setLoading(false);
     }
-  }, [search, filterService, filterResponse, filterCallStatus, filterUser, filterManager, filterDate, addToast]);
+  }, [search, filterService, filterCallStatus, filterUser, filterManager, filterDate, addToast]);
 
   useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
+    fetchClients();
+  }, [fetchClients]);
 
   useEffect(() => {
     if (canAssign) {
-      // Fetch only managers for assignment as per requirement
       fetch('/api/users?role=manager').then(r => r.json()).then(d => setTeamUsers(d.users || []));
     }
     if (user?.role === 'admin') {
@@ -89,19 +90,19 @@ export default function LeadsPage() {
     }
   }, [canAssign, user?.role]);
 
-  const handleSaveLead = async (formData) => {
+  const handleSaveClient = async (formData) => {
     try {
-      const isEdit = !!(editingLead || formData?._id);
-      const leadId = editingLead?._id || formData?._id;
+      const isEdit = !!(editingClient || formData?._id);
+      const clientId = editingClient?._id || formData?._id;
 
-      if (isEdit && editingLead && !confirm('Are you sure you want to update this lead?')) return;
+      if (isEdit && editingClient && !confirm('Are you sure you want to update this client?')) return;
       
-      const url = isEdit ? `/api/leads/${leadId}` : '/api/leads';
+      const url = isEdit ? `/api/leads/${clientId}` : '/api/leads';
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, response: 'Converted' }),
       });
 
       if (!res.ok) {
@@ -109,10 +110,10 @@ export default function LeadsPage() {
         throw new Error(data.error || 'Failed');
       }
 
-      addToast(editingLead ? 'Lead updated!' : 'Lead created! Awaiting assignment in Tasks.', 'success');
+      addToast(editingClient ? 'Client updated!' : 'Client created!', 'success');
       setShowModal(false);
-      setEditingLead(null);
-      fetchLeads(pagination.page);
+      setEditingClient(null);
+      fetchClients(pagination.page);
     } catch (err) {
       addToast(err.message, 'error');
     }
@@ -120,7 +121,7 @@ export default function LeadsPage() {
 
   const handleLogFollowUp = async (formData) => {
     try {
-      const res = await fetch(`/api/leads/${followUpLead._id}/followup`, {
+      const res = await fetch(`/api/leads/${followUpClient._id}/followup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -133,37 +134,37 @@ export default function LeadsPage() {
 
       addToast('Follow-up record created successfully!', 'success');
       setShowFollowUp(false);
-      setFollowUpLead(null);
-      fetchLeads(pagination.page);
+      setFollowUpClient(null);
+      fetchClients(pagination.page);
     } catch (err) {
       addToast(err.message, 'error');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this lead?')) return;
+    if (!confirm('Delete this client record?')) return;
     try {
       await fetch(`/api/leads/${id}`, { method: 'DELETE' });
-      addToast('Lead deleted', 'success');
-      fetchLeads(pagination.page);
+      addToast('Client deleted', 'success');
+      fetchClients(pagination.page);
     } catch {
       addToast('Failed to delete', 'error');
     }
   };
 
-  const handleAssign = async (leadId, userId) => {
+  const handleAssign = async (clientId, userId) => {
     try {
-      const res = await fetch(`/api/leads/${leadId}`, {
+      const res = await fetch(`/api/leads/${clientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedTo: userId }),
       });
       if (!res.ok) throw new Error('Failed');
-      addToast('Lead assigned!', 'success');
+      addToast('Client assigned!', 'success');
       setShowAssignModal(false);
-      setAssignLead(null);
+      setAssignClient(null);
       setAssignRole('');
-      fetchLeads(pagination.page);
+      fetchClients(pagination.page);
     } catch {
       addToast('Failed to assign', 'error');
     }
@@ -181,27 +182,8 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertLead = async (lead) => {
-    if (!confirm(`Do you want to confirm this lead and convert as a customer? \n\nName: ${lead.name}`)) return;
-    
-    try {
-      const res = await fetch(`/api/leads/${lead._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: 'Converted' }),
-      });
-
-      if (!res.ok) throw new Error('Failed to convert lead');
-      
-      addToast('Lead converted to Customer successfully!', 'success');
-      fetchLeads(pagination.page);
-    } catch (err) {
-      addToast(err.message, 'error');
-    }
-  };
-
   const handleSendEmail = async (templateType) => {
-    if (!emailLead?.email) {
+    if (!emailClient?.email) {
       addToast('Client does not have an email address', 'error');
       return;
     }
@@ -210,7 +192,7 @@ export default function LeadsPage() {
       const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: emailLead._id, templateType }),
+        body: JSON.stringify({ leadId: emailClient._id, templateType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send');
@@ -223,19 +205,19 @@ export default function LeadsPage() {
     }
   };
 
-  const RenderLeadActions = ({ lead }) => (
+  const RenderClientActions = ({ client }) => (
     <div className="table-actions">
       <a 
-        href={`tel:${lead.phone}`}
+        href={`tel:${client.phone}`}
         className="btn btn-ghost btn-sm" 
-        title={`Call ${lead.name}`}
+        title={`Call ${client.name}`}
         style={{ color: '#10b981', border: '1px solid #d1fae5' }}
       >
         <Phone size={16} />
       </a>
       <button 
         className="btn btn-ghost btn-sm" 
-        onClick={() => setActiveMenuLead(lead)} 
+        onClick={() => setActiveMenuClient(client)} 
         title="More Actions"
         style={{ background: 'var(--border-light)' }}
       >
@@ -248,12 +230,12 @@ export default function LeadsPage() {
     <div className="page-content">
       <div className="page-header">
         <h1 className="page-title">
-          <FileText size={28} style={{ color: 'var(--secondary)', verticalAlign: 'middle', marginRight: 8 }} />
-          Lead Management
+          <Users size={28} style={{ color: 'var(--secondary)', verticalAlign: 'middle', marginRight: 8 }} />
+          Client Management
         </h1>
         {canCreate && (
-          <button className="btn btn-primary" onClick={() => { setEditingLead(null); setShowModal(true); }}>
-            <Plus size={18} /> Add Lead
+          <button className="btn btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
+            <Plus size={18} /> Add Client
           </button>
         )}
       </div>
@@ -262,19 +244,13 @@ export default function LeadsPage() {
       <div className="filters-bar">
         <div className="search-input-wrapper">
           <Search />
-          <input className="form-input" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="form-input" placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>
           <option value="">All Services</option>
           {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="form-select" value={filterResponse} onChange={e => setFilterResponse(e.target.value)}>
-          <option value="">All Responses</option>
-          <option value="Positive">Positive</option>
-          <option value="Negative">Negative</option>
-          <option value="Pending">Pending</option>
-          <option value="Converted">Converted</option>
-        </select>
+        
         <select className="form-select" value={filterCallStatus} onChange={e => setFilterCallStatus(e.target.value)}>
           <option value="">All Call Status</option>
           <option value="Received">Received</option>
@@ -329,8 +305,8 @@ export default function LeadsPage() {
       <div className="sheet-container">
         {loading ? (
           <div className="loading-page" style={{ minHeight: 200 }}><div className="spinner"></div></div>
-        ) : leads.length === 0 ? (
-          <div className="empty-state"><FileText size={48} /><h3>No leads found</h3><p>Create your first lead to get started</p></div>
+        ) : clients.length === 0 ? (
+          <div className="empty-state"><Users size={48} /><h3>No clients found</h3><p>Convert your leads to see them here</p></div>
         ) : (
           <table className="sheet-table">
             <thead>
@@ -338,7 +314,6 @@ export default function LeadsPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Service</th>
-                <th>Response</th>
                 <th>Call Status</th>
                 <th>Assigned To</th>
                 <th>Follow-up</th>
@@ -346,31 +321,26 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {leads.map(lead => (
-                <tr key={lead._id}>
-                  <td className="lead-name">{lead.name}</td>
+              {clients.map(client => (
+                <tr key={client._id}>
+                  <td className="lead-name">{client.name}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-                      {lead.phone}
+                      {client.phone}
                     </div>
                   </td>
-                  <td><span className="badge badge-blue">{lead.service}</span></td>
+                  <td><span className="badge badge-blue">{client.service}</span></td>
                   <td>
-                    <span className={`badge badge-${lead.response === 'Positive' ? 'positive' : lead.response === 'Negative' ? 'negative' : lead.response === 'Converted' ? 'converted' : 'pending'}`}>
-                      {lead.response}
+                    <span className={`badge ${client.callStatus === 'Received' ? 'badge-green' : client.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
+                      {client.callStatus}
                     </span>
                   </td>
+                  <td>{client.assignedTo?.name || '—'}</td>
                   <td>
-                    <span className={`badge ${lead.callStatus === 'Received' ? 'badge-green' : lead.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
-                      {lead.callStatus}
-                    </span>
-                  </td>
-                  <td>{lead.assignedTo?.name || '—'}</td>
-                  <td>
-                    {lead.followUpDate ? (
+                    {client.followUpDate ? (
                       <button 
-                        onClick={() => setFilterDate(lead.followUpDate.split('T')[0])}
+                        onClick={() => setFilterDate(client.followUpDate.split('T')[0])}
                         style={{ 
                           background: 'none', 
                           border: 'none',
@@ -382,12 +352,12 @@ export default function LeadsPage() {
                           textDecoration: 'underline'
                         }}
                       >
-                        {new Date(lead.followUpDate).toLocaleDateString()}
+                        {new Date(client.followUpDate).toLocaleDateString()}
                       </button>
                     ) : '—'}
                   </td>
                   <td>
-                    <RenderLeadActions lead={lead} />
+                    <RenderClientActions client={client} />
                   </td>
                 </tr>
               ))}
@@ -396,30 +366,30 @@ export default function LeadsPage() {
         )}
       </div>
 
-      <Pagination pagination={pagination} onPageChange={fetchLeads} />
+      <Pagination pagination={pagination} onPageChange={fetchClients} />
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <LeadFormModal
-          lead={editingLead}
+        <ClientFormModal
+          client={editingClient}
           users={teamUsers}
           canAssign={canAssign}
-          onClose={() => { setShowModal(false); setEditingLead(null); }}
-          onSave={handleSaveLead}
+          onClose={() => { setShowModal(false); setEditingClient(null); }}
+          onSave={handleSaveClient}
         />
       )}
 
       {/* Assign Modal */}
-      {showAssignModal && assignLead && (
+      {showAssignModal && assignClient && (
         <div className="modal-backdrop" onClick={() => { setShowAssignModal(false); setAssignRole(''); }}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="modal-header">
-              <h3 className="modal-title">Assign Lead</h3>
+              <h3 className="modal-title">Assign Client</h3>
               <button className="modal-close" onClick={() => { setShowAssignModal(false); setAssignRole(''); }}><X size={18} /></button>
             </div>
             <div className="modal-body">
               <p style={{ marginBottom: 20, color: 'var(--text-secondary)' }}>
-                Assign <strong>{assignLead.name}</strong> to:
+                Assign <strong>{assignClient.name}</strong> to:
               </p>
               
               {!assignRole ? (
@@ -441,7 +411,7 @@ export default function LeadsPage() {
                   <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <AssignmentList 
                       role={assignRole} 
-                      onSelect={(userId) => handleAssign(assignLead._id, userId)} 
+                      onSelect={(userId) => handleAssign(assignClient._id, userId)} 
                       currentUser={user}
                     />
                   </div>
@@ -453,7 +423,7 @@ export default function LeadsPage() {
       )}
 
       {/* Email Modal */}
-      {showEmailModal && emailLead && (
+      {showEmailModal && emailClient && (
         <div className="modal-backdrop" onClick={() => setShowEmailModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="modal-header">
@@ -461,7 +431,7 @@ export default function LeadsPage() {
               <button className="modal-close" onClick={() => setShowEmailModal(false)}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailLead.name}</strong>:</p>
+              <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailClient.name}</strong>:</p>
               
               <div style={{ display: 'grid', gap: 12 }}>
                 <button 
@@ -475,7 +445,7 @@ export default function LeadsPage() {
                       <Send size={16} /> SIP Investment Reminder
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Encourage client to start their monthly investment for {emailLead.service}.
+                      Encourage client to start their monthly investment for {emailClient.service}.
                     </div>
                   </div>
                 </button>
@@ -497,9 +467,9 @@ export default function LeadsPage() {
                 </button>
               </div>
 
-              {!emailLead.email && (
+              {!emailClient.email && (
                 <div style={{ marginTop: 16, padding: '10px', background: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <X size={16} /> This lead is missing an email address.
+                  <X size={16} /> This client is missing an email address.
                 </div>
               )}
             </div>
@@ -511,10 +481,10 @@ export default function LeadsPage() {
       )}
 
       {/* Follow-up Modal */}
-      {showFollowUp && followUpLead && (
+      {showFollowUp && followUpClient && (
         <LogFollowUpModal
-          lead={followUpLead}
-          onClose={() => { setShowFollowUp(false); setFollowUpLead(null); }}
+          client={followUpClient}
+          onClose={() => { setShowFollowUp(false); setFollowUpClient(null); }}
           onSave={handleLogFollowUp}
         />
       )}
@@ -523,21 +493,20 @@ export default function LeadsPage() {
       {emailSending && <LogoLoader message="Pushing Email Notification..." />}
 
       {/* Action Menu (Bottom Sheet) */}
-      {activeMenuLead && (
+      {activeMenuClient && (
         <ActionMenu 
-          lead={activeMenuLead}
-          onClose={() => setActiveMenuLead(null)}
+          client={activeMenuClient}
+          onClose={() => setActiveMenuClient(null)}
           onAction={(action) => {
-            setActiveMenuLead(null);
+            setActiveMenuClient(null);
             switch(action) {
-              case 'view': viewDetail(activeMenuLead._id); break;
-              case 'followup': setFollowUpLead(activeMenuLead); setShowFollowUp(true); break;
-              case 'history': viewDetail(activeMenuLead._id); break;
-              case 'email': setEmailLead(activeMenuLead); setShowEmailModal(true); break;
-              case 'edit': setEditingLead(activeMenuLead); setShowModal(true); break;
-              case 'assign': setAssignLead(activeMenuLead); setShowAssignModal(true); break;
-              case 'convert': handleConvertLead(activeMenuLead); break;
-              case 'delete': handleDelete(activeMenuLead._id); break;
+              case 'view': viewDetail(activeMenuClient._id); break;
+              case 'followup': setFollowUpClient(activeMenuClient); setShowFollowUp(true); break;
+              case 'history': viewDetail(activeMenuClient._id); break;
+              case 'email': setEmailClient(activeMenuClient); setShowEmailModal(true); break;
+              case 'edit': setEditingClient(activeMenuClient); setShowModal(true); break;
+              case 'assign': setAssignClient(activeMenuClient); setShowAssignModal(true); break;
+              case 'delete': handleDelete(activeMenuClient._id); break;
             }
           }}
           canAssign={canAssign}
@@ -550,7 +519,7 @@ export default function LeadsPage() {
         <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, borderRadius: 24, overflow: 'hidden' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Lead Details</h3>
+              <h3 className="modal-title">Client Details</h3>
               <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
             </div>
             <div className="modal-body">
@@ -559,7 +528,7 @@ export default function LeadsPage() {
                 <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
                 <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value"><span className="badge badge-blue">{detailData.lead?.service}</span></div></div>
-                <div className="detail-item"><div className="detail-label">Response</div><div className="detail-value"><span className={`badge badge-${detailData.lead?.response?.toLowerCase() === 'positive' ? 'positive' : detailData.lead?.response?.toLowerCase() === 'negative' ? 'negative' : detailData.lead?.response?.toLowerCase() === 'converted' ? 'converted' : 'pending'}`}>{detailData.lead?.response}</span></div></div>
+                <div className="detail-item"><div className="detail-label">Status</div><div className="detail-value"><span className="badge badge-converted">Converted Client</span></div></div>
                 <div className="detail-item"><div className="detail-label">Call Status</div><div className="detail-value">{detailData.lead?.callStatus}</div></div>
                 <div className="detail-item"><div className="detail-label">Interested</div><div className="detail-value">{detailData.lead?.interestedInService}</div></div>
                 <div className="detail-item"><div className="detail-label">Service Taken</div><div className="detail-value">{detailData.lead?.serviceTaken}</div></div>
@@ -567,14 +536,14 @@ export default function LeadsPage() {
                 <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
-                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Lead Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
+                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
               </div>
 
               {(detailData.followups?.length > 0 || detailData.activities?.length > 0) && (
                 <div style={{ marginTop: 24 }}>
                   <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Activity size={16} /> Structured Interaction History
+                    <Activity size={16} /> Interaction History
                   </h4>
                   <div className="timeline">
                     {/* Follow-up Records */}
@@ -632,7 +601,7 @@ export default function LeadsPage() {
                                  </div>
                                  <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, borderLeft: '4px solid var(--secondary)' }}>
                                    <div style={{ fontSize: '0.7rem', color: 'var(--secondary-dark)', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Call Remarks:</div>
-                                   <div style={{ lineHeight: 1.5, color: '#1e293b' }}>{fu.remarks || 'No remarks recorded for this call.'}</div>
+                                   <div style={{ lineHeight: 1.5, color: '#1e293b' }}>{fu.remarks || 'No remarks recorded.'}</div>
                                  </div>
                                </div>
                              )}
@@ -690,23 +659,23 @@ export default function LeadsPage() {
   );
 }
 
-function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
+function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
   const { user } = useAuth();
-  const [assignRole, setAssignRole] = useState(lead?.assignedTo?.role || '');
+  const [assignRole, setAssignRole] = useState(client?.assignedTo?.role || '');
   const [form, setForm] = useState({
-    name: lead?.name || '',
-    email: lead?.email || '',
-    phone: lead?.phone || '',
-    service: lead?.service || '',
-    leadReference: lead?.leadReference || '',
-    assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
-    response: lead?.response || 'Pending',
-    interestedInService: lead?.interestedInService || 'Pending',
-    serviceTaken: lead?.serviceTaken || 'Pending',
-    nextCallDate: lead?.nextCallDate ? lead.nextCallDate.split('T')[0] : '',
-    followUpDate: lead?.followUpDate ? lead.followUpDate.split('T')[0] : '',
-    remarks: lead?.remarks || '',
-    callStatus: lead?.callStatus || 'Pending',
+    name: client?.name || '',
+    email: client?.email || '',
+    phone: client?.phone || '',
+    service: client?.service || '',
+    leadReference: client?.leadReference || '',
+    assignedTo: client?.assignedTo?._id || client?.assignedTo || '',
+    response: 'Converted',
+    interestedInService: client?.interestedInService || 'Yes',
+    serviceTaken: client?.serviceTaken || 'Yes',
+    nextCallDate: client?.nextCallDate ? client.nextCallDate.split('T')[0] : '',
+    followUpDate: client?.followUpDate ? client.followUpDate.split('T')[0] : '',
+    remarks: client?.remarks || '',
+    callStatus: client?.callStatus || 'Received',
   });
   const [saving, setSaving] = useState(false);
 
@@ -721,7 +690,7 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
         <div className="modal-header">
-          <h3 className="modal-title">{lead ? 'Edit Lead' : 'Add New Lead'}</h3>
+          <h3 className="modal-title">{client ? 'Edit Client' : 'Add New Client'}</h3>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -750,18 +719,10 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Lead Reference</label>
-              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" />
+              <label className="form-label">Reference</label>
+              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} />
             </div>
             <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Response</label>
-                <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Positive">Positive</option>
-                  <option value="Negative">Negative</option>
-                </select>
-              </div>
               <div className="form-group">
                 <label className="form-label">Call Status</label>
                 <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
@@ -770,22 +731,12 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
                   <option value="Not Received">Not Received</option>
                 </select>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Interested in Service</label>
-                <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
               <div className="form-group">
                 <label className="form-label">Service Taken</label>
                 <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                  <option value="Pending">Pending</option>
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
+                  <option value="Pending">Pending</option>
                 </select>
               </div>
             </div>
@@ -831,7 +782,7 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : lead ? 'Update Lead' : 'Create Lead'}
+              {saving ? 'Saving...' : client ? 'Update Client' : 'Create Client'}
             </button>
           </div>
         </form>
@@ -840,14 +791,14 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
   );
 }
 
-function LogFollowUpModal({ lead, onClose, onSave }) {
+function LogFollowUpModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
-    response: lead.response || 'Pending',
-    callStatus: lead.callStatus || 'Pending',
-    interestedInService: lead.interestedInService || 'Pending',
-    serviceTaken: lead.serviceTaken || 'Pending',
-    nextCallDate: lead.nextCallDate ? lead.nextCallDate.split('T')[0] : '',
-    followUpDate: lead.followUpDate ? lead.followUpDate.split('T')[0] : '',
+    response: 'Converted',
+    callStatus: client.callStatus || 'Pending',
+    interestedInService: client.interestedInService || 'Yes',
+    serviceTaken: client.serviceTaken || 'Yes',
+    nextCallDate: client.nextCallDate ? client.nextCallDate.split('T')[0] : '',
+    followUpDate: client.followUpDate ? client.followUpDate.split('T')[0] : '',
     remarks: '',
   });
   const [saving, setSaving] = useState(false);
@@ -855,8 +806,7 @@ function LogFollowUpModal({ lead, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    // Include the original lead data to ensure constraints are met
-    await onSave({ ...lead, ...form });
+    await onSave({ ...client, ...form });
     setSaving(false);
   };
 
@@ -869,15 +819,9 @@ function LogFollowUpModal({ lead, onClose, onSave }) {
           color: 'white',
           position: 'relative'
         }}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Record Call Result</h3>
-          <p style={{ margin: '4px 0 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Updating timeline for <strong>{lead.name}</strong></p>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', 
-              border: 'none', color: 'white', padding: 4, borderRadius: 8, cursor: 'pointer' 
-            }}
-          >
+          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Record Interaction</h3>
+          <p style={{ margin: '4px 0 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Updating timeline for <strong>{client.name}</strong></p>
+          <button onClick={onClose} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: 4, borderRadius: 8, cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </div>
@@ -887,37 +831,17 @@ function LogFollowUpModal({ lead, onClose, onSave }) {
               <div className="form-group">
                 <label className="form-label">Call Status</label>
                 <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                  <option value="Pending">Pending</option>
                   <option value="Received">Received</option>
                   <option value="Not Received">Not Received</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Response</label>
-                <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
                   <option value="Pending">Pending</option>
-                  <option value="Positive">Positive</option>
-                  <option value="Negative">Negative</option>
-                  <option value="Converted">Converted</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Interested?</label>
-                <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Service Taken?</label>
                 <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                  <option value="Pending">Pending</option>
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
+                  <option value="Pending">Pending</option>
                 </select>
               </div>
             </div>
@@ -934,21 +858,13 @@ function LogFollowUpModal({ lead, onClose, onSave }) {
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Call Remarks</label>
-              <textarea 
-                className="form-textarea" 
-                value={form.remarks} 
-                onChange={e => setForm({ ...form, remarks: e.target.value })} 
-                placeholder="What was discussed in this call?"
-                style={{ minHeight: 120 }}
-              />
+              <label className="form-label">Interaction Remarks</label>
+              <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="What was discussed?" style={{ minHeight: 120 }} />
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : 'Save Follow-up'}
-            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>Save Interaction</button>
           </div>
         </form>
       </div>
@@ -956,13 +872,13 @@ function LogFollowUpModal({ lead, onClose, onSave }) {
   );
 }
 
-function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
+function ActionMenu({ client, onClose, onAction, canAssign, canDelete }) {
   return (
     <div className="bottom-sheet-backdrop" onClick={onClose}>
       <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
         <div className="bottom-sheet-header">
-          <div className="bottom-sheet-title">{lead.name}</div>
-          <div className="bottom-sheet-subtitle">{lead.phone} • {lead.service}</div>
+          <div className="bottom-sheet-title">{client.name}</div>
+          <div className="bottom-sheet-subtitle">{client.phone} • {client.service}</div>
         </div>
         
         <div className="bottom-sheet-grid">
@@ -973,25 +889,22 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
             <Phone size={20} /> Follow-up
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('history')}>
-            <Activity size={20} /> Activity Log
+            <Activity size={20} /> History
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('email')}>
             <Mail size={20} /> Send Email
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('edit')}>
-            <Edit size={20} /> Edit Lead
+            <Edit size={20} /> Edit Client
           </button>
           {canAssign && (
             <button className="bottom-sheet-item" onClick={() => onAction('assign')}>
-              <UserPlus size={20} /> Assign Lead
+              <UserPlus size={20} /> Assign
             </button>
           )}
-          <button className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)' }} onClick={() => onAction('convert')}>
-            <UserPlus size={20} /> Convert to Customer
-          </button>
           {canDelete && (
             <button className="bottom-sheet-item danger" onClick={() => onAction('delete')}>
-              <Trash2 size={20} /> Delete Lead
+              <Trash2 size={20} /> Delete Client
             </button>
           )}
         </div>
@@ -1022,8 +935,7 @@ function AssignmentList({ role, onSelect, currentUser }) {
   if (users.length === 0) return <p className="empty-state">No {role}s available</p>;
 
   return users.map(u => (
-    <button key={u._id} className="btn btn-outline btn-block" style={{ justifyContent: 'flex-start' }}
-      onClick={() => onSelect(u._id)}>
+    <button key={u._id} className="btn btn-outline btn-block" style={{ justifyContent: 'flex-start' }} onClick={() => onSelect(u._id)}>
       <UserPlus size={16} /> {u.name} ({u.email})
     </button>
   ));
@@ -1046,27 +958,15 @@ function Pagination({ pagination, onPageChange }) {
   
   return (
     <div className="pagination">
-      <button 
-        className="pagination-btn" 
-        disabled={pagination.page <= 1} 
-        onClick={() => onPageChange(pagination.page - 1)}
-      >
+      <button className="pagination-btn" disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
         <ChevronLeft size={16} />
       </button>
       {Array.from({ length: pagination.pages }, (_, i) => (
-        <button 
-          key={i + 1} 
-          className={`pagination-btn ${pagination.page === i + 1 ? 'active' : ''}`} 
-          onClick={() => onPageChange(i + 1)}
-        >
+        <button key={i + 1} className={`pagination-btn ${pagination.page === i + 1 ? 'active' : ''}`} onClick={() => onPageChange(i + 1)}>
           {i + 1}
         </button>
       ))}
-      <button 
-        className="pagination-btn" 
-        disabled={pagination.page >= pagination.pages} 
-        onClick={() => onPageChange(pagination.page + 1)}
-      >
+      <button className="pagination-btn" disabled={pagination.page >= pagination.pages} onClick={() => onPageChange(pagination.page + 1)}>
         <ChevronRight size={16} />
       </button>
     </div>
