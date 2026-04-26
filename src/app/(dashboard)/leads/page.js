@@ -43,6 +43,8 @@ export default function LeadsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [activeMenuLead, setActiveMenuLead] = useState(null);
   const [assignRole, setAssignRole] = useState(''); // 'manager' or 'user'
+  const [showCustomEmail, setShowCustomEmail] = useState(false);
+  const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -205,17 +207,31 @@ export default function LeadsPage() {
       addToast('Client does not have an email address', 'error');
       return;
     }
+
+    if (templateType === 'custom' && (!customEmailData.subject || !customEmailData.content)) {
+      addToast('Please fill in both subject and message', 'error');
+      return;
+    }
+
     setEmailSending(true);
     try {
+      const payload = { leadId: emailLead._id, templateType };
+      if (templateType === 'custom') {
+        payload.subject = customEmailData.subject;
+        payload.content = customEmailData.content;
+      }
+
       const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: emailLead._id, templateType }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send');
       addToast('Email sent successfully!', 'success');
       setShowEmailModal(false);
+      setShowCustomEmail(false);
+      setCustomEmailData({ subject: '', content: '' });
     } catch (err) {
       addToast(err.message, 'error');
     } finally {
@@ -454,48 +470,138 @@ export default function LeadsPage() {
 
       {/* Email Modal */}
       {showEmailModal && emailLead && (
-        <div className="modal-backdrop" onClick={() => setShowEmailModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowEmailModal(false); setShowCustomEmail(false); }}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="modal-header">
               <h3 className="modal-title">Push Email Notification</h3>
-              <button className="modal-close" onClick={() => setShowEmailModal(false)}><X size={18} /></button>
+              <button className="modal-close" onClick={() => { setShowEmailModal(false); setShowCustomEmail(false); }}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailLead.name}</strong>:</p>
-              
-              <div style={{ display: 'grid', gap: 12 }}>
-                <button 
-                  className="btn btn-outline" 
-                  style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
-                  onClick={() => handleSendEmail('sipReminder')}
-                  disabled={emailSending}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
-                      <Send size={16} /> SIP Investment Reminder
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Encourage client to start their monthly investment for {emailLead.service}.
-                    </div>
-                  </div>
-                </button>
+              {!showCustomEmail ? (
+                <>
+                  <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailLead.name}</strong>:</p>
+                  
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    {emailLead.response === 'Converted' ? (
+                      <>
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                          onClick={() => handleSendEmail('sipReminder')}
+                          disabled={emailSending}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                              <Send size={16} /> SIP Investment Reminder
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              Encourage client to start their monthly investment for {emailLead.service}.
+                            </div>
+                          </div>
+                        </button>
 
-                <button 
-                  className="btn btn-outline" 
-                   style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
-                  onClick={() => handleSendEmail('followUp')}
-                  disabled={emailSending}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary)' }}>
-                      <Send size={16} /> General Follow-up
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      A professional check-in to see if they are ready to proceed.
-                    </div>
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                          onClick={() => handleSendEmail('followUp')}
+                          disabled={emailSending}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary)' }}>
+                              <Send size={16} /> General Follow-up
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              A professional check-in to see if they are ready to proceed.
+                            </div>
+                          </div>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                          onClick={() => handleSendEmail('promotional')}
+                          disabled={emailSending}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                              <Send size={16} /> Promotional Message
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              Send a promotional offer or service highlight to this lead.
+                            </div>
+                          </div>
+                        </button>
+
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                          onClick={() => handleSendEmail('strategyMarketing')}
+                          disabled={emailSending}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary)' }}>
+                              <Send size={16} /> Strategy Marketing Mail
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              A strategic marketing email to engage the lead.
+                            </div>
+                          </div>
+                        </button>
+                      </>
+                    )}
+
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--secondary)', background: 'var(--secondary-50)' }}
+                      onClick={() => setShowCustomEmail(true)}
+                      disabled={emailSending}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary-dark)' }}>
+                          <Edit size={16} /> Custom Email Message
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                          Type your own subject and message for this {emailLead.response === 'Converted' ? 'client' : 'lead'}.
+                        </div>
+                      </div>
+                    </button>
                   </div>
-                </button>
-              </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomEmail(false)} style={{ padding: 0, alignSelf: 'flex-start' }}>
+                    ← Back to templates
+                  </button>
+                  <div className="form-group">
+                    <label className="form-label">Subject</label>
+                    <input 
+                      className="form-input" 
+                      value={customEmailData.subject} 
+                      onChange={e => setCustomEmailData({ ...customEmailData, subject: e.target.value })}
+                      placeholder="Email subject..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Message Content</label>
+                    <textarea 
+                      className="form-textarea" 
+                      value={customEmailData.content} 
+                      onChange={e => setCustomEmailData({ ...customEmailData, content: e.target.value })}
+                      placeholder="Type your message here..."
+                      style={{ minHeight: 200 }}
+                    />
+                  </div>
+                  <button 
+                    className="btn btn-primary btn-block" 
+                    onClick={() => handleSendEmail('custom')}
+                    disabled={emailSending}
+                  >
+                    <Send size={18} /> Send Custom Email
+                  </button>
+                </div>
+              )}
 
               {!emailLead.email && (
                 <div style={{ marginTop: 16, padding: '10px', background: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -567,6 +673,7 @@ export default function LeadsPage() {
                 <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
+                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Lead Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
               </div>
@@ -707,6 +814,7 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
     followUpDate: lead?.followUpDate ? lead.followUpDate.split('T')[0] : '',
     remarks: lead?.remarks || '',
     callStatus: lead?.callStatus || 'Pending',
+    location: lead?.location || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -750,55 +858,65 @@ function LeadFormModal({ lead, users, canAssign, onClose, onSave }) {
               </div>
             </div>
             <div className="form-group">
+              <label className="form-label">Location</label>
+              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Lead location" />
+            </div>
+            <div className="form-group">
               <label className="form-label">Lead Reference</label>
               <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" />
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Response</label>
-                <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Positive">Positive</option>
-                  <option value="Negative">Negative</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Call Status</label>
-                <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Received">Received</option>
-                  <option value="Not Received">Not Received</option>
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Interested in Service</label>
-                <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Service Taken</label>
-                <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Next Call Date</label>
-                <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Follow-up Date</label>
-                <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-              </div>
-            </div>
+
+            {lead && (
+              <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Response</label>
+                    <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
+                      <option value="Pending">Pending</option>
+                      <option value="Positive">Positive</option>
+                      <option value="Negative">Negative</option>
+                      <option value="Converted">Converted</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Call Status</label>
+                    <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
+                      <option value="Pending">Pending</option>
+                      <option value="Received">Received</option>
+                      <option value="Not Received">Not Received</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Interested in Service</label>
+                    <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
+                      <option value="Pending">Pending</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Service Taken</label>
+                    <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
+                      <option value="Pending">Pending</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Next Call Date</label>
+                    <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Follow-up Date</label>
+                    <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
+                  </div>
+                </div>
+              </>
+            )}
             {canAssign && user?.role !== 'user' && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
                 <label className="form-label" style={{ marginBottom: 12 }}>Assign To</label>
@@ -969,9 +1087,11 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
           </button>
-          <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
-            <Phone size={20} /> Follow-up
-          </button>
+          {lead.response === 'Converted' && (
+            <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
+              <Phone size={20} /> Record Follow-up
+            </button>
+          )}
           <button className="bottom-sheet-item" onClick={() => onAction('history')}>
             <Activity size={20} /> Activity Log
           </button>

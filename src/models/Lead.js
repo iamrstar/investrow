@@ -79,6 +79,11 @@ const LeadSchema = new mongoose.Schema({
     enum: ['Received', 'Not Received', 'Pending'],
     default: 'Pending',
   },
+  location: {
+    type: String,
+    default: '',
+    trim: true,
+  },
 }, {
   timestamps: true,
 });

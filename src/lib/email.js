@@ -126,4 +126,38 @@ export const templates = {
       </div>
     `),
   }),
+  
+  promotional: (name) => ({
+    subject: `Exclusive Financial Insights from Investrow`,
+    html: wrapTemplate(`
+      <h2 style="color: #0ea5e9; margin-top: 0;">Hello ${name},</h2>
+      <p>Unlock the potential of your wealth with Investrow's premium financial services.</p>
+      <p>We offer tailored investment strategies designed to help you achieve your financial goals with confidence. Whether it's Mutual Funds, Insurance, or Tax Planning, we have the expertise to guide you.</p>
+      <div style="margin: 25px 0; background: #f0f9ff; padding: 20px; border-radius: 10px; border-left: 5px solid #0ea5e9;">
+        <strong style="color: #0369a1;">Why Choose Us?</strong> Our data-driven approach and personalized attention ensure your portfolio stays robust in any market condition.
+      </div>
+      <p>Ready to take the next step? Reply to this email or visit our website to learn more.</p>
+      <p>Best Regards,<br><strong>Team Investrow</strong></p>
+    `),
+  }),
+
+  strategyMarketing: (name) => ({
+    subject: `Strategic Wealth Management Strategy for ${name}`,
+    html: wrapTemplate(`
+      <h2 style="color: #8b5cf6; margin-top: 0;">Strategic Financial Planning</h2>
+      <p>Dear ${name},</p>
+      <p>At Investrow, we believe that a well-defined strategy is the foundation of financial success.</p>
+      <p>We've developed a comprehensive marketing and investment strategy that aligns with current market trends and your unique financial profile. Let's discuss how we can optimize your returns while managing risks effectively.</p>
+      <div style="margin: 25px 0; background: #f5f3ff; padding: 20px; border-radius: 10px; border-left: 5px solid #8b5cf6;">
+        <strong style="color: #6d28d9;">Strategy Focus:</strong> Diversification, Disciplined Investing, and Long-term Value Creation.
+      </div>
+      <p>We are available for a brief consultation at your convenience.</p>
+      <p>Warm Regards,<br><strong>Team Investrow</strong></p>
+    `),
+  }),
+
+  custom: (subject, content) => ({
+    subject: subject || 'Message from Investrow',
+    html: wrapTemplate(content || ''),
+  }),
 };

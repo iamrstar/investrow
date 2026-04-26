@@ -42,6 +42,8 @@ export default function ClientsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [activeMenuClient, setActiveMenuClient] = useState(null);
   const [assignRole, setAssignRole] = useState(''); 
+  const [showCustomEmail, setShowCustomEmail] = useState(false);
+  const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -187,17 +189,31 @@ export default function ClientsPage() {
       addToast('Client does not have an email address', 'error');
       return;
     }
+
+    if (templateType === 'custom' && (!customEmailData.subject || !customEmailData.content)) {
+      addToast('Please fill in both subject and message', 'error');
+      return;
+    }
+
     setEmailSending(true);
     try {
+      const payload = { leadId: emailClient._id, templateType };
+      if (templateType === 'custom') {
+        payload.subject = customEmailData.subject;
+        payload.content = customEmailData.content;
+      }
+
       const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: emailClient._id, templateType }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send');
       addToast('Email sent successfully!', 'success');
       setShowEmailModal(false);
+      setShowCustomEmail(false);
+      setCustomEmailData({ subject: '', content: '' });
     } catch (err) {
       addToast(err.message, 'error');
     } finally {
@@ -428,44 +444,96 @@ export default function ClientsPage() {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="modal-header">
               <h3 className="modal-title">Push Email Notification</h3>
-              <button className="modal-close" onClick={() => setShowEmailModal(false)}><X size={18} /></button>
+              <button className="modal-close" onClick={() => { setShowEmailModal(false); setShowCustomEmail(false); }}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailClient.name}</strong>:</p>
-              
-              <div style={{ display: 'grid', gap: 12 }}>
-                <button 
-                  className="btn btn-outline" 
-                  style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
-                  onClick={() => handleSendEmail('sipReminder')}
-                  disabled={emailSending}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
-                      <Send size={16} /> SIP Investment Reminder
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Encourage client to start their monthly investment for {emailClient.service}.
-                    </div>
-                  </div>
-                </button>
+              {!showCustomEmail ? (
+                <>
+                  <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailClient.name}</strong>:</p>
+                  
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                      onClick={() => handleSendEmail('sipReminder')}
+                      disabled={emailSending}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                          <Send size={16} /> SIP Investment Reminder
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                          Encourage client to start their monthly investment for {emailClient.service}.
+                        </div>
+                      </div>
+                    </button>
 
-                <button 
-                  className="btn btn-outline" 
-                   style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
-                  onClick={() => handleSendEmail('followUp')}
-                  disabled={emailSending}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary)' }}>
-                      <Send size={16} /> General Follow-up
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      A professional check-in to see if they are ready to proceed.
-                    </div>
+                    <button 
+                      className="btn btn-outline" 
+                       style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--border)' }}
+                      onClick={() => handleSendEmail('followUp')}
+                      disabled={emailSending}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary)' }}>
+                          <Send size={16} /> General Follow-up
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                          A professional check-in to see if they are ready to proceed.
+                        </div>
+                      </div>
+                    </button>
+
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ justifyContent: 'flex-start', padding: '16px', textAlign: 'left', height: 'auto', border: '1.5px solid var(--secondary)', background: 'var(--secondary-50)' }}
+                      onClick={() => setShowCustomEmail(true)}
+                      disabled={emailSending}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--secondary-dark)' }}>
+                          <Edit size={16} /> Custom Email Message
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                          Type your own subject and message for this client.
+                        </div>
+                      </div>
+                    </button>
                   </div>
-                </button>
-              </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomEmail(false)} style={{ padding: 0, alignSelf: 'flex-start' }}>
+                    ← Back to templates
+                  </button>
+                  <div className="form-group">
+                    <label className="form-label">Subject</label>
+                    <input 
+                      className="form-input" 
+                      value={customEmailData.subject} 
+                      onChange={e => setCustomEmailData({ ...customEmailData, subject: e.target.value })}
+                      placeholder="Email subject..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Message Content</label>
+                    <textarea 
+                      className="form-textarea" 
+                      value={customEmailData.content} 
+                      onChange={e => setCustomEmailData({ ...customEmailData, content: e.target.value })}
+                      placeholder="Type your message here..."
+                      style={{ minHeight: 200 }}
+                    />
+                  </div>
+                  <button 
+                    className="btn btn-primary btn-block" 
+                    onClick={() => handleSendEmail('custom')}
+                    disabled={emailSending}
+                  >
+                    <Send size={18} /> Send Custom Email
+                  </button>
+                </div>
+              )}
 
               {!emailClient.email && (
                 <div style={{ marginTop: 16, padding: '10px', background: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -474,7 +542,7 @@ export default function ClientsPage() {
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowEmailModal(false)}>Close</button>
+              <button className="btn btn-outline" onClick={() => { setShowEmailModal(false); setShowCustomEmail(false); }}>Close</button>
             </div>
           </div>
         </div>
@@ -536,6 +604,7 @@ export default function ClientsPage() {
                 <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
+                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
               </div>
@@ -676,6 +745,7 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
     followUpDate: client?.followUpDate ? client.followUpDate.split('T')[0] : '',
     remarks: client?.remarks || '',
     callStatus: client?.callStatus || 'Received',
+    location: client?.location || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -719,8 +789,12 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
               </div>
             </div>
             <div className="form-group">
+              <label className="form-label">Location</label>
+              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Client location" />
+            </div>
+            <div className="form-group">
               <label className="form-label">Reference</label>
-              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} />
+              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" />
             </div>
             <div className="form-row">
               <div className="form-group">

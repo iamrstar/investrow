@@ -8,7 +8,8 @@ export async function POST(request) {
   if (!authUser) return unauthorized();
 
   try {
-    const { leadId, taskId, templateType } = await request.json();
+    const body = await request.json();
+    const { leadId, taskId, templateType, subject, content } = body;
     if (!templateType) {
       return Response.json({ error: 'Template Type is required' }, { status: 400 });
     }
@@ -38,6 +39,12 @@ export async function POST(request) {
           subject: `Follow-up from Investrow: ${lead.service}`,
           html: `<div style="font-family: sans-serif; padding: 20px;"><h2>Hi ${lead.name},</h2><p>Following up on our conversation regarding <strong>${lead.service}</strong>.</p><p>Regards,<br>Team Investrow</p></div>`
         };
+      } else if (templateType === 'promotional') {
+        emailData = templates.promotional(lead.name);
+      } else if (templateType === 'strategyMarketing') {
+        emailData = templates.strategyMarketing(lead.name);
+      } else if (templateType === 'custom') {
+        emailData = templates.custom(subject, content);
       }
     } else {
       return Response.json({ error: 'Lead ID or Task ID required' }, { status: 400 });
