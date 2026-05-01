@@ -712,7 +712,6 @@ export default function ClientsPage() {
 
 function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
   const { user } = useAuth();
-  const [assignRole, setAssignRole] = useState(client?.assignedTo?.role || '');
   const [form, setForm] = useState({
     name: client?.name || '',
     email: client?.email || '',
@@ -881,25 +880,15 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
               )}
             </div>
 
-            {canAssign && user?.role !== 'user' && (
+            {canAssign && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
-                <label className="form-label" style={{ marginBottom: 12 }}>Assign To</label>
-                {!assignRole ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setAssignRole('user')}>Users / Staff Members</button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary)' }}>Team Members</span>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAssignRole(''); setForm({ ...form, assignedTo: '' }); }} style={{ padding: 0 }}>Change</button>
-                    </div>
-                    <select className="form-select" value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}>
-                      <option value="">Unassigned</option>
-                      <AssignmentOptions role={assignRole} currentUser={user} />
-                    </select>
-                  </div>
-                )}
+                <label className="form-label" style={{ marginBottom: 12 }}>Assign To (Optional)</label>
+                <select className="form-select" value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}>
+                  <option value="">Assign to Me (Admin)</option>
+                  {users.filter(u => u.role === 'user').map(u => (
+                    <option key={u._id} value={u._id}>{u.name} (Call Executive)</option>
+                  ))}
+                </select>
               </div>
             )}
             <div className="form-group">

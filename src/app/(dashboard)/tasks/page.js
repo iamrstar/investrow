@@ -14,15 +14,11 @@ export default function TasksPage() {
   
   // States
   const [tasks, setTasks] = useState([]);
-  const [unassignedLeads, setUnassignedLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'unassigned'
   
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [leadToAssign, setLeadToAssign] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTask, setEmailTask] = useState(null);
   
@@ -31,7 +27,6 @@ export default function TasksPage() {
   const [filterPriority, setFilterPriority] = useState('');
   const [teamUsers, setTeamUsers] = useState([]);
   const [emailSending, setEmailSending] = useState(false);
-  const [assignRole, setAssignRole] = useState(''); // 'user'
 
   // Fetchers
   const fetchTasks = useCallback(async () => {
@@ -47,30 +42,9 @@ export default function TasksPage() {
     finally { setLoading(false); }
   }, [filterStatus, filterPriority, addToast]);
 
-  const fetchUnassignedLeads = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch('/api/leads?assignedTo=unassigned');
-      const data = await res.json();
-      setUnassignedLeads(data.leads || []);
-    } catch { if (!silent) addToast('Failed to load new loads', 'error'); }
-    finally { if (!silent) setLoading(false); }
-  }, [addToast]);
-
   useEffect(() => { 
-    if (activeTab === 'tasks') {
-      fetchTasks();
-    } else {
-      fetchUnassignedLeads();
-    }
-  }, [activeTab, fetchTasks, fetchUnassignedLeads]);
-
-  useEffect(() => {
-    // Initial fetch for unassigned count if we're on the tasks tab
-    if (activeTab === 'tasks') {
-      fetchUnassignedLeads(true);
-    }
-  }, []); // Only once on mount
+    fetchTasks();
+  }, [fetchTasks]);
 
   useEffect(() => {
     if (user && user.role === 'admin') {
@@ -120,24 +94,6 @@ export default function TasksPage() {
     fetchTasks();
   };
 
-  const handleAssignLead = async (leadId, userId) => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedTo: userId }),
-      });
-      if (!res.ok) throw new Error('Failed');
-      addToast('Lead assigned successfully!', 'success');
-      setShowAssignModal(false);
-      setLeadToAssign(null);
-      setAssignRole('');
-      fetchUnassignedLeads();
-    } catch {
-      addToast('Failed to assign lead', 'error');
-    }
-  };
-
   const handleSendReminder = async (task) => {
     if (!task?.assignedTo?.email) {
       addToast('Assigned user does not have an email address', 'error');
@@ -180,151 +136,76 @@ export default function TasksPage() {
         </button>
       </div>
 
-      <div className="tabs" style={{ display: 'flex', gap: 24, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        <button 
-          onClick={() => setActiveTab('tasks')}
-          style={{ 
-            padding: '12px 4px', 
-            fontSize: '0.9rem', 
-            fontWeight: 600, 
-            color: activeTab === 'tasks' ? 'var(--secondary)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'tasks' ? '2px solid var(--secondary)' : '2px solid transparent',
-            background: 'none', border: 'none', cursor: 'pointer', transition: 'var(--transition)'
-          }}
-        >
-          My Tasks
-        </button>
-        <button 
-          onClick={() => setActiveTab('unassigned')}
-          style={{ 
-            padding: '12px 4px', 
-            fontSize: '0.9rem', 
-            fontWeight: 600, 
-            color: activeTab === 'unassigned' ? 'var(--secondary)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'unassigned' ? '2px solid var(--secondary)' : '2px solid transparent',
-            background: 'none', border: 'none', cursor: 'pointer', transition: 'var(--transition)',
-            display: 'flex', alignItems: 'center', gap: 8
-          }}
-        >
-          New Loads (Unassigned)
-          {unassignedLeads.length > 0 && <span style={{ background: '#ef4444', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{unassignedLeads.length}</span>}
-        </button>
-      </div>
-
       <div className="card">
-        {activeTab === 'tasks' ? (
-          <>
-            <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-              <div className="filters-bar" style={{ margin: 0 }}>
-                <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                  <option value="">All Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
-                <select className="form-select" value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-                  <option value="">All Priority</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-            </div>
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Assigned To</th>
-                    <th>Lead</th>
-                    <th>Due Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={7}><div className="loading-page" style={{ minHeight: 200 }}><div className="spinner"></div></div></td></tr>
-                  ) : tasks.length === 0 ? (
-                    <tr><td colSpan={7}><div className="empty-state"><ListTodo size={48} /><h3>No tasks found</h3><p>Create a task to track follow-ups</p></div></td></tr>
-                  ) : (
-                    tasks.map(task => (
-                      <tr key={task._id}>
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{task.title}</div>
-                          {task.description && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{task.description.substring(0, 60)}{task.description.length > 60 ? '...' : ''}</div>}
-                        </td>
-                        <td>{priorityBadge(task.priority)}</td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {statusIcon(task.status)}
-                            <span style={{ fontSize: '0.8125rem' }}>{task.status}</span>
-                          </div>
-                        </td>
-                        <td>{task.assignedTo?.name || '—'}</td>
-                        <td>{task.leadId?.name || '—'}</td>
-                        <td>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '—'}</td>
-                        <td>
-                          <div className="table-actions">
-                            {task.status !== 'Completed' && (
-                              <button className="btn btn-ghost btn-sm" onClick={() => handleStatusChange(task, task.status === 'Pending' ? 'In Progress' : 'Completed')} title="Update Status">
-                                <CheckCircle size={16} />
-                              </button>
-                            )}
-                            <button className="btn btn-ghost btn-sm" onClick={() => handleSendReminder(task)} title="Remind User" style={{ color: '#ef4444' }} disabled={emailSending}><Send size={16} /></button>
-                            <button className="btn btn-ghost btn-sm" onClick={() => { setEditingTask(task); setShowModal(true); }}><Edit size={16} /></button>
-                            <button className="btn btn-ghost btn-sm" onClick={() => handleDeleteTask(task._id)} style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Lead Name</th>
-                  <th>Phone</th>
-                  <th>Service</th>
-                  <th>Created At</th>
-                  <th>Created By</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6}><div className="loading-page" style={{ minHeight: 200 }}><div className="spinner"></div></div></td></tr>
-                ) : unassignedLeads.length === 0 ? (
-                  <tr><td colSpan={6}><div className="empty-state"><Users size={48} /><h3>No unassigned leads</h3><p>New loads will appear here</p></div></td></tr>
-                ) : (
-                  unassignedLeads.map(lead => (
-                    <tr key={lead._id}>
-                      <td style={{ fontWeight: 600 }}>{lead.name}</td>
-                      <td><Phone size={14} style={{ marginRight: 4 }} />{lead.phone}</td>
-                      <td><span className="badge badge-blue">{lead.service}</span></td>
-                      <td>{new Date(lead.createdAt).toLocaleDateString()}</td>
-                      <td>{lead.createdBy?.name || 'System'}</td>
-                      <td>
-                        <button 
-                          className="btn btn-secondary btn-sm" 
-                          onClick={() => { setLeadToAssign(lead); setShowAssignModal(true); }}
-                        >
-                          <UserPlus size={16} /> Assign
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <div className="filters-bar" style={{ margin: 0 }}>
+            <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+            <select className="form-select" value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+              <option value="">All Priority</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
           </div>
-        )}
+        </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Assigned To</th>
+                <th>Lead</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7}><div className="loading-page" style={{ minHeight: 200 }}><div className="spinner"></div></div></td></tr>
+              ) : tasks.length === 0 ? (
+                <tr><td colSpan={7}><div className="empty-state"><ListTodo size={48} /><h3>No tasks found</h3><p>Create a task to track follow-ups</p></div></td></tr>
+              ) : (
+                tasks.map(task => (
+                  <tr key={task._id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{task.title}</div>
+                      {task.description && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{task.description.substring(0, 60)}{task.description.length > 60 ? '...' : ''}</div>}
+                    </td>
+                    <td>{priorityBadge(task.priority)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {statusIcon(task.status)}
+                        <span style={{ fontSize: '0.8125rem' }}>{task.status}</span>
+                      </div>
+                    </td>
+                    <td>{task.assignedTo?.name || '—'}</td>
+                    <td>{task.leadId?.name || '—'}</td>
+                    <td>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '—'}</td>
+                    <td>
+                      <div className="table-actions">
+                        {task.status !== 'Completed' && (
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleStatusChange(task, task.status === 'Pending' ? 'In Progress' : 'Completed')} title="Update Status">
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleSendReminder(task)} title="Remind User" style={{ color: '#ef4444' }} disabled={emailSending}><Send size={16} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setEditingTask(task); setShowModal(true); }}><Edit size={16} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => handleDeleteTask(task._id)} style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Task Modal */}
@@ -336,41 +217,6 @@ export default function TasksPage() {
           onClose={() => { setShowModal(false); setEditingTask(null); }}
           onSave={handleSaveTask}
         />
-      )}
-
-      {/* Lead Assignment Modal */}
-      {showAssignModal && leadToAssign && (
-        <div className="modal-backdrop" onClick={() => { setShowAssignModal(false); setAssignRole(''); }}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Assign Lead</h3>
-              <button className="modal-close" onClick={() => { setShowAssignModal(false); setAssignRole(''); }}><X size={18} /></button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 20 }}>Assign <strong>{leadToAssign.name}</strong> to a team member:</p>
-              
-              {!assignRole ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <button className="btn btn-outline" onClick={() => setAssignRole('user')} style={{ flexDirection: 'column', padding: '24px 12px', height: 'auto', gap: 12 }}>
-                    <UserPlus size={24} /> <span>User / Staff</span>
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setAssignRole('')} style={{ marginBottom: 16, padding: 0 }}>
-                    ← Back to role selection
-                  </button>
-                  <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <AssignmentList 
-                      role={assignRole} 
-                      onSelect={(userId) => handleAssignLead(leadToAssign._id, userId)} 
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

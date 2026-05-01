@@ -56,13 +56,8 @@ export async function GET(request) {
   }
   if (callStatus) criteria.push({ callStatus });
 
-  // Exclude unassigned leads from general list unless explicitly requested
-  if (!assignedTo) {
-    criteria.push({ assignedTo: { $ne: null } });
-  } else if (assignedTo === 'unassigned') {
-    criteria.push({ assignedTo: null });
-  } else {
-    criteria.push({ assignedTo });
+  if (assignedTo) {
+    criteria.push({ assignedTo: assignedTo === 'unassigned' ? null : assignedTo });
   }
 
 
@@ -98,8 +93,8 @@ export async function POST(request) {
     await dbConnect();
     const body = await request.json();
 
-    // If role is 'user', they cannot assign it to someone else and it's auto-assigned to them
-    if (authUser.role === 'user') {
+    // Auto-assign to creator if not explicitly assigned (Users are always auto-assigned to themselves)
+    if (authUser.role === 'user' || !body.assignedTo) {
       body.assignedTo = authUser._id;
     }
 

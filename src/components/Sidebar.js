@@ -35,26 +35,6 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unassignedCount, setUnassignedCount] = useState(0);
-
-  useEffect(() => {
-    if (user && user.role === 'admin') {
-      const fetchCount = async () => {
-        try {
-          const res = await fetch('/api/leads/unassigned-count');
-          const data = await res.json();
-          if (data.count !== undefined) setUnassignedCount(data.count);
-        } catch (err) {
-          console.error('Failed to fetch unassigned count');
-        }
-      };
-      
-      fetchCount();
-      // Optional: interval to keep it fresh
-      const interval = setInterval(fetchCount, 60000); 
-      return () => clearInterval(interval);
-    }
-  }, [user]);
 
   if (!user) return null;
 
@@ -93,7 +73,6 @@ export default function Sidebar() {
             }
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-            const hasBadge = item.label === 'Tasks' && unassignedCount > 0;
 
             return (
               <a
@@ -104,28 +83,6 @@ export default function Sidebar() {
               >
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <Icon size={20} />
-                  {hasBadge && (
-                    <span style={{
-                      position: 'absolute',
-                      top: -6,
-                      right: -6,
-                      background: '#ef4444',
-                      color: 'white',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      borderRadius: '10px',
-                      minWidth: '18px',
-                      height: '18px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 4px',
-                      border: '2px solid #1e293b',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}>
-                      {unassignedCount > 99 ? '99+' : unassignedCount}
-                    </span>
-                  )}
                 </div>
                 {item.label}
                 {isActive && <ChevronRight size={16} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
