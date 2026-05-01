@@ -6,7 +6,7 @@ import { useToast } from '@/context/ToastContext';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Users
+  MoreVertical, Users, Clock, CheckCircle
 } from 'lucide-react';
 
 const SERVICES = [
@@ -217,14 +217,14 @@ export default function ClientsPage() {
 
   const RenderClientActions = ({ client }) => (
     <div className="table-actions">
-      <a 
-        href={`tel:${client.phone}`}
+      <button 
         className="btn btn-ghost btn-sm" 
-        title={`Call ${client.name}`}
-        style={{ color: '#10b981', border: '1px solid #d1fae5' }}
+        onClick={() => { setFollowUpClient(client); setShowFollowUp(true); }}
+        title="Log Interaction"
+        style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
       >
         <Phone size={16} />
-      </a>
+      </button>
       <button 
         className="btn btn-ghost btn-sm" 
         onClick={() => setActiveMenuClient(client)} 
@@ -390,7 +390,7 @@ export default function ClientsPage() {
               <h3 className="modal-title">Assign Client</h3>
               <button className="modal-close" onClick={() => { setShowAssignModal(false); setAssignRole(''); }}><X size={18} /></button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
               <p style={{ marginBottom: 20, color: 'var(--text-secondary)' }}>
                 Assign <strong>{assignClient.name}</strong> to:
               </p>
@@ -428,7 +428,7 @@ export default function ClientsPage() {
               <h3 className="modal-title">Push Email Notification</h3>
               <button className="modal-close" onClick={() => { setShowEmailModal(false); setShowCustomEmail(false); }}><X size={18} /></button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
               {!showCustomEmail ? (
                 <>
                   <p style={{ marginBottom: 20 }}>Choose a meaningful email scenario for <strong>{emailClient.name}</strong>:</p>
@@ -567,12 +567,12 @@ export default function ClientsPage() {
       {/* Detail Modal */}
       {showDetail && detailData && (
         <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, borderRadius: 24, overflow: 'hidden' }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal-header">
               <h3 className="modal-title">Client Details</h3>
               <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
               <div className="detail-grid">
                 <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
                 <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
@@ -591,117 +591,230 @@ export default function ClientsPage() {
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
               </div>
 
-              {(detailData.followups?.length > 0 || detailData.activities?.length > 0) && (
+              <div style={{ marginTop: 32, paddingTop: 32, borderTop: '2px solid var(--border-light)' }}>
                 <div style={{ marginTop: 24 }}>
-                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Activity size={16} /> Interaction History
-                  </h4>
-                  <div className="timeline">
-                    {/* Follow-up Records */}
-                    {detailData.followups?.map(fu => {
-                       const isExpanded = expandedActivities[fu._id];
-                       return (
-                         <div key={fu._id} className="timeline-item" onClick={() => toggleActivity(fu._id)} style={{ cursor: 'pointer' }}>
-                           <div className="timeline-dot" style={{ background: 'var(--secondary)' }}></div>
-                           <div className="timeline-header">
-                             <div className="timeline-action" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                               <Phone size={14} /> Call Recorded
-                               <span className={`badge badge-${fu.response?.toLowerCase()}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>{fu.response}</span>
-                             </div>
-                             <div className="timeline-time">{new Date(fu.createdAt).toLocaleString()}</div>
-                           </div>
-                           <div className="timeline-user">
-                             <UserPlus size={14} /> {fu.userId?.name || 'System'}
-                           </div>
-                           
-                           <div style={{ 
-                             background: isExpanded ? 'white' : 'var(--secondary-50)', 
-                             padding: '12px', 
-                             borderRadius: '12px', 
-                             border: isExpanded ? '2px solid var(--secondary-100)' : '1px solid transparent',
-                             marginTop: 8, 
-                             fontSize: '0.875rem',
-                             transition: 'all 0.2s ease'
-                           }}>
-                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isExpanded ? 12 : 0 }}>
-                               <div style={{ fontWeight: 600, color: 'var(--secondary-dark)' }}>
-                                 {fu.callStatus} Status
-                               </div>
-                               {!isExpanded && <div style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 700 }}>Click to view details →</div>}
-                             </div>
-                             
-                             {isExpanded && (
-                               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                   <div>
-                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Interested</div>
-                                     <div style={{ fontWeight: 600 }}>{fu.interestedInService}</div>
-                                   </div>
-                                   <div>
-                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Service Taken</div>
-                                     <div style={{ fontWeight: 600 }}>{fu.serviceTaken}</div>
-                                   </div>
-                                   <div>
-                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Next Call</div>
-                                     <div style={{ fontWeight: 600 }}>{fu.nextCallDate ? new Date(fu.nextCallDate).toLocaleDateString() : '—'}</div>
-                                   </div>
-                                   <div>
-                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Follow-up</div>
-                                     <div style={{ fontWeight: 600 }}>{fu.followUpDate ? new Date(fu.followUpDate).toLocaleDateString() : '—'}</div>
-                                   </div>
-                                 </div>
-                                 <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, borderLeft: '4px solid var(--secondary)' }}>
-                                   <div style={{ fontSize: '0.7rem', color: 'var(--secondary-dark)', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Call Remarks:</div>
-                                   <div style={{ lineHeight: 1.5, color: '#1e293b' }}>{fu.remarks || 'No remarks recorded.'}</div>
-                                 </div>
-                               </div>
-                             )}
-                           </div>
-                         </div>
-                       );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Activity size={22} style={{ color: 'var(--secondary)' }} /> 
+                      Client Interaction History
+                    </h4>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={() => { setShowFollowUp(true); setFollowUpClient(detailData.lead); }}
+                      style={{ borderRadius: 14, padding: '8px 20px', boxShadow: '0 4px 12px rgba(14,165,233,0.2)' }}
+                    >
+                      <Plus size={18} /> New Interaction
+                    </button>
+                  </div>
 
-                    {/* Old/Generic Activity Logs */}
-                    {detailData.activities?.filter(act => !detailData.followups?.some(fu => fu.createdAt === act.createdAt)).map(act => {
-                      const isExpanded = expandedActivities[act._id];
-                      const changes = act.details || {};
-                      const hasChanges = Object.keys(changes).length > 0;
+                  <div className="interaction-history" style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 32,
+                    padding: '4px' 
+                  }}>
+                    {Object.entries(
+                      (detailData.followups || []).reduce((groups, fu) => {
+                        const date = new Date(fu.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' });
+                        if (!groups[date]) groups[date] = [];
+                        groups[date].push(fu);
+                        return groups;
+                      }, {})
+                    ).sort((a, b) => new Date(b[0]) - new Date(a[0])).map(([date, items]) => (
+                      <div key={date} className="date-group" style={{ position: 'relative' }}>
+                        <div style={{ 
+                          padding: '12px 0',
+                          fontSize: '0.75rem', 
+                          fontWeight: 800, 
+                          color: 'var(--text-muted)', 
+                          textTransform: 'uppercase', 
+                          letterSpacing: '0.1em',
+                          marginBottom: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          background: 'white',
+                          position: 'relative',
+                          zIndex: 5
+                        }}>
+                          <span style={{ whiteSpace: 'nowrap', padding: '6px 16px', background: 'var(--secondary-50)', color: 'var(--secondary-dark)', borderRadius: 20, border: '1px solid var(--secondary-100)' }}>{date}</span>
+                          <div style={{ height: 1, flex: 1, background: 'linear-gradient(to right, var(--secondary-100), transparent)' }}></div>
+                        </div>
+                        
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: 24,
+                          borderLeft: '2px solid var(--secondary-100)',
+                          marginLeft: 20,
+                          paddingLeft: 28,
+                          paddingBottom: 20,
+                          position: 'relative'
+                        }}>
+                          {items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(fu => (
+                            <div 
+                              key={fu._id} 
+                              className="follow-up-card-container"
+                              style={{ position: 'relative' }}
+                            >
+                              <div style={{ 
+                                position: 'absolute',
+                                left: -33,
+                                top: 24,
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                background: 'var(--secondary)',
+                                border: '4px solid white',
+                                boxShadow: '0 0 0 2px var(--secondary-50)'
+                              }}></div>
 
-                      return (
-                        <div key={act._id} className="timeline-item" onClick={() => hasChanges && toggleActivity(act._id)}>
-                          <div className="timeline-dot"></div>
-                          <div className="timeline-header">
-                            <div className="timeline-action">{act.action}</div>
-                            <div className="timeline-time">{new Date(act.createdAt).toLocaleString()}</div>
-                          </div>
-                          <div className="timeline-user" style={{ marginBottom: hasChanges ? 8 : 0 }}>
-                            <UserPlus size={14} /> {act.userId?.name || 'System'}
-                          </div>
-                          
-                          {isExpanded && hasChanges && (
-                            <div className="timeline-details">
-                              <div className="change-log">
-                                {Object.entries(changes).map(([field, vals]) => {
-                                  return (
-                                    <div key={field} className="change-item">
-                                      <span className="change-label">{field.replace(/([A-Z])/g, ' $1')}</span>
-                                      <div className="change-diff">
-                                        <span className="val-old">{vals.from ? (typeof vals.from === 'string' && vals.from.includes('T') ? new Date(vals.from).toLocaleDateString() : String(vals.from)) : 'None'}</span>
-                                        <span className="diff-arrow">→</span>
-                                        <span className="val-new">{vals.to ? (typeof vals.to === 'string' && vals.to.includes('T') ? new Date(vals.to).toLocaleDateString() : String(vals.to)) : 'None'}</span>
+                              <div 
+                                className="follow-up-card"
+                                style={{ 
+                                  background: expandedActivities[fu._id] ? 'white' : 'var(--bg-card)',
+                                  borderRadius: 20,
+                                  border: expandedActivities[fu._id] ? '2px solid var(--secondary-100)' : '1px solid var(--border-light)',
+                                  boxShadow: expandedActivities[fu._id] ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+                                  overflow: 'hidden',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                }}
+                              >
+                                <div style={{ padding: '20px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                      <div style={{ 
+                                        width: 40, 
+                                        height: 40, 
+                                        borderRadius: 12, 
+                                        background: 'var(--secondary-100)', 
+                                        color: 'var(--secondary-dark)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 800
+                                      }}>
+                                        {(fu.userId?.name || 'S').charAt(0)}
+                                      </div>
+                                      <div>
+                                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                                          {fu.userId?.name || 'System User'}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <Clock size={12} />
+                                          {new Date(fu.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
                                       </div>
                                     </div>
-                                  );
-                                })}
+                                    <span className="badge badge-blue" style={{ borderRadius: 10, padding: '4px 12px' }}>
+                                      Interaction
+                                    </span>
+                                  </div>
+                                  
+                                  <div style={{ 
+                                    fontSize: '0.95rem', 
+                                    color: 'var(--text-secondary)', 
+                                    lineHeight: 1.6,
+                                    marginBottom: 16
+                                  }}>
+                                    {expandedActivities[fu._id] ? fu.remarks : (fu.remarks?.substring(0, 80) + (fu.remarks?.length > 80 ? '...' : '')) || 'No notes provided.'}
+                                  </div>
+
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
+                                    <button 
+                                      className="btn btn-ghost btn-sm"
+                                      onClick={() => toggleActivity(fu._id)}
+                                      style={{ color: 'var(--secondary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+                                    >
+                                      {expandedActivities[fu._id] ? 'Hide Details' : 'View Details'}
+                                      <ChevronRight size={16} style={{ transform: expandedActivities[fu._id] ? 'rotate(-90deg)' : 'rotate(90deg)', transition: '0.2s' }} />
+                                    </button>
+                                  </div>
+                                  
+                                  {expandedActivities[fu._id] && (
+                                    <div style={{ 
+                                      marginTop: 16, 
+                                      padding: 16, 
+                                      background: 'var(--bg-body)', 
+                                      borderRadius: 16, 
+                                      display: 'grid', 
+                                      gridTemplateColumns: 'repeat(2, 1fr)', 
+                                      gap: 16 
+                                    }}>
+                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><Phone size={14} /></div>
+                                        <div>
+                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Call Status</div>
+                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.callStatus}</div>
+                                        </div>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><CheckCircle size={14} /></div>
+                                        <div>
+                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Service Status</div>
+                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.serviceTaken}</div>
+                                        </div>
+                                      </div>
+                                      {fu.nextCallDate && (
+                                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', gridColumn: '1 / -1', background: 'var(--secondary-50)', padding: '12px', borderRadius: 12 }}>
+                                          <Clock size={14} style={{ color: 'var(--secondary)' }} />
+                                          <div>
+                                            <div style={{ fontSize: '0.65rem', color: 'var(--secondary-dark)', textTransform: 'uppercase', fontWeight: 800 }}>Next Check-in</div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>{new Date(fu.nextCallDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          )}
+                          ))}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
+                    
+                    {(!detailData.followups || detailData.followups.length === 0) && (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: '60px 40px', 
+                        background: 'linear-gradient(135deg, var(--secondary-50), white)', 
+                        borderRadius: 32, 
+                        border: '2px dashed var(--secondary-100)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 16
+                      }}>
+                        <div style={{ 
+                          width: 80, 
+                          height: 80, 
+                          borderRadius: '50%', 
+                          background: 'white', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          boxShadow: 'var(--shadow-md)'
+                        }}>
+                          <Phone size={40} style={{ color: 'var(--secondary)', opacity: 0.8 }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--secondary-dark)' }}>Start Interaction History</div>
+                          <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: 4 }}>No interaction history recorded for this client yet.</p>
+                        </div>
+                        <button 
+                          className="btn btn-primary" 
+                          onClick={() => { setShowFollowUp(true); setFollowUpClient(detailData.lead); }}
+                          style={{ marginTop: 8, borderRadius: 12 }}
+                        >
+                          <Plus size={18} /> Record Interaction
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -911,17 +1024,18 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
 function LogFollowUpModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
     response: 'Converted',
-    callStatus: client.callStatus || 'Pending',
+    callStatus: client.callStatus || 'Received',
     interestedInService: client.interestedInService || 'Yes',
     serviceTaken: client.serviceTaken || 'Yes',
     nextCallDate: client.nextCallDate ? client.nextCallDate.split('T')[0] : '',
-    followUpDate: client.followUpDate ? client.followUpDate.split('T')[0] : '',
+    followUpDate: client.followUpDate ? client.followUpDate.split('T')[0] : new Date().toISOString().split('T')[0],
     remarks: '',
   });
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.remarks) return alert('Please add some remarks about the interaction.');
     setSaving(true);
     await onSave({ ...client, ...form });
     setSaving(false);
@@ -929,59 +1043,120 @@ function LogFollowUpModal({ client, onClose, onSave }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500, borderRadius: 24, padding: 0, overflow: 'hidden' }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 32, padding: 0, overflow: 'hidden', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
         <div style={{ 
-          background: 'linear-gradient(135deg, var(--secondary), var(--secondary-dark))', 
-          padding: '24px 32px', 
+          background: 'linear-gradient(135deg, #0f172a, #1e293b)', 
+          padding: '32px', 
           color: 'white',
           position: 'relative'
         }}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Record Interaction</h3>
-          <p style={{ margin: '4px 0 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Updating timeline for <strong>{client.name}</strong></p>
-          <button onClick={onClose} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: 4, borderRadius: 8, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div style={{ background: 'var(--secondary)', padding: 8, borderRadius: 12 }}>
+              <Phone size={24} />
+            </div>
+            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Log Interaction</h3>
+          </div>
+          <p style={{ margin: 0, opacity: 0.7, fontSize: '0.95rem' }}>How was the update with <strong>{client.name}</strong>?</p>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              position: 'absolute', top: 32, right: 32, background: 'rgba(255,255,255,0.1)', 
+              border: 'none', color: 'white', padding: 6, borderRadius: 12, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)'
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+          >
             <X size={20} />
           </button>
         </div>
+        
         <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ padding: '32px' }}>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Call Status</label>
-                <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                  <option value="Received">Received</option>
-                  <option value="Not Received">Not Received</option>
+          <div className="modal-body" style={{ padding: '32px', background: '#f8fafc' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#64748b' }}>Call Status</label>
+                <select 
+                  className="form-select" 
+                  value={form.callStatus} 
+                  onChange={e => setForm({ ...form, callStatus: e.target.value })}
+                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                >
+                  <option value="Received">Connected</option>
+                  <option value="Not Received">No Answer / Busy</option>
                   <option value="Pending">Pending</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Service Taken?</label>
-                <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Pending">Pending</option>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#64748b' }}>Service Status</label>
+                <select 
+                  className="form-select" 
+                  value={form.serviceTaken} 
+                  onChange={e => setForm({ ...form, serviceTaken: e.target.value })}
+                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                >
+                  <option value="Yes">Active Service</option>
+                  <option value="No">Service Paused/Closed</option>
+                  <option value="Pending">Pending Update</option>
                 </select>
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Next Call Date</label>
-                <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Follow-up Date</label>
-                <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-              </div>
+            <div className="form-group" style={{ marginBottom: 24 }}>
+              <label className="form-label" style={{ color: '#64748b' }}>Interaction Remarks</label>
+              <textarea 
+                className="form-textarea" 
+                value={form.remarks} 
+                onChange={e => setForm({ ...form, remarks: e.target.value })} 
+                placeholder="Briefly describe what was discussed with the client..."
+                style={{ 
+                  minHeight: 120, 
+                  borderRadius: 16, 
+                  border: '2px solid #e2e8f0', 
+                  padding: '16px',
+                  fontSize: '0.95rem',
+                  lineHeight: 1.6
+                }}
+                required
+              />
             </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Interaction Remarks</label>
-              <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="What was discussed?" style={{ minHeight: 120 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#64748b' }}>Interaction Date</label>
+                <input 
+                  className="form-input" 
+                  type="date" 
+                  value={form.followUpDate} 
+                  onChange={e => setForm({ ...form, followUpDate: e.target.value })} 
+                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#64748b' }}>Next Check-in</label>
+                <input 
+                  className="form-input" 
+                  type="date" 
+                  value={form.nextCallDate} 
+                  onChange={e => setForm({ ...form, nextCallDate: e.target.value })} 
+                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                />
+              </div>
             </div>
           </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>Save Interaction</button>
+          
+          <div className="modal-footer" style={{ padding: '24px 32px', background: 'white', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12 }}>
+            <button type="button" className="btn btn-outline" onClick={onClose} style={{ flex: 1, height: 48, borderRadius: 12 }}>
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              disabled={saving}
+              style={{ flex: 2, height: 48, borderRadius: 12, background: 'var(--secondary)', boxShadow: '0 4px 12px rgba(14,165,233,0.2)' }}
+            >
+              {saving ? 'Saving...' : 'Save Interaction'}
+            </button>
           </div>
         </form>
       </div>
@@ -1003,10 +1178,10 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete }) {
             <Eye size={20} /> View Detail
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
-            <Phone size={20} /> Follow-up
+            <Phone size={20} /> Log Interaction
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('history')}>
-            <Activity size={20} /> History
+            <Activity size={20} /> Activity Log
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('email')}>
             <Mail size={20} /> Send Email
