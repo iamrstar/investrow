@@ -41,7 +41,7 @@ export default function ActivityPage() {
         <div className="empty-state">
           <Activity size={64} />
           <h3>Access Restricted</h3>
-          <p>Activity logs are available for managers and administrators.</p>
+          <p>Activity logs are available for administrators.</p>
         </div>
       </div>
     );

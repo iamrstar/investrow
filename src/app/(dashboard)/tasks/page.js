@@ -31,7 +31,7 @@ export default function TasksPage() {
   const [filterPriority, setFilterPriority] = useState('');
   const [teamUsers, setTeamUsers] = useState([]);
   const [emailSending, setEmailSending] = useState(false);
-  const [assignRole, setAssignRole] = useState(''); // 'manager' or 'user'
+  const [assignRole, setAssignRole] = useState(''); // 'user'
 
   // Fetchers
   const fetchTasks = useCallback(async () => {
@@ -73,9 +73,9 @@ export default function TasksPage() {
   }, []); // Only once on mount
 
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'manager')) {
-      // Only fetch managers for the assignment list as per requirement
-      fetch('/api/users?role=manager').then(r => r.json()).then(d => {
+    if (user && user.role === 'admin') {
+      // Fetch users for the assignment list
+      fetch('/api/users?role=user').then(r => r.json()).then(d => {
         setTeamUsers(d.users || []);
       });
     }
@@ -350,12 +350,7 @@ export default function TasksPage() {
               <p style={{ marginBottom: 20 }}>Assign <strong>{leadToAssign.name}</strong> to a team member:</p>
               
               {!assignRole ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {user?.role === 'admin' && (
-                    <button className="btn btn-outline" onClick={() => setAssignRole('manager')} style={{ flexDirection: 'column', padding: '24px 12px', height: 'auto', gap: 12 }}>
-                      <Users size={24} /> <span>Manager</span>
-                    </button>
-                  )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <button className="btn btn-outline" onClick={() => setAssignRole('user')} style={{ flexDirection: 'column', padding: '24px 12px', height: 'auto', gap: 12 }}>
                     <UserPlus size={24} /> <span>User / Staff</span>
                   </button>

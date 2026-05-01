@@ -20,18 +20,14 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'user'],
+    enum: ['admin', 'user'],
     default: 'user',
   },
   isActive: {
     type: Boolean,
     default: true,
   },
-  managerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null,
-  },
+
   phone: {
     type: String,
     default: '',
@@ -45,6 +41,6 @@ const UserSchema = new mongoose.Schema({
 });
 
 UserSchema.index({ role: 1 });
-UserSchema.index({ managerId: 1 });
+
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

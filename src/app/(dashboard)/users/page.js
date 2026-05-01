@@ -9,7 +9,6 @@ export default function UsersPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [users, setUsers] = useState([]);
-  const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -34,9 +33,7 @@ export default function UsersPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers, roleFilter]);
 
-  useEffect(() => {
-    fetch('/api/users?role=manager').then(r => r.json()).then(d => setManagers(d.users || []));
-  }, []);
+
 
   if (user?.role !== 'admin') {
     return (
@@ -82,7 +79,7 @@ export default function UsersPage() {
     fetchUsers();
   };
 
-  const roleColor = (r) => r === 'admin' ? 'badge-purple' : r === 'manager' ? 'badge-blue' : 'badge-orange';
+  const roleColor = (r) => r === 'admin' ? 'badge-purple' : 'badge-orange';
 
   return (
     <div className="page-content">
@@ -101,7 +98,6 @@ export default function UsersPage() {
         <select className="form-select" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ maxWidth: 160 }}>
           <option value="">All Roles</option>
           <option value="admin">Admin</option>
-          <option value="manager">Manager</option>
           <option value="user">User</option>
         </select>
       </div>
@@ -115,7 +111,6 @@ export default function UsersPage() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Password</th>
-                <th>Manager</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -143,7 +138,7 @@ export default function UsersPage() {
                     }}>
                       {showPasswords[u._id] ? (u.plainPassword || '(No password found - please update it)') : '••••••••'}
                     </td>
-                    <td>{u.managerId?.name || '—'}</td>
+
                     <td>
                       <label className="toggle-switch">
                         <input type="checkbox" checked={u.isActive} onChange={() => toggleActive(u)} />
@@ -175,7 +170,6 @@ export default function UsersPage() {
       {showModal && (
         <UserFormModal
           editUser={editingUser}
-          managers={managers}
           onClose={() => { setShowModal(false); setEditingUser(null); }}
           onSave={handleSave}
         />
@@ -184,14 +178,13 @@ export default function UsersPage() {
   );
 }
 
-function UserFormModal({ editUser, managers, onClose, onSave }) {
+function UserFormModal({ editUser, onClose, onSave }) {
   const [form, setForm] = useState({
     name: editUser?.name || '',
     email: editUser?.email || '',
     password: '',
     role: editUser?.role || 'user',
     phone: editUser?.phone || '',
-    managerId: editUser?.managerId?._id || editUser?.managerId || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -199,7 +192,6 @@ function UserFormModal({ editUser, managers, onClose, onSave }) {
     e.preventDefault();
     const data = { ...form };
     if (!data.password && editUser) delete data.password;
-    if (!data.managerId) delete data.managerId;
     setSaving(true);
     await onSave(data);
     setSaving(false);
@@ -238,20 +230,11 @@ function UserFormModal({ editUser, managers, onClose, onSave }) {
               <div className="form-group">
                 <label className="form-label">Role *</label>
                 <select className="form-select" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                  <option value="user">User (Call Executive)</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+                   <option value="user">User (Call Executive)</option>
+                   <option value="admin">Admin</option>
                 </select>
               </div>
-              {form.role === 'user' && (
-                <div className="form-group">
-                  <label className="form-label">Assign Manager</label>
-                  <select className="form-select" value={form.managerId} onChange={e => setForm({ ...form, managerId: e.target.value })}>
-                    <option value="">No Manager</option>
-                    {managers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                  </select>
-                </div>
-              )}
+
             </div>
           </div>
           <div className="modal-footer">

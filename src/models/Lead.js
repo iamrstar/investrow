@@ -84,6 +84,12 @@ const LeadSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  customFields: [
+    {
+      label: { type: String, required: true },
+      value: { type: String, required: true },
+    }
+  ],
 }, {
   timestamps: true,
 });

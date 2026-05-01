@@ -12,14 +12,7 @@ export async function GET() {
 
     const criteria = { assignedTo: null };
 
-    if (authUser.role === 'manager') {
-      // Find team members reporting to this manager
-      const teamUsers = await User.find({ managerId: authUser._id }).select('_id').lean();
-      const teamUserIds = teamUsers.map(u => u._id);
-      
-      // Managers see "unassigned" as leads assigned TO THEM that they need to delegate to their team
-      criteria.assignedTo = authUser._id;
-    } else if (authUser.role === 'user') {
+    if (authUser.role === 'user') {
       // Users only see unassigned leads THEY created
       criteria.createdBy = authUser._id;
     }

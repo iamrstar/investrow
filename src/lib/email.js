@@ -107,12 +107,12 @@ export const templates = {
     `),
   }),
 
-  taskReminder: (name, taskTitle, dueDate, managerName) => ({
+  taskReminder: (name, taskTitle, dueDate, senderName) => ({
     subject: `Reminder: Task Overdue or Pending - ${taskTitle}`,
     html: wrapTemplate(`
       <h2 style="color: #ef4444; margin-top: 0;">Task Reminder</h2>
       <p>Hi ${name},</p>
-      <p>This is a follow-up reminder from <strong>${managerName}</strong> regarding your pending task: <strong>${taskTitle}</strong>.</p>
+      <p>This is a follow-up reminder from <strong>${senderName}</strong> regarding your pending task: <strong>${taskTitle}</strong>.</p>
       <div style="border-left: 4px solid #ef4444; padding-left: 15px; margin: 20px 0;">
         <p><strong>Status:</strong> Pending Action</p>
         <p><strong>Due Date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'Immediate'}</p>

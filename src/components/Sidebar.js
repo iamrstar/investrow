@@ -20,16 +20,7 @@ const navItems = {
     { label: 'Activity Log', href: '/activity', icon: Activity },
     { label: 'Settings', href: '/settings', icon: Settings },
   ],
-  manager: [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { section: 'Management' },
-    { label: 'Leads', href: '/leads', icon: FileText },
-    { label: 'Clients', href: '/clients', icon: Users },
-    { label: 'Tasks', href: '/tasks', icon: ListTodo },
-    { section: 'Insights' },
-    { label: 'Activity Log', href: '/activity', icon: Activity },
-    { label: 'Settings', href: '/settings', icon: Settings },
-  ],
+
   user: [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { section: 'My Work' },
@@ -47,7 +38,7 @@ export default function Sidebar() {
   const [unassignedCount, setUnassignedCount] = useState(0);
 
   useEffect(() => {
-    if (user && (user.role === 'manager' || user.role === 'admin')) {
+    if (user && user.role === 'admin') {
       const fetchCount = async () => {
         try {
           const res = await fetch('/api/leads/unassigned-count');

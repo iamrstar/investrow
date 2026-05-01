@@ -15,11 +15,6 @@ async function canAccessLead(authUser, lead) {
   if (authUser.role === 'user') {
     return assignedId === authUser._id || createdById === authUser._id;
   }
-  if (authUser.role === 'manager') {
-    if (createdById === authUser._id) return true;
-    const teamUsers = await User.find({ managerId: authUser._id }).select('_id').lean();
-    return teamUsers.some(u => u._id.toString() === assignedId);
-  }
   return false;
 }
 

@@ -19,15 +19,6 @@ export async function GET(request) {
   
   if (authUser.role === 'user') {
     criteria.push({ assignedTo: authUser._id });
-  } else if (authUser.role === 'manager') {
-    const teamUsers = await User.find({ managerId: authUser._id }).select('_id').lean();
-    const teamUserIds = teamUsers.map(u => u._id);
-    criteria.push({
-      $or: [
-        { createdBy: authUser._id },
-        { assignedTo: { $in: [...teamUserIds, authUser._id] } },
-      ]
-    });
   }
 
   if (status) criteria.push({ status });

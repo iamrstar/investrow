@@ -50,7 +50,6 @@ export async function seedDatabase() {
 
     const seedUsers = [
       { name: 'Admin User', email: 'admin@investrow.in', password: 'admin123', role: 'admin' },
-      { name: 'Manager User', email: 'manager@investrow.in', password: 'manager123', role: 'manager' },
       { name: 'Call Executive', email: 'user@investrow.in', password: 'user123', role: 'user' },
     ];
 
@@ -71,14 +70,7 @@ export async function seedDatabase() {
       }
     }
 
-    // Assign user to manager
-    const manager = await User.findOne({ email: 'manager@investrow.in' });
-    const callExec = await User.findOne({ email: 'user@investrow.in' });
-    if (manager && callExec && !callExec.managerId) {
-      callExec.managerId = manager._id;
-      await callExec.save();
-      results.push('Assigned Call Executive to Manager');
-    }
+
 
     return { success: true, results };
   } catch (err) {

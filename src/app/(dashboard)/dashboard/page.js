@@ -41,7 +41,7 @@ export default function DashboardPage() {
     );
   }
 
-  const roleTitle = user.role === 'admin' ? 'Admin Dashboard' : user.role === 'manager' ? 'Manager Dashboard' : 'My Dashboard';
+  const roleTitle = user.role === 'admin' ? 'Admin Dashboard' : 'My Dashboard';
 
   const serviceChartData = {
     labels: stats.serviceBreakdown?.map(s => s._id) || [],
@@ -118,25 +118,10 @@ export default function DashboardPage() {
               <div className="stat-card-label">Call Executives</div>
             </div>
 
-            <div className="stat-card red">
-              <div className="stat-card-header">
-                <div className="stat-card-icon red"><UserCheck size={22} /></div>
-              </div>
-              <div className="stat-card-value">{stats.totalManagers || 0}</div>
-              <div className="stat-card-label">Managers</div>
-            </div>
           </>
         )}
 
-        {user.role === 'manager' && (
-          <div className="stat-card teal">
-            <div className="stat-card-header">
-              <div className="stat-card-icon teal"><Users size={22} /></div>
-            </div>
-            <div className="stat-card-value">{stats.teamSize || 0}</div>
-            <div className="stat-card-label">Team Members</div>
-          </div>
-        )}
+
 
         <div className="stat-card red">
           <div className="stat-card-header">
@@ -253,7 +238,7 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Activity</h3>
-            {(user.role === 'admin' || user.role === 'manager') && (
+            {user.role === 'admin' && (
               <a href="/activity" className="btn btn-sm btn-outline">View All <ArrowUpRight size={14} /></a>
             )}
           </div>

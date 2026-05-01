@@ -24,8 +24,6 @@ export default function ClientsPage() {
   const [filterService, setFilterService] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('');
   const [filterUser, setFilterUser] = useState('');
-  const [filterManager, setFilterManager] = useState('');
-  const [managers, setManagers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -41,7 +39,7 @@ export default function ClientsPage() {
   const [followUpClient, setFollowUpClient] = useState(null);
   const [filterDate, setFilterDate] = useState('');
   const [activeMenuClient, setActiveMenuClient] = useState(null);
-  const [assignRole, setAssignRole] = useState(''); 
+  const [assignRole, setAssignRole] = useState(''); // 'user'
   const [showCustomEmail, setShowCustomEmail] = useState(false);
   const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
 
@@ -49,8 +47,8 @@ export default function ClientsPage() {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const canCreate = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'user';
-  const canAssign = user?.role === 'admin' || user?.role === 'manager';
+  const canCreate = user?.role === 'admin' || user?.role === 'user';
+  const canAssign = user?.role === 'admin';
   const canDelete = user?.role === 'admin';
 
   const fetchClients = useCallback(async (page = 1) => {
@@ -65,7 +63,6 @@ export default function ClientsPage() {
       if (filterService) params.set('service', filterService);
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
       if (filterUser) params.set('assignedTo', filterUser);
-      if (filterManager) params.set('managerId', filterManager);
       if (filterDate) params.set('followUpDate', filterDate);
 
       const res = await fetch(`/api/leads?${params}`);
@@ -77,7 +74,7 @@ export default function ClientsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterService, filterCallStatus, filterUser, filterManager, filterDate, addToast]);
+  }, [search, filterService, filterCallStatus, filterUser, filterDate, addToast]);
 
   useEffect(() => {
     fetchClients();
@@ -85,12 +82,9 @@ export default function ClientsPage() {
 
   useEffect(() => {
     if (canAssign) {
-      fetch('/api/users?role=manager').then(r => r.json()).then(d => setTeamUsers(d.users || []));
+      fetch('/api/users?role=user').then(r => r.json()).then(d => setTeamUsers(d.users || []));
     }
-    if (user?.role === 'admin') {
-      fetch('/api/users?role=manager').then(r => r.json()).then(d => setManagers(d.users || []));
-    }
-  }, [canAssign, user?.role]);
+  }, [canAssign]);
 
   const handleSaveClient = async (formData) => {
     try {
@@ -274,18 +268,11 @@ export default function ClientsPage() {
           <option value="Pending">Pending</option>
         </select>
         
-        {/* User/Manager Filters for Admin/Manager */}
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {/* User Filters for Admin */}
+        {user?.role === 'admin' && (
           <select className="form-select" value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ maxWidth: 160 }}>
             <option value="">All Users</option>
             {teamUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
-          </select>
-        )}
-        
-        {user?.role === 'admin' && (
-          <select className="form-select" value={filterManager} onChange={e => setFilterManager(e.target.value)} style={{ maxWidth: 160 }}>
-            <option value="">All Managers</option>
-            {managers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
           </select>
         )}
       </div>
@@ -409,12 +396,7 @@ export default function ClientsPage() {
               </p>
               
               {!assignRole ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {user?.role === 'admin' && (
-                    <button className="btn btn-outline" onClick={() => setAssignRole('manager')} style={{ flexDirection: 'column', padding: '24px 12px', height: 'auto', gap: 12 }}>
-                      <Users size={24} /> <span>Manager</span>
-                    </button>
-                  )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <button className="btn btn-outline" onClick={() => setAssignRole('user')} style={{ flexDirection: 'column', padding: '24px 12px', height: 'auto', gap: 12 }}>
                     <UserPlus size={24} /> <span>User / Staff</span>
                   </button>
@@ -746,14 +728,35 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
     remarks: client?.remarks || '',
     callStatus: client?.callStatus || 'Received',
     location: client?.location || '',
+    customFields: client?.customFields || [],
   });
+  const [newField, setNewField] = useState({ label: '', value: '' });
+  const [showAddField, setShowAddField] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await onSave(form);
+    const payload = { ...form };
+    payload.customFields = payload.customFields.filter(f => f.label.trim() && f.value.trim());
+    await onSave(payload);
     setSaving(false);
+  };
+
+  const addCustomField = () => {
+    if (!newField.label.trim() || !newField.value.trim()) return;
+    setForm({
+      ...form,
+      customFields: [...form.customFields, { ...newField }]
+    });
+    setNewField({ label: '', value: '' });
+    setShowAddField(false);
+  };
+
+  const removeCustomField = (index) => {
+    const updatedFields = [...form.customFields];
+    updatedFields.splice(index, 1);
+    setForm({ ...form, customFields: updatedFields });
   };
 
   return (
@@ -824,21 +827,72 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
                 <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
               </div>
             </div>
+            <div className="form-group" style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Custom Fields</label>
+                {!showAddField && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddField(true)} style={{ color: 'var(--secondary)', fontWeight: 700 }}>
+                    <Plus size={14} /> Add more fields
+                  </button>
+                )}
+              </div>
+
+              {form.customFields.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 12 }}>
+                  {form.customFields.map((field, idx) => (
+                    <div key={idx} className="form-group" style={{ position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <label className="form-label" style={{ marginBottom: 0 }}>{field.label}</label>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCustomField(idx)} style={{ color: '#ef4444', padding: 4 }}>
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      </div>
+                      <input 
+                        className="form-input" 
+                        value={field.value} 
+                        onChange={e => {
+                          const updated = [...form.customFields];
+                          updated[idx].value = e.target.value;
+                          setForm({ ...form, customFields: updated });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showAddField && (
+                <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid var(--border)', marginBottom: 12 }}>
+                  <div className="form-row" style={{ marginBottom: 16 }}>
+                    <div className="form-group">
+                      <label className="form-label">Field Name</label>
+                      <input className="form-input" value={newField.label} onChange={e => setNewField({ ...newField, label: e.target.value })} placeholder="e.g. Aadhar Number" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Value / Description</label>
+                      <input className="form-input" value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-ghost" onClick={() => setShowAddField(false)}>Cancel</button>
+                    <button type="button" className="btn btn-secondary" onClick={addCustomField}>Save Field</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {canAssign && user?.role !== 'user' && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
                 <label className="form-label" style={{ marginBottom: 12 }}>Assign To</label>
                 {!assignRole ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {user?.role === 'admin' && (
-                      <button type="button" className="btn btn-outline btn-sm" onClick={() => setAssignRole('manager')}>Managers</button>
-                    )}
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setAssignRole('user')}>Users / Staff</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setAssignRole('user')}>Users / Staff Members</button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary)' }}>{assignRole === 'manager' ? 'Managers' : 'Team Members'}</span>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAssignRole(''); setForm({ ...form, assignedTo: '' }); }} style={{ padding: 0 }}>Change Role</button>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary)' }}>Team Members</span>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAssignRole(''); setForm({ ...form, assignedTo: '' }); }} style={{ padding: 0 }}>Change</button>
                     </div>
                     <select className="form-select" value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}>
                       <option value="">Unassigned</option>

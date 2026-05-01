@@ -15,28 +15,8 @@ export async function GET() {
   let taskFilter = {};
 
   if (authUser.role === 'user') {
-    leadFilter = {
-      $or: [
-        { assignedTo: authUser._id },
-        { createdBy: authUser._id }
-      ]
-    };
+    leadFilter = { assignedTo: authUser._id };
     taskFilter.assignedTo = authUser._id;
-  } else if (authUser.role === 'manager') {
-    const teamUsers = await User.find({ managerId: authUser._id }).select('_id').lean();
-    const teamUserIds = teamUsers.map(u => u._id);
-    leadFilter = {
-      $or: [
-        { createdBy: { $in: [...teamUserIds, authUser._id] } },
-        { assignedTo: { $in: [...teamUserIds, authUser._id] } },
-      ]
-    };
-    taskFilter = {
-      $or: [
-        { createdBy: authUser._id },
-        { assignedTo: { $in: [...teamUserIds, authUser._id] } },
-      ]
-    };
   }
 
   const [
@@ -134,19 +114,14 @@ export async function GET() {
 
   // Admin-only stats
   if (authUser.role === 'admin') {
-    const [totalUsers, totalManagers, activeUsers] = await Promise.all([
+    const [totalUsers, activeUsers] = await Promise.all([
       User.countDocuments({ role: 'user' }),
-      User.countDocuments({ role: 'manager' }),
       User.countDocuments({ isActive: true, role: { $ne: 'admin' } }),
     ]);
-    stats = { ...stats, totalUsers, totalManagers, activeUsers };
+    stats = { ...stats, totalUsers, activeUsers };
   }
 
-  // Manager stats
-  if (authUser.role === 'manager') {
-    const teamSize = await User.countDocuments({ managerId: authUser._id });
-    stats.teamSize = teamSize;
-  }
+
 
   return Response.json({ stats });
 }

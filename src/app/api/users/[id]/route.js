@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
 
   await dbConnect();
   const { id } = await params;
-  const user = await User.findById(id).select('-password').populate('managerId', 'name email').lean();
+  const user = await User.findById(id).select('-password').lean();
 
   if (!user) {
     return Response.json({ error: 'User not found' }, { status: 404 });
@@ -34,7 +34,7 @@ export async function PUT(request, { params }) {
     if (body.email) updateData.email = body.email.toLowerCase();
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.role) updateData.role = body.role;
-    if (body.managerId !== undefined) updateData.managerId = body.managerId || null;
+
     if (typeof body.isActive === 'boolean') updateData.isActive = body.isActive;
     if (body.password) {
       updateData.password = await hashPassword(body.password);

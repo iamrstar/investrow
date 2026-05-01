@@ -16,7 +16,6 @@ export async function GET(request) {
   const response = searchParams.get('response');
   const callStatus = searchParams.get('callStatus');
   const assignedTo = searchParams.get('assignedTo');
-  const managerId = searchParams.get('managerId');
   const followUpDate = searchParams.get('followUpDate');
   const page = parseInt(searchParams.get('page')) || 1;
   const limit = parseInt(searchParams.get('limit')) || 20;
@@ -35,21 +34,7 @@ export async function GET(request) {
 
   // Role-based filtering
   if (authUser.role === 'user') {
-    criteria.push({
-      $or: [
-        { assignedTo: authUser._id },
-        { createdBy: authUser._id }
-      ]
-    });
-  } else if (authUser.role === 'manager') {
-    const teamUsers = await User.find({ managerId: authUser._id }).select('_id').lean();
-    const teamUserIds = teamUsers.map(u => u._id);
-    criteria.push({
-      $or: [
-        { createdBy: { $in: [...teamUserIds, authUser._id] } },
-        { assignedTo: { $in: [...teamUserIds, authUser._id] } }, // Include leads assigned to manager
-      ]
-    });
+    criteria.push({ assignedTo: authUser._id });
   }
 
   if (search) {
@@ -75,20 +60,11 @@ export async function GET(request) {
   if (!assignedTo) {
     criteria.push({ assignedTo: { $ne: null } });
   } else if (assignedTo === 'unassigned') {
-    if (authUser.role === 'manager') {
-      // For managers, 'unassigned' means leads assigned to THEM but not yet delegated to their team
-      criteria.push({ assignedTo: authUser._id });
-    } else {
-      criteria.push({ assignedTo: null });
-    }
+    criteria.push({ assignedTo: null });
   } else {
     criteria.push({ assignedTo });
   }
-  if (managerId) {
-    const teamUsers = await User.find({ managerId }).select('_id').lean();
-    const teamUserIds = teamUsers.map(u => u._id);
-    criteria.push({ assignedTo: { $in: teamUserIds } });
-  }
+
 
   const filter = criteria.length === 0 ? {} : (criteria.length === 1 ? criteria[0] : { $and: criteria });
 
@@ -116,15 +92,15 @@ export async function POST(request) {
   const authUser = await getAuthUser();
   if (!authUser) return unauthorized();
   // Allow all roles to create leads
-  if (!checkRole(authUser, ['admin', 'manager', 'user'])) return forbidden();
+  if (!checkRole(authUser, ['admin', 'user'])) return forbidden();
 
   try {
     await dbConnect();
     const body = await request.json();
 
-    // If role is 'user', they cannot assign it to someone else
+    // If role is 'user', they cannot assign it to someone else and it's auto-assigned to them
     if (authUser.role === 'user') {
-      delete body.assignedTo;
+      body.assignedTo = authUser._id;
     }
 
     const lead = await Lead.create({

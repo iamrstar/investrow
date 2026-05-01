@@ -8,7 +8,7 @@ import { sendEmail, templates } from '@/lib/email';
 export async function GET(request) {
   const authUser = await getAuthUser();
   if (!authUser) return unauthorized();
-  if (!checkRole(authUser, ['admin', 'manager'])) return forbidden();
+  if (!checkRole(authUser, ['admin'])) return forbidden();
 
   await dbConnect();
 
@@ -18,9 +18,7 @@ export async function GET(request) {
 
   const criteria = [];
 
-  if (authUser.role === 'manager') {
-    criteria.push({ role: 'user' });
-  } else if (role) {
+  if (role) {
     criteria.push({ role });
   }
 
@@ -37,7 +35,6 @@ export async function GET(request) {
 
   const users = await User.find(filter)
     .select('-password')
-    .populate('managerId', 'name email')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -52,7 +49,7 @@ export async function POST(request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { name, email, password, role, phone, managerId } = body;
+    const { name, email, password, role, phone } = body;
 
     if (!name || !email || !password || !role) {
       return Response.json({ error: 'Name, email, password and role are required' }, { status: 400 });
@@ -72,7 +69,6 @@ export async function POST(request) {
       plainPassword: password, // Store plain password for admin
       role,
       phone: phone || '',
-      managerId: managerId || null,
       isActive: true,
     });
 
