@@ -44,6 +44,8 @@ export default function LeadsPage() {
   const [showCustomEmail, setShowCustomEmail] = useState(false);
   const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
   const [formSettings, setFormSettings] = useState(null);
+  const [convertLead, setConvertLead] = useState(null);
+  const [converting, setConverting] = useState(false);
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -184,11 +186,15 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertLead = async (lead) => {
-    if (!confirm(`Do you want to confirm this lead and convert as a customer? \n\nName: ${lead.name}`)) return;
-    
+  const handleConvertLead = (lead) => {
+    setConvertLead(lead);
+  };
+
+  const confirmConvertLead = async () => {
+    if (!convertLead) return;
+    setConverting(true);
     try {
-      const res = await fetch(`/api/leads/${lead._id}`, {
+      const res = await fetch(`/api/leads/${convertLead._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: 'Converted' }),
@@ -197,9 +203,12 @@ export default function LeadsPage() {
       if (!res.ok) throw new Error('Failed to convert lead');
       
       addToast('Lead converted to Customer successfully!', 'success');
+      setConvertLead(null);
       fetchLeads(pagination.page);
     } catch (err) {
       addToast(err.message, 'error');
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -902,6 +911,33 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
+      
+      {/* Convert Lead Modal */}
+      {convertLead && (
+        <div className="modal-backdrop" onClick={() => !converting && setConvertLead(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center', padding: '32px 24px' }}>
+            <div style={{ width: 64, height: 64, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <UserPlus size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Convert to Client
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
+              Are you sure you want to convert <strong>{convertLead.name}</strong> to a client? <br/><br/>
+              <span style={{ color: '#ef4444', fontWeight: 600 }}>Once done, the details can't be edited.</span>
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setConvertLead(null)} disabled={converting}>
+                Cancel
+              </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={confirmConvertLead} disabled={converting}>
+                {converting ? 'Converting...' : 'Yes, Convert'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
