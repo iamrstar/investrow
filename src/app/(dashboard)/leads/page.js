@@ -973,7 +973,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     };
     if (!formSettings?.defaultFields) return defaults[name];
     const conf = formSettings.defaultFields.find(f => f.name === name);
-    return conf ? { label: conf.label, required: conf.isRequired } : defaults[name];
+    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : defaults[name];
   };
   const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Text', options: '' });
   const [showAddField, setShowAddField] = useState(false);
@@ -982,19 +982,21 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
   const isFormValid = () => {
     const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference'];
     for (const field of defaultFields) {
-      if (getFieldConfig(field).required && !form[field]?.trim()) {
-        return false;
-      }
+      const config = getFieldConfig(field);
+      const val = form[field] || '';
+      
+      if (config.required && !val.trim()) return false;
+      if (val.trim() && config.minLength && val.trim().length < config.minLength) return false;
+      if (val.trim() && config.maxLength && val.trim().length > config.maxLength) return false;
     }
 
     if (formSettings?.globalCustomFields) {
       for (const gField of formSettings.globalCustomFields) {
-        if (gField.isRequired) {
-          const customFieldValue = form.customFields.find(f => f.label === gField.label)?.value;
-          if (!customFieldValue || !String(customFieldValue).trim()) {
-            return false;
-          }
-        }
+        const customFieldValue = form.customFields.find(f => f.label === gField.label)?.value || '';
+        
+        if (gField.isRequired && !String(customFieldValue).trim()) return false;
+        if (String(customFieldValue).trim() && gField.minLength && String(customFieldValue).trim().length < gField.minLength) return false;
+        if (String(customFieldValue).trim() && gField.maxLength && String(customFieldValue).trim().length > gField.maxLength) return false;
       }
     }
 
@@ -1015,15 +1017,12 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
   const addCustomField = () => {
     if (!newField.label.trim() || !newField.value.trim()) return;
     
-    const optionsArray = newField.fieldType === 'Dropdown' ? newField.options.split(',').map(s => s.trim()).filter(Boolean) : [];
-    
     setForm({
       ...form,
       customFields: [...form.customFields, { 
         label: newField.label, 
         value: newField.value, 
-        fieldType: newField.fieldType,
-        options: optionsArray
+        fieldType: newField.fieldType
       }]
     });
     setNewField({ label: '', value: '', fieldType: 'Text', options: '' });
@@ -1036,6 +1035,13 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     setForm({ ...form, customFields: updatedFields });
   };
 
+  const confName = getFieldConfig('name');
+  const confPhone = getFieldConfig('phone');
+  const confEmail = getFieldConfig('email');
+  const confService = getFieldConfig('service');
+  const confLocation = getFieldConfig('location');
+  const confLeadRef = getFieldConfig('leadReference');
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
@@ -1047,34 +1053,39 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">{getFieldConfig('name').label} {getFieldConfig('name').required && '*'}</label>
-                <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required={getFieldConfig('name').required} />
+                <label className="form-label">{confName.label} {confName.required && '*'}</label>
+                <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required={confName.required} minLength={confName.minLength || undefined} maxLength={confName.maxLength || undefined} />
+                {form.name.trim() && confName.minLength && form.name.trim().length < confName.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confName.minLength} characters required</div>}
               </div>
               <div className="form-group">
-                <label className="form-label">{getFieldConfig('phone').label} {getFieldConfig('phone').required && '*'}</label>
-                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required={getFieldConfig('phone').required} />
+                <label className="form-label">{confPhone.label} {confPhone.required && '*'}</label>
+                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required={confPhone.required} minLength={confPhone.minLength || undefined} maxLength={confPhone.maxLength || undefined} />
+                {form.phone.trim() && confPhone.minLength && form.phone.trim().length < confPhone.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confPhone.minLength} characters required</div>}
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">{getFieldConfig('email').label} {getFieldConfig('email').required && '*'}</label>
-                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required={getFieldConfig('email').required} />
+                <label className="form-label">{confEmail.label} {confEmail.required && '*'}</label>
+                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required={confEmail.required} minLength={confEmail.minLength || undefined} maxLength={confEmail.maxLength || undefined} />
+                {form.email.trim() && confEmail.minLength && form.email.trim().length < confEmail.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confEmail.minLength} characters required</div>}
               </div>
               <div className="form-group">
-                <label className="form-label">{getFieldConfig('service').label} {getFieldConfig('service').required && '*'}</label>
-                <select className="form-select" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required={getFieldConfig('service').required}>
+                <label className="form-label">{confService.label} {confService.required && '*'}</label>
+                <select className="form-select" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required={confService.required}>
                   <option value="">Select Service</option>
                   {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">{getFieldConfig('location').label} {getFieldConfig('location').required && '*'}</label>
-              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Lead location" required={getFieldConfig('location').required} />
+              <label className="form-label">{confLocation.label} {confLocation.required && '*'}</label>
+              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Lead location" required={confLocation.required} minLength={confLocation.minLength || undefined} maxLength={confLocation.maxLength || undefined} />
+              {form.location.trim() && confLocation.minLength && form.location.trim().length < confLocation.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confLocation.minLength} characters required</div>}
             </div>
             <div className="form-group">
-              <label className="form-label">{getFieldConfig('leadReference').label} {getFieldConfig('leadReference').required && '*'}</label>
-              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" required={getFieldConfig('leadReference').required} />
+              <label className="form-label">{confLeadRef.label} {confLeadRef.required && '*'}</label>
+              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" required={confLeadRef.required} minLength={confLeadRef.minLength || undefined} maxLength={confLeadRef.maxLength || undefined} />
+              {form.leadReference.trim() && confLeadRef.minLength && form.leadReference.trim().length < confLeadRef.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confLeadRef.minLength} characters required</div>}
             </div>
 
             {/* Global Custom Fields */}
@@ -1103,20 +1114,22 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                   return (
                     <div className="form-group" key={`global-${idx}`}>
                       <label className="form-label">{gField.label} {gField.isRequired && '*'}</label>
-                      {gField.fieldType === 'Dropdown' ? (
-                        <select className="form-select" value={value} required={gField.isRequired} onChange={onChange}>
-                          <option value="">Select {gField.label}</option>
-                          {gField.options?.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-                        </select>
-                      ) : (
-                        <input 
-                          className="form-input" 
-                          type={gField.fieldType === 'Number' ? 'number' : 'text'} 
-                          value={value} 
-                          required={gField.isRequired} 
-                          onChange={onChange} 
-                        />
-                      )}
+                        <>
+                          <input 
+                            className="form-input" 
+                            type={gField.fieldType === 'Number' ? 'number' : 'text'} 
+                            value={value} 
+                            required={gField.isRequired}
+                            minLength={gField.minLength || undefined}
+                            maxLength={gField.maxLength || undefined}
+                            onChange={onChange} 
+                          />
+                          {String(value).trim() && gField.minLength && String(value).trim().length < gField.minLength && (
+                            <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>
+                              Minimum {gField.minLength} characters required
+                            </div>
+                          )}
+                        </>
                     </div>
                   );
                 })}
@@ -1200,23 +1213,6 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                           </button>
                         )}
                       </div>
-                      {field.fieldType === 'Dropdown' ? (
-                        <select 
-                          className="form-select" 
-                          value={field.value} 
-                          required={field.isRequired}
-                          onChange={e => {
-                            const updated = [...form.customFields];
-                            updated[idx].value = e.target.value;
-                            setForm({ ...form, customFields: updated });
-                          }}
-                        >
-                          <option value="">Select an option...</option>
-                          {field.options?.map((opt, i) => (
-                            <option key={i} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      ) : (
                         <input 
                           className="form-input" 
                           type={field.fieldType === 'Number' ? 'number' : 'text'}
@@ -1228,7 +1224,6 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                             setForm({ ...form, customFields: updated });
                           }}
                         />
-                      )}
                     </div>
                   )})}
                 </div>
@@ -1246,29 +1241,13 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                       <select className="form-select" value={newField.fieldType} onChange={e => setNewField({ ...newField, fieldType: e.target.value, value: '', options: '' })}>
                         <option value="Text">Text</option>
                         <option value="Number">Number</option>
-                        <option value="Dropdown">Dropdown List</option>
                       </select>
                     </div>
                   </div>
-                  {newField.fieldType === 'Dropdown' && (
-                    <div className="form-group" style={{ marginBottom: 16 }}>
-                      <label className="form-label">Options (comma-separated)</label>
-                      <input className="form-input" value={newField.options} onChange={e => setNewField({ ...newField, options: e.target.value })} placeholder="e.g. Saving, Current, Fixed" />
-                    </div>
-                  )}
                   <div className="form-row" style={{ marginBottom: 16 }}>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label className="form-label">Value / Description</label>
-                      {newField.fieldType === 'Dropdown' ? (
-                        <select className="form-select" value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })}>
-                          <option value="">Select an option...</option>
-                          {newField.options.split(',').map(opt => opt.trim()).filter(Boolean).map((opt, i) => (
-                            <option key={i} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input className="form-input" type={newField.fieldType === 'Number' ? 'number' : 'text'} value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
-                      )}
+                      <input className="form-input" type={newField.fieldType === 'Number' ? 'number' : 'text'} value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>

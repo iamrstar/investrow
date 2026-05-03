@@ -3,14 +3,18 @@ import mongoose from 'mongoose';
 const DefaultFieldSchema = new mongoose.Schema({
   name: { type: String, required: true }, // e.g., 'name', 'phone', 'email', 'service', 'location', 'leadReference'
   label: { type: String, required: true }, // e.g., 'Full Name', 'Mobile Number'
-  isRequired: { type: Boolean, default: false }
+  isRequired: { type: Boolean, default: false },
+  minLength: { type: Number, default: null },
+  maxLength: { type: Number, default: null }
 }, { _id: false });
 
 const GlobalCustomFieldSchema = new mongoose.Schema({
   label: { type: String, required: true },
-  fieldType: { type: String, enum: ['Text', 'Number', 'Dropdown'], default: 'Text' },
+  fieldType: { type: String, enum: ['Text', 'Number'], default: 'Text' },
   options: { type: [String], default: [] },
-  isRequired: { type: Boolean, default: false }
+  isRequired: { type: Boolean, default: false },
+  minLength: { type: Number, default: null },
+  maxLength: { type: Number, default: null }
 });
 
 const FormControlSchema = new mongoose.Schema({

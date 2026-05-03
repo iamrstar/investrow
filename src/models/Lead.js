@@ -86,7 +86,7 @@ const LeadSchema = new mongoose.Schema({
     {
       label: { type: String, required: true },
       value: { type: String, required: true },
-      fieldType: { type: String, enum: ['Text', 'Number', 'Dropdown'], default: 'Text' },
+      fieldType: { type: String, enum: ['Text', 'Number'], default: 'Text' },
       options: { type: [String], default: [] }
     }
   ],
