@@ -3,6 +3,7 @@ import Lead from '@/models/Lead';
 import User from '@/models/User';
 import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middleware';
 import ActivityLog from '@/models/ActivityLog';
+import FormControl from '@/models/FormControl';
 
 export async function GET(request) {
   const authUser = await getAuthUser();
@@ -92,6 +93,32 @@ export async function POST(request) {
   try {
     await dbConnect();
     const body = await request.json();
+
+    const settings = await FormControl.findOne({ singletonId: 'settings' }).lean();
+    if (settings) {
+      if (settings.defaultFields) {
+        for (const field of settings.defaultFields) {
+          if (field.isRequired && (!body[field.name] || String(body[field.name]).trim() === '')) {
+            return Response.json({ error: `${field.label || field.name} is required` }, { status: 400 });
+          }
+        }
+      }
+      
+      if (settings.globalCustomFields) {
+        for (const gField of settings.globalCustomFields) {
+          if (gField.isRequired) {
+            const customFieldValue = body.customFields?.find(f => f.label === gField.label)?.value;
+            if (!customFieldValue || String(customFieldValue).trim() === '') {
+              return Response.json({ error: `${gField.label} is required` }, { status: 400 });
+            }
+          }
+        }
+      }
+    } else {
+      if (!body.name) return Response.json({ error: 'Name is required' }, { status: 400 });
+      if (!body.phone) return Response.json({ error: 'Phone is required' }, { status: 400 });
+      if (!body.service) return Response.json({ error: 'Service is required' }, { status: 400 });
+    }
 
     // Auto-assign to creator if not explicitly assigned (Users are always auto-assigned to themselves)
     if (authUser.role === 'user' || !body.assignedTo) {

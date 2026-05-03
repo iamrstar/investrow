@@ -42,12 +42,14 @@ export default function ClientsPage() {
   const [assignRole, setAssignRole] = useState(''); // 'user'
   const [showCustomEmail, setShowCustomEmail] = useState(false);
   const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
+  const [formSettings, setFormSettings] = useState(null);
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const canCreate = user?.role === 'admin' || user?.role === 'user';
+  const canEdit = user?.role === 'admin';
   const canAssign = user?.role === 'admin';
   const canDelete = user?.role === 'admin';
 
@@ -79,6 +81,12 @@ export default function ClientsPage() {
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
+
+  useEffect(() => {
+    fetch('/api/form-control?t=' + Date.now()).then(r => r.json()).then(data => {
+      if (data.success) setFormSettings(data.settings);
+    }).catch(err => console.error(err));
+  }, []);
 
   useEffect(() => {
     if (canAssign) {
@@ -377,6 +385,7 @@ export default function ClientsPage() {
           client={editingClient}
           users={teamUsers}
           canAssign={canAssign}
+          formSettings={formSettings}
           onClose={() => { setShowModal(false); setEditingClient(null); }}
           onSave={handleSaveClient}
         />
@@ -561,6 +570,7 @@ export default function ClientsPage() {
           }}
           canAssign={canAssign}
           canDelete={canDelete}
+          canEdit={canEdit}
         />
       )}
 
@@ -823,7 +833,7 @@ export default function ClientsPage() {
   );
 }
 
-function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
+function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSave }) {
   const { user } = useAuth();
   const [form, setForm] = useState({
     name: client?.name || '',
@@ -842,12 +852,49 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
     location: client?.location || '',
     customFields: client?.customFields || [],
   });
-  const [newField, setNewField] = useState({ label: '', value: '' });
+
+  const getFieldConfig = (name) => {
+    const defaults = {
+      name: { label: 'Name', required: true },
+      phone: { label: 'Phone', required: true },
+      email: { label: 'Email', required: false },
+      service: { label: 'Service', required: true },
+      location: { label: 'Location', required: false },
+      leadReference: { label: 'Reference', required: false }
+    };
+    if (!formSettings?.defaultFields) return defaults[name];
+    const conf = formSettings.defaultFields.find(f => f.name === name);
+    return conf ? { label: conf.label, required: conf.isRequired } : defaults[name];
+  };
+  const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Text', options: '' });
   const [showAddField, setShowAddField] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const isFormValid = () => {
+    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference'];
+    for (const field of defaultFields) {
+      if (getFieldConfig(field).required && !form[field]?.trim()) {
+        return false;
+      }
+    }
+
+    if (formSettings?.globalCustomFields) {
+      for (const gField of formSettings.globalCustomFields) {
+        if (gField.isRequired) {
+          const customFieldValue = form.customFields.find(f => f.label === gField.label)?.value;
+          if (!customFieldValue || !String(customFieldValue).trim()) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isFormValid()) return;
     setSaving(true);
     const payload = { ...form };
     payload.customFields = payload.customFields.filter(f => f.label.trim() && f.value.trim());
@@ -857,11 +904,19 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
 
   const addCustomField = () => {
     if (!newField.label.trim() || !newField.value.trim()) return;
+    
+    const optionsArray = newField.fieldType === 'Dropdown' ? newField.options.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
     setForm({
       ...form,
-      customFields: [...form.customFields, { ...newField }]
+      customFields: [...form.customFields, { 
+        label: newField.label, 
+        value: newField.value, 
+        fieldType: newField.fieldType,
+        options: optionsArray
+      }]
     });
-    setNewField({ label: '', value: '' });
+    setNewField({ label: '', value: '', fieldType: 'Text', options: '' });
     setShowAddField(false);
   };
 
@@ -882,35 +937,81 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Name *</label>
-                <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                <label className="form-label">{getFieldConfig('name').label} {getFieldConfig('name').required && '*'}</label>
+                <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required={getFieldConfig('name').required} />
               </div>
               <div className="form-group">
-                <label className="form-label">Phone *</label>
-                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required />
+                <label className="form-label">{getFieldConfig('phone').label} {getFieldConfig('phone').required && '*'}</label>
+                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required={getFieldConfig('phone').required} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                <label className="form-label">{getFieldConfig('email').label} {getFieldConfig('email').required && '*'}</label>
+                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required={getFieldConfig('email').required} />
               </div>
               <div className="form-group">
-                <label className="form-label">Service *</label>
-                <select className="form-select" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required>
+                <label className="form-label">{getFieldConfig('service').label} {getFieldConfig('service').required && '*'}</label>
+                <select className="form-select" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required={getFieldConfig('service').required}>
                   <option value="">Select Service</option>
                   {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Location</label>
-              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Client location" />
+              <label className="form-label">{getFieldConfig('location').label} {getFieldConfig('location').required && '*'}</label>
+              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Client location" required={getFieldConfig('location').required} />
             </div>
             <div className="form-group">
-              <label className="form-label">Reference</label>
-              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" />
+              <label className="form-label">{getFieldConfig('leadReference').label} {getFieldConfig('leadReference').required && '*'}</label>
+              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" required={getFieldConfig('leadReference').required} />
             </div>
+
+            {/* Global Custom Fields */}
+            {formSettings?.globalCustomFields?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, marginTop: 16 }}>
+                {formSettings.globalCustomFields.map((gField, idx) => {
+                  const fieldIndex = form.customFields.findIndex(f => f.label === gField.label);
+                  const value = fieldIndex >= 0 ? form.customFields[fieldIndex].value : '';
+
+                  const onChange = (e) => {
+                    const updated = [...form.customFields];
+                    if (fieldIndex >= 0) {
+                      updated[fieldIndex].value = e.target.value;
+                    } else {
+                      updated.push({
+                        label: gField.label,
+                        value: e.target.value,
+                        fieldType: gField.fieldType,
+                        options: gField.options,
+                        isRequired: gField.isRequired
+                      });
+                    }
+                    setForm({ ...form, customFields: updated });
+                  };
+
+                  return (
+                    <div className="form-group" key={`global-${idx}`}>
+                      <label className="form-label">{gField.label} {gField.isRequired && '*'}</label>
+                      {gField.fieldType === 'Dropdown' ? (
+                        <select className="form-select" value={value} required={gField.isRequired} onChange={onChange}>
+                          <option value="">Select {gField.label}</option>
+                          {gField.options?.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <input 
+                          className="form-input" 
+                          type={gField.fieldType === 'Number' ? 'number' : 'text'} 
+                          value={value} 
+                          required={gField.isRequired} 
+                          onChange={onChange} 
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Call Status</label>
@@ -949,27 +1050,53 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
                 )}
               </div>
 
-              {form.customFields.length > 0 && (
+              {form.customFields.filter(f => !formSettings?.globalCustomFields?.some(g => g.label === f.label)).length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 12 }}>
-                  {form.customFields.map((field, idx) => (
-                    <div key={idx} className="form-group" style={{ position: 'relative' }}>
+                  {form.customFields.map((field, idx) => {
+                    if (formSettings?.globalCustomFields?.some(g => g.label === field.label)) return null;
+                    return (
+                      <div key={idx} className="form-group" style={{ position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <label className="form-label" style={{ marginBottom: 0 }}>{field.label}</label>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCustomField(idx)} style={{ color: '#ef4444', padding: 4 }}>
-                          <Trash2 size={14} /> Remove
-                        </button>
+                        <label className="form-label" style={{ marginBottom: 0 }}>
+                          {field.label} {field.isRequired && '*'}
+                        </label>
+                        {!field.isRequired && (
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCustomField(idx)} style={{ color: '#ef4444', padding: 4 }}>
+                            <Trash2 size={14} /> Remove
+                          </button>
+                        )}
                       </div>
-                      <input 
-                        className="form-input" 
-                        value={field.value} 
-                        onChange={e => {
-                          const updated = [...form.customFields];
-                          updated[idx].value = e.target.value;
-                          setForm({ ...form, customFields: updated });
-                        }}
-                      />
+                      {field.fieldType === 'Dropdown' ? (
+                        <select 
+                          className="form-select" 
+                          value={field.value} 
+                          required={field.isRequired}
+                          onChange={e => {
+                            const updated = [...form.customFields];
+                            updated[idx].value = e.target.value;
+                            setForm({ ...form, customFields: updated });
+                          }}
+                        >
+                          <option value="">Select an option...</option>
+                          {field.options?.map((opt, i) => (
+                            <option key={i} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input 
+                          className="form-input" 
+                          type={field.fieldType === 'Number' ? 'number' : 'text'}
+                          value={field.value} 
+                          required={field.isRequired}
+                          onChange={e => {
+                            const updated = [...form.customFields];
+                            updated[idx].value = e.target.value;
+                            setForm({ ...form, customFields: updated });
+                          }}
+                        />
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
 
@@ -978,11 +1105,36 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
                   <div className="form-row" style={{ marginBottom: 16 }}>
                     <div className="form-group">
                       <label className="form-label">Field Name</label>
-                      <input className="form-input" value={newField.label} onChange={e => setNewField({ ...newField, label: e.target.value })} placeholder="e.g. Aadhar Number" />
+                      <input className="form-input" value={newField.label} onChange={e => setNewField({ ...newField, label: e.target.value })} placeholder="e.g. Account Type" />
                     </div>
                     <div className="form-group">
+                      <label className="form-label">Field Type</label>
+                      <select className="form-select" value={newField.fieldType} onChange={e => setNewField({ ...newField, fieldType: e.target.value, value: '', options: '' })}>
+                        <option value="Text">Text</option>
+                        <option value="Number">Number</option>
+                        <option value="Dropdown">Dropdown List</option>
+                      </select>
+                    </div>
+                  </div>
+                  {newField.fieldType === 'Dropdown' && (
+                    <div className="form-group" style={{ marginBottom: 16 }}>
+                      <label className="form-label">Options (comma-separated)</label>
+                      <input className="form-input" value={newField.options} onChange={e => setNewField({ ...newField, options: e.target.value })} placeholder="e.g. Saving, Current, Fixed" />
+                    </div>
+                  )}
+                  <div className="form-row" style={{ marginBottom: 16 }}>
+                    <div className="form-group" style={{ flex: 1 }}>
                       <label className="form-label">Value / Description</label>
-                      <input className="form-input" value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
+                      {newField.fieldType === 'Dropdown' ? (
+                        <select className="form-select" value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })}>
+                          <option value="">Select an option...</option>
+                          {newField.options.split(',').map(opt => opt.trim()).filter(Boolean).map((opt, i) => (
+                            <option key={i} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input className="form-input" type={newField.fieldType === 'Number' ? 'number' : 'text'} value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -1011,7 +1163,7 @@ function ClientFormModal({ client, users, canAssign, onClose, onSave }) {
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !isFormValid()}>
               {saving ? 'Saving...' : client ? 'Update Client' : 'Create Client'}
             </button>
           </div>
@@ -1164,7 +1316,7 @@ function LogFollowUpModal({ client, onClose, onSave }) {
   );
 }
 
-function ActionMenu({ client, onClose, onAction, canAssign, canDelete }) {
+function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }) {
   return (
     <div className="bottom-sheet-backdrop" onClick={onClose}>
       <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
@@ -1186,9 +1338,11 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete }) {
           <button className="bottom-sheet-item" onClick={() => onAction('email')}>
             <Mail size={20} /> Send Email
           </button>
-          <button className="bottom-sheet-item" onClick={() => onAction('edit')}>
-            <Edit size={20} /> Edit Client
-          </button>
+          {canEdit && (
+            <button className="bottom-sheet-item" onClick={() => onAction('edit')}>
+              <Edit size={20} /> Edit Client
+            </button>
+          )}
           {canAssign && (
             <button className="bottom-sheet-item" onClick={() => onAction('assign')}>
               <UserPlus size={20} /> Assign

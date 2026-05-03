@@ -14,7 +14,6 @@ const SERVICES = [
 const LeadSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Lead name is required'],
     trim: true,
   },
   email: {
@@ -25,13 +24,12 @@ const LeadSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
     trim: true,
   },
   service: {
     type: String,
-    enum: SERVICES,
-    required: [true, 'Service type is required'],
+    enum: [...SERVICES, ''], // allow empty string if not required
+    default: ''
   },
   leadReference: {
     type: String,
@@ -88,6 +86,8 @@ const LeadSchema = new mongoose.Schema({
     {
       label: { type: String, required: true },
       value: { type: String, required: true },
+      fieldType: { type: String, enum: ['Text', 'Number', 'Dropdown'], default: 'Text' },
+      options: { type: [String], default: [] }
     }
   ],
 }, {

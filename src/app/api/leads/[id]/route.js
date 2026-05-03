@@ -3,6 +3,7 @@ import Lead from '@/models/Lead';
 import User from '@/models/User';
 import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middleware';
 import ActivityLog from '@/models/ActivityLog';
+import FormControl from '@/models/FormControl';
 
 import FollowUp from '@/models/FollowUp';
 
@@ -68,6 +69,33 @@ export async function PUT(request, { params }) {
 
   try {
     const body = await request.json();
+
+    const settings = await FormControl.findOne({ singletonId: 'settings' }).lean();
+    if (settings) {
+      if (settings.defaultFields) {
+        for (const field of settings.defaultFields) {
+          if (field.isRequired && (!body[field.name] || String(body[field.name]).trim() === '')) {
+            return Response.json({ error: `${field.label || field.name} is required` }, { status: 400 });
+          }
+        }
+      }
+      
+      if (settings.globalCustomFields) {
+        for (const gField of settings.globalCustomFields) {
+          if (gField.isRequired) {
+            const customFieldValue = body.customFields?.find(f => f.label === gField.label)?.value;
+            if (!customFieldValue || String(customFieldValue).trim() === '') {
+              return Response.json({ error: `${gField.label} is required` }, { status: 400 });
+            }
+          }
+        }
+      }
+    } else {
+      if (!body.name) return Response.json({ error: 'Name is required' }, { status: 400 });
+      if (!body.phone) return Response.json({ error: 'Phone is required' }, { status: 400 });
+      if (!body.service) return Response.json({ error: 'Service is required' }, { status: 400 });
+    }
+
     const lead = await Lead.findByIdAndUpdate(id, body, { new: true, runValidators: true });
 
     // Track changes

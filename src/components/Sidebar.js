@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard, Users, UserPlus, FileText, ListTodo,
-  Activity, Settings, LogOut, Menu, X, ChevronRight,
+  Activity, Settings, LogOut, Menu, X, ChevronRight, LayoutTemplate
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -18,6 +18,7 @@ const navItems = {
     { label: 'Users', href: '/users', icon: Users },
     { section: 'Insights' },
     { label: 'Activity Log', href: '/activity', icon: Activity },
+    { label: 'Form Control', href: '/form-control', icon: LayoutTemplate },
     { label: 'Settings', href: '/settings', icon: Settings },
   ],
 
