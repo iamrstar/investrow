@@ -44,16 +44,35 @@ export async function PUT(request) {
     
     let settings = await FormControl.findOne({ singletonId: 'settings' });
     if (!settings) {
-      settings = new FormControl(DEFAULT_SETTINGS);
+      settings = new FormControl({ singletonId: 'settings' });
     }
 
-    if (body.defaultFields) settings.defaultFields = body.defaultFields;
-    if (body.globalCustomFields) settings.globalCustomFields = body.globalCustomFields;
+    if (body.defaultFields) {
+      settings.defaultFields = body.defaultFields.map(f => ({
+        name: f.name,
+        label: f.label,
+        isRequired: !!f.isRequired,
+        minLength: f.minLength || null,
+        maxLength: f.maxLength || null
+      }));
+    }
+
+    if (body.globalCustomFields) {
+      settings.globalCustomFields = body.globalCustomFields.map(f => ({
+        label: f.label,
+        fieldType: f.fieldType || 'Short answer',
+        options: Array.isArray(f.options) ? f.options.filter(o => typeof o === 'string' && o.trim() !== '') : [],
+        isRequired: !!f.isRequired,
+        minLength: f.minLength || null,
+        maxLength: f.maxLength || null
+      }));
+    }
 
     await settings.save();
     
     return Response.json({ success: true, settings });
   } catch (error) {
-    return Response.json({ error: 'Failed to update form control settings' }, { status: 500 });
+    console.error('Form control update error:', error);
+    return Response.json({ error: error.message || 'Failed to update form control settings' }, { status: 500 });
   }
 }

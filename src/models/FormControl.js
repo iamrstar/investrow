@@ -10,7 +10,11 @@ const DefaultFieldSchema = new mongoose.Schema({
 
 const GlobalCustomFieldSchema = new mongoose.Schema({
   label: { type: String, required: true },
-  fieldType: { type: String, enum: ['Text', 'Number'], default: 'Text' },
+  fieldType: { 
+    type: String, 
+    enum: ['Short answer', 'Paragraph', 'Multiple choice', 'Checkboxes', 'Dropdown', 'File upload', 'Date', 'Time', 'Number', 'Text'], 
+    default: 'Short answer' 
+  },
   options: { type: [String], default: [] },
   isRequired: { type: Boolean, default: false },
   minLength: { type: Number, default: null },
@@ -25,4 +29,8 @@ const FormControlSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-export default mongoose.models.FormControl || mongoose.model('FormControl', FormControlSchema);
+if (mongoose.models.FormControl) {
+  delete mongoose.models.FormControl;
+}
+
+export default mongoose.model('FormControl', FormControlSchema);

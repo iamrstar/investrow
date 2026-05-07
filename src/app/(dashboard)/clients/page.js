@@ -866,7 +866,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     const conf = formSettings.defaultFields.find(f => f.name === name);
     return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : defaults[name];
   };
-  const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Text', options: '' });
+  const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Short answer', options: [] });
   const [showAddField, setShowAddField] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -899,23 +899,25 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     if (!isFormValid()) return;
     setSaving(true);
     const payload = { ...form };
-    payload.customFields = payload.customFields.filter(f => f.label.trim() && f.value.trim());
+    // Clean up customFields if any are empty
+    payload.customFields = payload.customFields.filter(f => f.label.trim() && (Array.isArray(f.value) ? f.value.length > 0 : String(f.value).trim()));
     await onSave(payload);
     setSaving(false);
   };
 
   const addCustomField = () => {
-    if (!newField.label.trim() || !newField.value.trim()) return;
+    if (!newField.label.trim()) return;
     
     setForm({
       ...form,
       customFields: [...form.customFields, { 
         label: newField.label, 
         value: newField.value, 
-        fieldType: newField.fieldType
+        fieldType: newField.fieldType,
+        options: newField.options
       }]
     });
-    setNewField({ label: '', value: '', fieldType: 'Text', options: '' });
+    setNewField({ label: '', value: '', fieldType: 'Short answer', options: [] });
     setShowAddField(false);
   };
 
@@ -941,46 +943,47 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">{confName.label} {confName.required && '*'}</label>
-                <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required={confName.required} minLength={confName.minLength || undefined} maxLength={confName.maxLength || undefined} />
-                {form.name.trim() && confName.minLength && form.name.trim().length < confName.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confName.minLength} characters required</div>}
-              </div>
-              <div className="form-group">
-                <label className="form-label">{confPhone.label} {confPhone.required && '*'}</label>
-                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required={confPhone.required} minLength={confPhone.minLength || undefined} maxLength={confPhone.maxLength || undefined} />
-                {form.phone.trim() && confPhone.minLength && form.phone.trim().length < confPhone.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confPhone.minLength} characters required</div>}
-              </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
+              {formSettings?.defaultFields?.map((dField) => {
+                const value = form[dField.name] || '';
+                const onChange = (e) => setForm({ ...form, [dField.name]: e.target.value });
+                
+                return (
+                  <div className="form-group" key={dField.name} style={{ gridColumn: ['location', 'leadReference'].includes(dField.name) ? 'span 2' : 'span 1' }}>
+                    <label className="form-label">{dField.label} {dField.isRequired && '*'}</label>
+                    {dField.name === 'service' ? (
+                      <select className="form-select" value={value} onChange={onChange} required={dField.isRequired}>
+                        <option value="">Select Service</option>
+                        {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    ) : (
+                      <input 
+                        className="form-input" 
+                        type={dField.name === 'email' ? 'email' : 'text'}
+                        value={value} 
+                        onChange={onChange} 
+                        required={dField.isRequired}
+                        minLength={dField.minLength || undefined}
+                        maxLength={dField.maxLength || undefined}
+                        placeholder={dField.label}
+                      />
+                    )}
+                    {String(value).trim() && dField.minLength && String(value).trim().length < dField.minLength && (
+                      <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>
+                        Minimum {dField.minLength} characters required
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">{confEmail.label} {confEmail.required && '*'}</label>
-                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required={confEmail.required} minLength={confEmail.minLength || undefined} maxLength={confEmail.maxLength || undefined} />
-                {form.email.trim() && confEmail.minLength && form.email.trim().length < confEmail.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confEmail.minLength} characters required</div>}
-              </div>
-              <div className="form-group">
-                <label className="form-label">{confService.label} {confService.required && '*'}</label>
-                <select className="form-select" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required={confService.required}>
-                  <option value="">Select Service</option>
-                  {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">{confLocation.label} {confLocation.required && '*'}</label>
-              <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Client location" required={confLocation.required} minLength={confLocation.minLength || undefined} maxLength={confLocation.maxLength || undefined} />
-              {form.location.trim() && confLocation.minLength && form.location.trim().length < confLocation.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confLocation.minLength} characters required</div>}
-            </div>
-            <div className="form-group">
-              <label className="form-label">{confLeadRef.label} {confLeadRef.required && '*'}</label>
-              <input className="form-input" value={form.leadReference} onChange={e => setForm({ ...form, leadReference: e.target.value })} placeholder="Optional reference" required={confLeadRef.required} minLength={confLeadRef.minLength || undefined} maxLength={confLeadRef.maxLength || undefined} />
-              {form.leadReference.trim() && confLeadRef.minLength && form.leadReference.trim().length < confLeadRef.minLength && <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>Minimum {confLeadRef.minLength} characters required</div>}
-            </div>
+
+            <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
 
             {/* Global Custom Fields */}
             {formSettings?.globalCustomFields?.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, marginTop: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
                 {formSettings.globalCustomFields.map((gField, idx) => {
                   const fieldIndex = form.customFields.findIndex(f => f.label === gField.label);
                   const value = fieldIndex >= 0 ? form.customFields[fieldIndex].value : '';
@@ -1004,27 +1007,306 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                   return (
                     <div className="form-group" key={`global-${idx}`}>
                       <label className="form-label">{gField.label} {gField.isRequired && '*'}</label>
-                        <>
+                        {gField.fieldType === 'Paragraph' ? (
+                          <textarea 
+                            className="form-textarea" 
+                            value={value} 
+                            required={gField.isRequired}
+                            onChange={onChange}
+                            style={{ minHeight: 100 }}
+                          />
+                        ) : gField.fieldType === 'Dropdown' ? (
+                          <select className="form-select" value={value} required={gField.isRequired} onChange={onChange}>
+                            <option value="">Select Option</option>
+                            {gField.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        ) : gField.fieldType === 'Multiple choice' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                            {gField.options?.map(opt => (
+                              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                <input 
+                                  type="radio" 
+                                  name={`radio-${gField.label}`} 
+                                  value={opt} 
+                                  checked={value === opt} 
+                                  onChange={onChange} 
+                                  required={gField.isRequired}
+                                />
+                                {opt}
+                              </label>
+                            ))}
+                          </div>
+                        ) : gField.fieldType === 'Checkboxes' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                            {gField.options?.map(opt => {
+                              const checkedValues = Array.isArray(value) ? value : (value ? value.split(', ') : []);
+                              const handleCheck = (e) => {
+                                let newValues;
+                                if (e.target.checked) {
+                                  newValues = [...checkedValues, opt];
+                                } else {
+                                  newValues = checkedValues.filter(v => v !== opt);
+                                }
+                                onChange({ target: { value: newValues.join(', ') } });
+                              };
+                              return (
+                                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    value={opt} 
+                                    checked={checkedValues.includes(opt)} 
+                                    onChange={handleCheck} 
+                                  />
+                                  {opt}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
                           <input 
                             className="form-input" 
-                            type={gField.fieldType === 'Number' ? 'number' : 'text'} 
-                            value={value} 
+                            type={
+                              gField.fieldType === 'Number' ? 'number' : 
+                              gField.fieldType === 'Date' ? 'date' : 
+                              gField.fieldType === 'Time' ? 'time' : 
+                              gField.fieldType === 'File upload' ? 'file' : 'text'
+                            } 
+                            value={gField.fieldType === 'File upload' ? undefined : value} 
                             required={gField.isRequired}
                             minLength={gField.minLength || undefined}
                             maxLength={gField.maxLength || undefined}
-                            onChange={onChange} 
+                            onChange={gField.fieldType === 'File upload' ? (e) => {
+                                onChange({ target: { value: e.target.files[0]?.name || '' } });
+                            } : onChange} 
                           />
-                          {String(value).trim() && gField.minLength && String(value).trim().length < gField.minLength && (
-                            <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>
-                              Minimum {gField.minLength} characters required
-                            </div>
-                          )}
-                        </>
+                        )}
+                        {String(value).trim() && gField.minLength && String(value).trim().length < gField.minLength && (
+                          <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>
+                            Minimum {gField.minLength} characters required
+                          </div>
+                        )}
                     </div>
                   );
                 })}
               </div>
             )}
+
+            <div className="form-group" style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Custom Fields</label>
+                {!showAddField && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddField(true)} style={{ color: 'var(--secondary)', fontWeight: 700 }}>
+                    <Plus size={14} /> Add more fields
+                  </button>
+                )}
+              </div>
+
+              {form.customFields.filter(f => !formSettings?.globalCustomFields?.some(g => g.label === f.label)).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 12 }}>
+                  {form.customFields.map((field, idx) => {
+                    if (formSettings?.globalCustomFields?.some(g => g.label === field.label)) return null;
+                    return (
+                      <div key={idx} className="form-group" style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <label className="form-label" style={{ marginBottom: 0 }}>
+                            {field.label} {field.isRequired && '*'}
+                          </label>
+                          {!field.isRequired && (
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCustomField(idx)} style={{ color: '#ef4444', padding: 4 }}>
+                              <Trash2 size={14} /> Remove
+                            </button>
+                          )}
+                        </div>
+                        {field.fieldType === 'Paragraph' ? (
+                          <textarea 
+                            className="form-textarea" 
+                            value={field.value} 
+                            required={field.isRequired}
+                            style={{ minHeight: 100 }}
+                            onChange={e => {
+                              const updated = [...form.customFields];
+                              updated[idx].value = e.target.value;
+                              setForm({ ...form, customFields: updated });
+                            }}
+                          />
+                        ) : field.fieldType === 'Dropdown' ? (
+                          <select 
+                            className="form-select" 
+                            value={field.value} 
+                            required={field.isRequired}
+                            onChange={e => {
+                              const updated = [...form.customFields];
+                              updated[idx].value = e.target.value;
+                              setForm({ ...form, customFields: updated });
+                            }}
+                          >
+                            <option value="">Select Option</option>
+                            {(Array.isArray(field.options) ? field.options : field.options?.split(',') || []).map(opt => {
+                              const o = typeof opt === 'string' ? opt.trim() : opt;
+                              return <option key={o} value={o}>{o}</option>;
+                            })}
+                          </select>
+                        ) : field.fieldType === 'Multiple choice' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                            {(Array.isArray(field.options) ? field.options : field.options?.split(',') || []).map(opt => {
+                              const o = typeof opt === 'string' ? opt.trim() : opt;
+                              return (
+                                <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                  <input 
+                                    type="radio" 
+                                    name={`radio-user-client-${idx}`} 
+                                    value={o} 
+                                    checked={field.value === o} 
+                                    onChange={e => {
+                                      const updated = [...form.customFields];
+                                      updated[idx].value = e.target.value;
+                                      setForm({ ...form, customFields: updated });
+                                    }} 
+                                    required={field.isRequired}
+                                  />
+                                  {o}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : field.fieldType === 'Checkboxes' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                            {(Array.isArray(field.options) ? field.options : field.options?.split(',') || []).map(opt => {
+                              const o = typeof opt === 'string' ? opt.trim() : opt;
+                              const checkedValues = Array.isArray(field.value) ? field.value : (field.value ? field.value.split(', ') : []);
+                              const handleCheck = (e) => {
+                                let newValues;
+                                if (e.target.checked) {
+                                  newValues = [...checkedValues, o];
+                                } else {
+                                  newValues = checkedValues.filter(v => v !== o);
+                                }
+                                const updated = [...form.customFields];
+                                updated[idx].value = newValues.join(', ');
+                                setForm({ ...form, customFields: updated });
+                              };
+                              return (
+                                <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    value={o} 
+                                    checked={checkedValues.includes(o)} 
+                                    onChange={handleCheck} 
+                                  />
+                                  {o}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <input 
+                            className="form-input" 
+                            type={
+                              field.fieldType === 'Number' ? 'number' : 
+                              field.fieldType === 'Date' ? 'date' : 
+                              field.fieldType === 'Time' ? 'time' : 
+                              field.fieldType === 'File upload' ? 'file' : 'text'
+                            } 
+                            value={field.fieldType === 'File upload' ? undefined : field.value} 
+                            required={field.isRequired}
+                            onChange={e => {
+                              const updated = [...form.customFields];
+                              updated[idx].value = field.fieldType === 'File upload' ? (e.target.files[0]?.name || '') : e.target.value;
+                              setForm({ ...form, customFields: updated });
+                            }}
+                          />
+                        )}
+                      </div>
+                    )})}
+                </div>
+              )}
+
+              {showAddField && (
+                <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid var(--border)', marginBottom: 12 }}>
+                  <div className="form-row" style={{ marginBottom: 16 }}>
+                    <div className="form-group">
+                      <label className="form-label">Field Name</label>
+                      <input className="form-input" value={newField.label} onChange={e => setNewField({ ...newField, label: e.target.value })} placeholder="e.g. Account Type" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Field Type</label>
+                      <select className="form-select" value={newField.fieldType} onChange={e => setNewField({ ...newField, fieldType: e.target.value, value: '', options: [] })}>
+                        <option value="Short answer">Short answer</option>
+                        <option value="Paragraph">Paragraph</option>
+                        <option value="Multiple choice">Multiple choice</option>
+                        <option value="Checkboxes">Checkboxes</option>
+                        <option value="Dropdown">Dropdown</option>
+                        <option value="File upload">File upload</option>
+                        <option value="Date">Date</option>
+                        <option value="Time">Time</option>
+                        <option value="Number">Number</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {['Multiple choice', 'Checkboxes', 'Dropdown'].includes(newField.fieldType) && (
+                    <div className="form-group" style={{ marginBottom: 16 }}>
+                      <label className="form-label">Options</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {(Array.isArray(newField.options) ? newField.options : []).map((opt, optIdx) => (
+                          <div key={optIdx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{optIdx + 1}.</div>
+                            <input 
+                              className="form-input" 
+                              value={opt} 
+                              onChange={e => {
+                                const newOpts = [...newField.options];
+                                newOpts[optIdx] = e.target.value;
+                                setNewField({ ...newField, options: newOpts });
+                              }}
+                            />
+                            <button 
+                              type="button"
+                              className="btn btn-ghost btn-sm" 
+                              onClick={() => {
+                                const newOpts = newField.options.filter((_, i) => i !== optIdx);
+                                setNewField({ ...newField, options: newOpts });
+                              }}
+                              style={{ color: '#ef4444', padding: 4 }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <button 
+                          type="button"
+                          className="btn btn-ghost btn-sm" 
+                          onClick={() => {
+                            const newOpts = Array.isArray(newField.options) ? [...newField.options, ''] : [''];
+                            setNewField({ ...newField, options: newOpts });
+                          }}
+                          style={{ color: 'var(--secondary)', justifyContent: 'flex-start', padding: '4px 0', fontWeight: 600 }}
+                        >
+                          <Plus size={14} /> Add option
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="form-row" style={{ marginBottom: 16 }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Value / Initial Response</label>
+                      {newField.fieldType === 'Paragraph' ? (
+                        <textarea className="form-textarea" value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter details..." />
+                      ) : (
+                        <input className="form-input" type={newField.fieldType === 'Number' ? 'number' : newField.fieldType === 'Date' ? 'date' : newField.fieldType === 'Time' ? 'time' : 'text'} value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-ghost" onClick={() => setShowAddField(false)}>Cancel</button>
+                    <button type="button" className="btn btn-secondary" onClick={addCustomField}>Save Field</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Standard Fields */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Call Status</label>
@@ -1053,77 +1335,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                 <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
               </div>
             </div>
-            <div className="form-group" style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Custom Fields</label>
-                {!showAddField && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddField(true)} style={{ color: 'var(--secondary)', fontWeight: 700 }}>
-                    <Plus size={14} /> Add more fields
-                  </button>
-                )}
-              </div>
-
-              {form.customFields.filter(f => !formSettings?.globalCustomFields?.some(g => g.label === f.label)).length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 12 }}>
-                  {form.customFields.map((field, idx) => {
-                    if (formSettings?.globalCustomFields?.some(g => g.label === field.label)) return null;
-                    return (
-                      <div key={idx} className="form-group" style={{ position: 'relative' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <label className="form-label" style={{ marginBottom: 0 }}>
-                          {field.label} {field.isRequired && '*'}
-                        </label>
-                        {!field.isRequired && (
-                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCustomField(idx)} style={{ color: '#ef4444', padding: 4 }}>
-                            <Trash2 size={14} /> Remove
-                          </button>
-                        )}
-                      </div>
-                        <input 
-                          className="form-input" 
-                          type={field.fieldType === 'Number' ? 'number' : 'text'}
-                          value={field.value} 
-                          required={field.isRequired}
-                          onChange={e => {
-                            const updated = [...form.customFields];
-                            updated[idx].value = e.target.value;
-                            setForm({ ...form, customFields: updated });
-                          }}
-                        />
-                    </div>
-                  )})}
-                </div>
-              )}
-
-              {showAddField && (
-                <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid var(--border)', marginBottom: 12 }}>
-                  <div className="form-row" style={{ marginBottom: 16 }}>
-                    <div className="form-group">
-                      <label className="form-label">Field Name</label>
-                      <input className="form-input" value={newField.label} onChange={e => setNewField({ ...newField, label: e.target.value })} placeholder="e.g. Account Type" />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Field Type</label>
-                      <select className="form-select" value={newField.fieldType} onChange={e => setNewField({ ...newField, fieldType: e.target.value, value: '', options: '' })}>
-                        <option value="Text">Text</option>
-                        <option value="Number">Number</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-row" style={{ marginBottom: 16 }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label">Value / Description</label>
-                      <input className="form-input" type={newField.fieldType === 'Number' ? 'number' : 'text'} value={newField.value} onChange={e => setNewField({ ...newField, value: e.target.value })} placeholder="Enter value..." />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn btn-ghost" onClick={() => setShowAddField(false)}>Cancel</button>
-                    <button type="button" className="btn btn-secondary" onClick={addCustomField}>Save Field</button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Standard Fields */}
 
             {canAssign && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>

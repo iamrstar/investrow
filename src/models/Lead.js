@@ -86,7 +86,11 @@ const LeadSchema = new mongoose.Schema({
     {
       label: { type: String, required: true },
       value: { type: String, required: true },
-      fieldType: { type: String, enum: ['Text', 'Number'], default: 'Text' },
+      fieldType: { 
+        type: String, 
+        enum: ['Short answer', 'Paragraph', 'Multiple choice', 'Checkboxes', 'Dropdown', 'File upload', 'Date', 'Time', 'Number', 'Text'], 
+        default: 'Short answer' 
+      },
       options: { type: [String], default: [] }
     }
   ],
@@ -101,4 +105,8 @@ LeadSchema.index({ response: 1 });
 LeadSchema.index({ callStatus: 1 });
 
 export { SERVICES };
-export default mongoose.models.Lead || mongoose.model('Lead', LeadSchema);
+if (mongoose.models.Lead) {
+  delete mongoose.models.Lead;
+}
+
+export default mongoose.model('Lead', LeadSchema);
