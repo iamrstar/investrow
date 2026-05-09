@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import LogFollowUpModal from '@/components/LogFollowUpModal';
+import ScheduleEventModal from '@/components/ScheduleEventModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Clock, CheckCircle
+  MoreVertical, Clock, CheckCircle, Video, Calendar
 } from 'lucide-react';
 
 const SERVICES = [
@@ -46,6 +48,11 @@ export default function LeadsPage() {
   const [formSettings, setFormSettings] = useState(null);
   const [convertLead, setConvertLead] = useState(null);
   const [converting, setConverting] = useState(false);
+  const [showScheduleCall, setShowScheduleCall] = useState(false);
+  const [showScheduleMeet, setShowScheduleMeet] = useState(false);
+  const [scheduleLead, setScheduleLead] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -65,6 +72,8 @@ export default function LeadsPage() {
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
       if (filterUser) params.set('assignedTo', filterUser);
       if (filterDate) params.set('followUpDate', filterDate);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
 
       const res = await fetch(`/api/leads?${params}`);
       const data = await res.json();
@@ -75,7 +84,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterService, filterResponse, filterCallStatus, filterUser, filterDate, addToast]);
+  }, [search, filterService, filterResponse, filterCallStatus, filterUser, filterDate, startDate, endDate, addToast]);
 
   useEffect(() => {
     fetchLeads();
@@ -249,6 +258,55 @@ export default function LeadsPage() {
     }
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (filterService) params.set('service', filterService);
+      if (filterResponse) params.set('response', filterResponse);
+      if (filterCallStatus) params.set('callStatus', filterCallStatus);
+      if (filterUser) params.set('assignedTo', filterUser);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('limit', '1000'); // Get all
+      
+      const res = await fetch(`/api/leads?${params}`);
+      const data = await res.json();
+      const exportLeads = data.leads || [];
+      
+      if (exportLeads.length === 0) return addToast('No data to export', 'error');
+
+      // Simple CSV export
+      const headers = ['Name', 'Phone', 'Email', 'Service', 'Response', 'Call Status', 'Assigned To', 'Follow-up Date', 'Remarks', 'Created At'];
+      const csvData = exportLeads.map(l => [
+        l.name,
+        l.phone,
+        l.email || '',
+        l.service,
+        l.response,
+        l.callStatus,
+        l.assignedTo?.name || 'Unassigned',
+        l.followUpDate ? new Date(l.followUpDate).toLocaleDateString() : '',
+        (l.remarks || '').replace(/,/g, ';'),
+        new Date(l.createdAt).toLocaleDateString()
+      ]);
+
+      const csvContent = [headers, ...csvData].map(e => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Leads_Report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast('Report downloaded successfully!', 'success');
+    } catch (err) {
+      addToast('Failed to generate report', 'error');
+    }
+  };
+
   const RenderLeadActions = ({ lead }) => (
     <div className="table-actions">
       <button 
@@ -315,6 +373,21 @@ export default function LeadsPage() {
             {teamUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
           </select>
         )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderLeft: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)' }}>FROM</span>
+            <input type="date" className="form-input" style={{ width: 120, height: 36, padding: '0 8px', fontSize: '0.8rem' }} value={startDate} onChange={e => setStartDate(e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)' }}>TO</span>
+            <input type="date" className="form-input" style={{ width: 120, height: 36, padding: '0 8px', fontSize: '0.8rem' }} value={endDate} onChange={e => setEndDate(e.target.value)} />
+          </div>
+        </div>
+
+        <button className="btn btn-outline" onClick={handleDownloadReport} title="Download Report">
+          <FileText size={18} />
+        </button>
       </div>
       
       {filterDate && (
@@ -627,6 +700,60 @@ export default function LeadsPage() {
       {/* Email Sending Loader */}
       {emailSending && <LogoLoader message="Pushing Email Notification..." />}
 
+      {/* Schedule Call Modal */}
+      {showScheduleCall && scheduleLead && (
+        <ScheduleEventModal
+          lead={scheduleLead}
+          type="Call"
+          onClose={() => { setShowScheduleCall(false); setScheduleLead(null); }}
+          onSave={async (data) => {
+            try {
+              const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...data,
+                  leadId: scheduleLead._id,
+                  type: 'Call',
+                  assignedTo: scheduleLead.assignedTo?._id || scheduleLead.assignedTo || user?._id || user?.id,
+                }),
+              });
+              if (!res.ok) throw new Error('Failed to schedule call');
+              addToast('Call scheduled successfully!', 'success');
+              setShowScheduleCall(false);
+              setScheduleLead(null);
+            } catch (err) { addToast(err.message, 'error'); }
+          }}
+        />
+      )}
+
+      {/* Schedule Meet Modal */}
+      {showScheduleMeet && scheduleLead && (
+        <ScheduleEventModal
+          lead={scheduleLead}
+          type="Meeting"
+          onClose={() => { setShowScheduleMeet(false); setScheduleLead(null); }}
+          onSave={async (data) => {
+            try {
+              const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...data,
+                  leadId: scheduleLead._id,
+                  type: 'Meeting',
+                  assignedTo: scheduleLead.assignedTo?._id || scheduleLead.assignedTo || user?._id || user?.id,
+                }),
+              });
+              if (!res.ok) throw new Error('Failed to schedule meeting');
+              addToast('Meeting scheduled successfully!', 'success');
+              setShowScheduleMeet(false);
+              setScheduleLead(null);
+            } catch (err) { addToast(err.message, 'error'); }
+          }}
+        />
+      )}
+
       {/* Action Menu (Bottom Sheet) */}
       {activeMenuLead && (
         <ActionMenu 
@@ -643,6 +770,8 @@ export default function LeadsPage() {
               case 'assign': setAssignLead(activeMenuLead); setShowAssignModal(true); break;
               case 'convert': handleConvertLead(activeMenuLead); break;
               case 'delete': handleDelete(activeMenuLead._id); break;
+              case 'schedule_call': setScheduleLead(activeMenuLead); setShowScheduleCall(true); break;
+              case 'schedule_meet': setScheduleLead(activeMenuLead); setShowScheduleMeet(true); break;
             }
           }}
           canAssign={canAssign}
@@ -1498,151 +1627,8 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
   );
 }
 
-function LogFollowUpModal({ lead, onClose, onSave }) {
-  const [form, setForm] = useState({
-    response: lead.response || 'Pending',
-    callStatus: lead.callStatus || 'Pending',
-    interestedInService: lead.interestedInService || 'Pending',
-    serviceTaken: lead.serviceTaken || 'Pending',
-    nextCallDate: lead.nextCallDate ? lead.nextCallDate.split('T')[0] : '',
-    followUpDate: lead.followUpDate ? lead.followUpDate.split('T')[0] : new Date().toISOString().split('T')[0],
-    remarks: '',
-  });
-  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.remarks) return alert('Please add some remarks about the call.');
-    setSaving(true);
-    await onSave({ ...lead, ...form });
-    setSaving(false);
-  };
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 32, padding: 0, overflow: 'hidden', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-        <div style={{ 
-          background: 'linear-gradient(135deg, #0f172a, #1e293b)', 
-          padding: '32px', 
-          color: 'white',
-          position: 'relative'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <div style={{ background: 'var(--secondary)', padding: 8, borderRadius: 12 }}>
-              <Phone size={24} />
-            </div>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Log Interaction</h3>
-          </div>
-          <p style={{ margin: 0, opacity: 0.7, fontSize: '0.95rem' }}>How did the conversation with <strong>{lead.name}</strong> go?</p>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              position: 'absolute', top: 32, right: 32, background: 'rgba(255,255,255,0.1)', 
-              border: 'none', color: 'white', padding: 6, borderRadius: 12, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)'
-            }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ padding: '32px', background: '#f8fafc' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Response Outcome</label>
-                <div style={{ position: 'relative' }}>
-                  <select 
-                    className="form-select" 
-                    value={form.response} 
-                    onChange={e => setForm({ ...form, response: e.target.value })}
-                    style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
-                  >
-                    <option value="Pending">Pending / Neutral</option>
-                    <option value="Positive">Positive / Interested</option>
-                    <option value="Negative">Negative / Not Interested</option>
-                    <option value="Converted">Successfully Converted</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Call Status</label>
-                <select 
-                  className="form-select" 
-                  value={form.callStatus} 
-                  onChange={e => setForm({ ...form, callStatus: e.target.value })}
-                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
-                >
-                  <option value="Received">Connected</option>
-                  <option value="Not Received">No Answer / Busy</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: 24 }}>
-              <label className="form-label" style={{ color: '#64748b' }}>Conversation Remarks</label>
-              <textarea 
-                className="form-textarea" 
-                value={form.remarks} 
-                onChange={e => setForm({ ...form, remarks: e.target.value })} 
-                placeholder="Briefly describe what was discussed, any objections, or specific interests..."
-                style={{ 
-                  minHeight: 120, 
-                  borderRadius: 16, 
-                  border: '2px solid #e2e8f0', 
-                  padding: '16px',
-                  fontSize: '0.95rem',
-                  lineHeight: 1.6
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Follow-up Date (Today)</label>
-                <input 
-                  className="form-input" 
-                  type="date" 
-                  value={form.followUpDate} 
-                  onChange={e => setForm({ ...form, followUpDate: e.target.value })} 
-                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
-                />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Schedule Next Call</label>
-                <input 
-                  className="form-input" 
-                  type="date" 
-                  value={form.nextCallDate} 
-                  onChange={e => setForm({ ...form, nextCallDate: e.target.value })} 
-                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div className="modal-footer" style={{ padding: '24px 32px', background: 'white', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12 }}>
-            <button type="button" className="btn btn-outline" onClick={onClose} style={{ flex: 1, height: 48, borderRadius: 12 }}>
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              disabled={saving}
-              style={{ flex: 2, height: 48, borderRadius: 12, background: 'var(--secondary)', boxShadow: '0 4px 12px rgba(14,165,233,0.2)' }}
-            >
-              {saving ? 'Saving...' : 'Save Interaction'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
   return (
@@ -1656,6 +1642,12 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
         <div className="bottom-sheet-grid">
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('schedule_call')} style={{ color: 'var(--secondary)' }}>
+            <Phone size={20} /> Schedule Call
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('schedule_meet')} style={{ color: '#8b5cf6' }}>
+            <Video size={20} /> Meet
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
             <Phone size={20} /> Log Follow-up

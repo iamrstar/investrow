@@ -10,6 +10,28 @@ const TaskSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  type: {
+    type: String,
+    enum: ['Task', 'Call', 'Meeting'],
+    default: 'Task',
+  },
+  meetingType: {
+    type: String,
+    enum: ['Online', 'Offline', ''],
+    default: '',
+  },
+  platform: {
+    type: String,
+    default: '',
+  },
+  subject: {
+    type: String,
+    default: '',
+  },
+  notes: {
+    type: String,
+    default: '',
+  },
   leadId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead',
@@ -29,6 +51,10 @@ const TaskSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  scheduledAt: {
+    type: Date,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['Pending', 'In Progress', 'Completed'],
@@ -39,6 +65,11 @@ const TaskSchema = new mongoose.Schema({
     enum: ['Low', 'Medium', 'High'],
     default: 'Medium',
   },
+  outcomeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FollowUp',
+    default: null,
+  },
 }, {
   timestamps: true,
 });
@@ -46,5 +77,6 @@ const TaskSchema = new mongoose.Schema({
 TaskSchema.index({ assignedTo: 1 });
 TaskSchema.index({ status: 1 });
 TaskSchema.index({ dueDate: 1 });
+TaskSchema.index({ type: 1 });
 
 export default mongoose.models.Task || mongoose.model('Task', TaskSchema);
