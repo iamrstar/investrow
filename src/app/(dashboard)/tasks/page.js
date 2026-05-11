@@ -27,6 +27,7 @@ export default function TasksPage() {
   const [viewMode, setViewMode] = useState('list'); // list, calendar
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [typeFilter, setTypeFilter] = useState(null); // null, Task, Meeting, Call
   
   // Modals
   const [showModal, setShowModal] = useState(false);
@@ -57,13 +58,14 @@ export default function TasksPage() {
         if (startDate) params.set('startDate', startDate);
         if (endDate) params.set('endDate', endDate);
       }
+      if (typeFilter) params.set('type', typeFilter);
       
       const res = await fetch(`/api/tasks?${params}`);
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch { addToast('Failed to load tasks', 'error'); }
     finally { setLoading(false); }
-  }, [activeTab, search, startDate, endDate, addToast]);
+  }, [activeTab, search, startDate, endDate, typeFilter, addToast]);
 
   useEffect(() => { 
     fetchTasks();
@@ -160,18 +162,30 @@ export default function TasksPage() {
 
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 32 }}>
-        <div className="task-stat-card" style={{ background: 'var(--secondary)', color: 'white' }}>
-          <div className="stat-icon-wrapper"><ListTodo size={24} /></div>
+        <div 
+          className={`task-stat-card ${typeFilter === 'Task' ? 'active' : ''}`} 
+          onClick={() => setTypeFilter(typeFilter === 'Task' ? null : 'Task')}
+          style={{ cursor: 'pointer', background: typeFilter === 'Task' ? 'var(--secondary)' : 'white', color: typeFilter === 'Task' ? 'white' : 'inherit' }}
+        >
+          <div className="stat-icon-wrapper" style={{ color: typeFilter === 'Task' ? 'white' : 'inherit', background: typeFilter === 'Task' ? 'rgba(255,255,255,0.2)' : 'var(--bg-body)' }}><ListTodo size={24} /></div>
           <div className="stat-label">LEAD TASKS</div>
           <div className="stat-value">{stats.counts.leadTasks}</div>
         </div>
-        <div className="task-stat-card">
-          <div className="stat-icon-wrapper" style={{ color: '#8b5cf6', background: '#f5f3ff' }}><Video size={24} /></div>
+        <div 
+          className={`task-stat-card ${typeFilter === 'Meeting' ? 'active' : ''}`}
+          onClick={() => setTypeFilter(typeFilter === 'Meeting' ? null : 'Meeting')}
+          style={{ cursor: 'pointer', background: typeFilter === 'Meeting' ? '#8b5cf6' : 'white', color: typeFilter === 'Meeting' ? 'white' : 'inherit' }}
+        >
+          <div className="stat-icon-wrapper" style={{ color: typeFilter === 'Meeting' ? 'white' : '#8b5cf6', background: typeFilter === 'Meeting' ? 'rgba(255,255,255,0.2)' : '#f5f3ff' }}><Video size={24} /></div>
           <div className="stat-label">MEETINGS</div>
           <div className="stat-value">{stats.counts.meetings}</div>
         </div>
-        <div className="task-stat-card">
-          <div className="stat-icon-wrapper" style={{ color: 'var(--secondary)', background: 'var(--secondary-50)' }}><Phone size={24} /></div>
+        <div 
+          className={`task-stat-card ${typeFilter === 'Call' ? 'active' : ''}`}
+          onClick={() => setTypeFilter(typeFilter === 'Call' ? null : 'Call')}
+          style={{ cursor: 'pointer', background: typeFilter === 'Call' ? 'var(--secondary)' : 'white', color: typeFilter === 'Call' ? 'white' : 'inherit' }}
+        >
+          <div className="stat-icon-wrapper" style={{ color: typeFilter === 'Call' ? 'white' : 'var(--secondary)', background: typeFilter === 'Call' ? 'rgba(255,255,255,0.2)' : 'var(--secondary-50)' }}><Phone size={24} /></div>
           <div className="stat-label">CALL SCHEDULES</div>
           <div className="stat-value">{stats.counts.calls}</div>
         </div>
@@ -336,6 +350,18 @@ export default function TasksPage() {
           flex-direction: column;
           gap: 12px;
           box-shadow: var(--shadow-sm);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+        }
+        .task-stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: var(--shadow-lg);
+        }
+        .task-stat-card.active {
+          transform: translateY(-5px) scale(1.02);
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
         .stat-icon-wrapper {
           width: 48px;
