@@ -37,11 +37,13 @@ export default function LeadsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailLead, setEmailLead] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [activeMenuLead, setActiveMenuLead] = useState(null);
   const [expandedActivities, setExpandedActivities] = useState({});
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpLead, setFollowUpLead] = useState(null);
   const [filterDate, setFilterDate] = useState('');
-  const [activeMenuLead, setActiveMenuLead] = useState(null);
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [tasksLead, setTasksLead] = useState(null);
   const [assignRole, setAssignRole] = useState(''); // 'user'
   const [showCustomEmail, setShowCustomEmail] = useState(false);
   const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
@@ -91,7 +93,7 @@ export default function LeadsPage() {
   }, [fetchLeads]);
 
   useEffect(() => {
-    fetch('/api/form-control?t=' + Date.now()).then(r => r.json()).then(data => {
+    fetch('/api/form-control?type=lead&t=' + Date.now()).then(r => r.json()).then(data => {
       if (data.success) setFormSettings(data.settings);
     }).catch(err => console.error(err));
   }, []);
@@ -327,6 +329,27 @@ export default function LeadsPage() {
       </button>
     </div>
   );
+
+  const getFieldConfig = (name) => {
+    const defaults = {
+      name: { label: 'Name', required: true },
+      phone: { label: 'Phone', required: true },
+      email: { label: 'Email', required: false },
+      service: { label: 'Service', required: true },
+      location: { label: 'Location', required: false },
+      leadReference: { label: 'Lead Reference', required: false },
+      response: { label: 'Response', required: false },
+      callStatus: { label: 'Call Status', required: false },
+      interestedInService: { label: 'Interested in Service', required: false },
+      serviceTaken: { label: 'Service Taken', required: false },
+      nextCallDate: { label: 'Next Call Date', required: false },
+      followUpDate: { label: 'Follow-up Date', required: false },
+      remarks: { label: 'Remarks', required: false }
+    };
+    if (!formSettings?.defaultFields) return defaults[name] || { label: name, required: false };
+    const conf = formSettings.defaultFields.find(f => f.name === name);
+    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : (defaults[name] || { label: name, required: false });
+  };
 
   return (
     <div className="page-content">
@@ -763,6 +786,7 @@ export default function LeadsPage() {
             setActiveMenuLead(null);
             switch(action) {
               case 'view': viewDetail(activeMenuLead._id); break;
+              case 'tasks': setTasksLead(activeMenuLead); setShowTasksModal(true); break;
               case 'followup': setFollowUpLead(activeMenuLead); setShowFollowUp(true); break;
               case 'history': viewDetail(activeMenuLead._id); break;
               case 'email': setEmailLead(activeMenuLead); setShowEmailModal(true); break;
@@ -789,10 +813,10 @@ export default function LeadsPage() {
             </div>
             <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
               <div className="detail-grid">
-                <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
-                <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
-                <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value"><span className="badge badge-blue">{detailData.lead?.service}</span></div></div>
+                <div className="detail-item"><div className="detail-label">{getFieldConfig('name').label}</div><div className="detail-value">{detailData.lead?.name}</div></div>
+                <div className="detail-item"><div className="detail-label">{getFieldConfig('phone').label}</div><div className="detail-value">{detailData.lead?.phone}</div></div>
+                <div className="detail-item"><div className="detail-label">{getFieldConfig('email').label}</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
+                <div className="detail-item"><div className="detail-label">{getFieldConfig('service').label}</div><div className="detail-value"><span className="badge badge-blue">{detailData.lead?.service}</span></div></div>
                 <div className="detail-item"><div className="detail-label">Response</div><div className="detail-value"><span className={`badge badge-${detailData.lead?.response?.toLowerCase() === 'positive' ? 'positive' : detailData.lead?.response?.toLowerCase() === 'negative' ? 'negative' : detailData.lead?.response?.toLowerCase() === 'converted' ? 'converted' : 'pending'}`}>{detailData.lead?.response}</span></div></div>
                 <div className="detail-item"><div className="detail-label">Call Status</div><div className="detail-value">{detailData.lead?.callStatus}</div></div>
                 <div className="detail-item"><div className="detail-label">Interested</div><div className="detail-value">{detailData.lead?.interestedInService}</div></div>
@@ -801,8 +825,8 @@ export default function LeadsPage() {
                 <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
-                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
-                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Lead Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
+                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">{getFieldConfig('location').label}</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
+                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">{getFieldConfig('leadReference').label}</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
                 {detailData.lead?.customFields?.map((field, idx) => (
                   <div key={idx} className="detail-item">
                     <div className="detail-label">{field.label}</div>
@@ -1042,31 +1066,131 @@ export default function LeadsPage() {
       )}
       
       {/* Convert Lead Modal */}
-      {convertLead && (
-        <div className="modal-backdrop" onClick={() => !converting && setConvertLead(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center', padding: '32px 24px' }}>
-            <div style={{ width: 64, height: 64, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <UserPlus size={32} />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
-              Convert to Client
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
-              Are you sure you want to convert <strong>{convertLead.name}</strong> to a client? <br/><br/>
-              <span style={{ color: '#ef4444', fontWeight: 600 }}>Once done, the details can't be edited.</span>
-            </p>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setConvertLead(null)} disabled={converting}>
-                Cancel
-              </button>
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={confirmConvertLead} disabled={converting}>
-                {converting ? 'Converting...' : 'Yes, Convert'}
-              </button>
+      <>
+        {convertLead && (
+          <div className="modal-backdrop" onClick={() => !converting && setConvertLead(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center', padding: '32px 24px' }}>
+              <div style={{ width: 64, height: 64, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <UserPlus size={32} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
+                Convert to Client
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
+                Are you sure you want to convert <strong>{convertLead.name}</strong> to a client? <br/><br/>
+                <span style={{ color: '#ef4444', fontWeight: 600 }}>Once done, the details can't be edited.</span>
+              </p>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setConvertLead(null)} disabled={converting}>
+                  Cancel
+                </button>
+                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={confirmConvertLead} disabled={converting}>
+                  {converting ? 'Converting...' : 'Yes, Convert'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
+        {showTasksModal && tasksLead && (
+          <LeadTasksModal lead={tasksLead} onClose={() => { setShowTasksModal(false); setTasksLead(null); }} />
+        )}
+      </>
+    </div>
+  );
+}
+
+function LeadTasksModal({ lead, onClose }) {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(`/api/tasks?leadId=${lead._id}`);
+        const data = await res.json();
+        setTasks(data.tasks || []);
+      } catch (err) {
+        console.error('Failed to fetch tasks', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTasks();
+  }, [lead._id]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 28 }}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--secondary-50)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={22} />
+            </div>
+            <div>
+              <h3 className="modal-title" style={{ fontSize: '1.2rem' }}>Tasks for {lead.name}</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Scheduled activities and reminders</p>
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="modal-body" style={{ padding: '24px 32px', maxHeight: '70vh', overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}><div className="spinner"></div></div>
+          ) : tasks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ width: 64, height: 64, background: 'var(--bg-body)', color: 'var(--text-muted)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', opacity: 0.5 }}>
+                <Clock size={32} />
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>No tasks found for this lead</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {tasks.map(task => (
+                <div key={task._id} style={{ 
+                  padding: '16px', 
+                  background: 'var(--bg-body)', 
+                  borderRadius: 16, 
+                  border: '1px solid var(--border-light)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ 
+                      width: 48, 
+                      height: 48, 
+                      borderRadius: 14, 
+                      background: task.type === 'Call' ? '#dcfce7' : '#fef9c3', 
+                      color: task.type === 'Call' ? '#166534' : '#854d0e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {task.type === 'Call' ? <Phone size={20} /> : <Video size={20} />}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{task.title}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Calendar size={12} />
+                        {new Date(task.scheduledAt || task.dueDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className={`badge ${task.status === 'Completed' ? 'badge-green' : 'badge-yellow'}`} style={{ borderRadius: 10, fontSize: '0.7rem' }}>
+                      {task.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer" style={{ borderTop: 'none', padding: '0 32px 32px' }}>
+          <button className="btn btn-primary btn-block" onClick={onClose} style={{ borderRadius: 12 }}>Understood</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1098,21 +1222,28 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
       email: { label: 'Email', required: false },
       service: { label: 'Service', required: true },
       location: { label: 'Location', required: false },
-      leadReference: { label: 'Lead Reference', required: false }
+      leadReference: { label: 'Lead Reference', required: false },
+      response: { label: 'Response', required: false },
+      callStatus: { label: 'Call Status', required: false },
+      interestedInService: { label: 'Interested in Service', required: false },
+      serviceTaken: { label: 'Service Taken', required: false },
+      nextCallDate: { label: 'Next Call Date', required: false },
+      followUpDate: { label: 'Follow-up Date', required: false },
+      remarks: { label: 'Remarks', required: false }
     };
-    if (!formSettings?.defaultFields) return defaults[name];
+    if (!formSettings?.defaultFields) return defaults[name] || { label: name, required: false };
     const conf = formSettings.defaultFields.find(f => f.name === name);
-    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : defaults[name];
+    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : (defaults[name] || { label: name, required: false });
   };
   const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Short answer', options: [] });
   const [showAddField, setShowAddField] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const isFormValid = () => {
-    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference'];
+    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
-      const val = form[field] || '';
+      const val = String(form[field] || '');
       
       if (config.required && !val.trim()) return false;
       if (val.trim() && config.minLength && val.trim().length < config.minLength) return false;
@@ -1183,7 +1314,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
           <div className="modal-body">
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
-              {formSettings?.defaultFields?.map((dField) => {
+              {formSettings?.defaultFields?.filter(f => !['callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'response'].includes(f.name)).map((dField) => {
                 const value = form[dField.name] || '';
                 const onChange = (e) => setForm({ ...form, [dField.name]: e.target.value });
                 
@@ -1329,9 +1460,11 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
               </div>
             )}
 
+            <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
+
             <div className="form-group" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Custom Fields</label>
+                <label className="form-label" style={{ marginBottom: 0, fontSize: '1.1rem', fontWeight: 800 }}>Additional Fields</label>
                 {!showAddField && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddField(true)} style={{ color: 'var(--secondary)', fontWeight: 700 }}>
                     <Plus size={14} /> Add more fields
@@ -1544,60 +1677,82 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
               )}
             </div>
 
-            {/* Standard Fields */}
-
-            {lead && (
+            {/* Interaction Tracking Section - Only show if any tracking fields are enabled */}
+            {(formSettings?.defaultFields?.some(f => ['response', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks'].includes(f.name))) && (
               <>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Response</label>
-                    <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
-                      <option value="Pending">Pending</option>
-                      <option value="Positive">Positive</option>
-                      <option value="Negative">Negative</option>
-                      <option value="Converted">Converted</option>
-                    </select>
+                <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
+                <div style={{ marginBottom: 20 }}>
+                  <label className="form-label" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 16 }}>
+                    Interaction Tracking
+                  </label>
+                  <div className="form-row">
+                    {formSettings.defaultFields.some(f => f.name === 'response') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('response').label || 'Response'}</label>
+                        <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
+                          <option value="Pending">Pending</option>
+                          <option value="Positive">Positive</option>
+                          <option value="Negative">Negative</option>
+                          <option value="Converted">Converted</option>
+                        </select>
+                      </div>
+                    )}
+                    {formSettings.defaultFields.some(f => f.name === 'callStatus') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('callStatus').label}</label>
+                        <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
+                          <option value="Pending">Pending</option>
+                          <option value="Received">Received</option>
+                          <option value="Not Received">Not Received</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Call Status</label>
-                    <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                      <option value="Pending">Pending</option>
-                      <option value="Received">Received</option>
-                      <option value="Not Received">Not Received</option>
-                    </select>
+                  <div className="form-row">
+                    {formSettings.defaultFields.some(f => f.name === 'interestedInService') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('interestedInService').label}</label>
+                        <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
+                          <option value="Pending">Pending</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                    )}
+                    {formSettings.defaultFields.some(f => f.name === 'serviceTaken') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('serviceTaken').label}</label>
+                        <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
+                          <option value="Pending">Pending</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Interested in Service</label>
-                    <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                      <option value="Pending">Pending</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                  <div className="form-row">
+                    {formSettings.defaultFields.some(f => f.name === 'nextCallDate') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('nextCallDate').label}</label>
+                        <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
+                      </div>
+                    )}
+                    {formSettings.defaultFields.some(f => f.name === 'followUpDate') && (
+                      <div className="form-group">
+                        <label className="form-label">{getFieldConfig('followUpDate').label}</label>
+                        <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Service Taken</label>
-                    <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                      <option value="Pending">Pending</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Next Call Date</label>
-                    <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Follow-up Date</label>
-                    <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-                  </div>
+                  {formSettings.defaultFields.some(f => f.name === 'remarks') && (
+                    <div className="form-group" style={{ marginTop: 16 }}>
+                      <label className="form-label">{getFieldConfig('remarks').label}</label>
+                      <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." style={{ minHeight: 100 }} />
+                    </div>
+                  )}
                 </div>
               </>
             )}
-            {/* Standard Fields */}
 
             {canAssign && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
@@ -1610,10 +1765,6 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                 </select>
               </div>
             )}
-            <div className="form-group">
-              <label className="form-label">Remarks</label>
-              <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." />
-            </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
@@ -1648,6 +1799,9 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('schedule_meet')} style={{ color: '#8b5cf6' }}>
             <Video size={20} /> Meet
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('tasks')} style={{ color: 'var(--secondary)' }}>
+            <Calendar size={20} /> Tasks
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
             <Phone size={20} /> Log Follow-up

@@ -15,6 +15,7 @@ export async function GET(request) {
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const type = searchParams.get('type');
+  const leadId = searchParams.get('leadId');
   const dateFilter = searchParams.get('dateFilter'); // today, tomorrow, upcoming, missed
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
@@ -28,6 +29,7 @@ export async function GET(request) {
   if (status) criteria.push({ status });
   if (priority) criteria.push({ priority });
   if (type) criteria.push({ type });
+  if (leadId) criteria.push({ leadId });
 
   // Date Filtering logic
   const now = new Date();

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import LogFollowUpModal from '@/components/LogFollowUpModal';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
@@ -37,10 +36,10 @@ export default function ClientsPage() {
   const [emailClient, setEmailClient] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
   const [expandedActivities, setExpandedActivities] = useState({});
-  const [showFollowUp, setShowFollowUp] = useState(false);
-  const [followUpClient, setFollowUpClient] = useState(null);
   const [filterDate, setFilterDate] = useState('');
   const [activeMenuClient, setActiveMenuClient] = useState(null);
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [tasksClient, setTasksClient] = useState(null);
   const [assignRole, setAssignRole] = useState(''); // 'user'
   const [showCustomEmail, setShowCustomEmail] = useState(false);
   const [customEmailData, setCustomEmailData] = useState({ subject: '', content: '' });
@@ -92,7 +91,7 @@ export default function ClientsPage() {
   }, [fetchClients]);
 
   useEffect(() => {
-    fetch('/api/form-control?t=' + Date.now()).then(r => r.json()).then(data => {
+    fetch('/api/form-control?type=client&t=' + Date.now()).then(r => r.json()).then(data => {
       if (data.success) setFormSettings(data.settings);
     }).catch(err => console.error(err));
   }, []);
@@ -126,28 +125,6 @@ export default function ClientsPage() {
       addToast(editingClient ? 'Client updated!' : 'Client created!', 'success');
       setShowModal(false);
       setEditingClient(null);
-      fetchClients(pagination.page);
-    } catch (err) {
-      addToast(err.message, 'error');
-    }
-  };
-
-  const handleLogFollowUp = async (formData) => {
-    try {
-      const res = await fetch(`/api/leads/${followUpClient._id}/followup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed');
-      }
-
-      addToast('Follow-up record created successfully!', 'success');
-      setShowFollowUp(false);
-      setFollowUpClient(null);
       fetchClients(pagination.page);
     } catch (err) {
       addToast(err.message, 'error');
@@ -282,14 +259,6 @@ export default function ClientsPage() {
 
   const RenderClientActions = ({ client }) => (
     <div className="table-actions">
-      <button 
-        className="btn btn-ghost btn-sm" 
-        onClick={() => { setFollowUpClient(client); setShowFollowUp(true); }}
-        title="Log Interaction"
-        style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
-      >
-        <Phone size={16} />
-      </button>
       <button 
         className="btn btn-ghost btn-sm" 
         onClick={() => setActiveMenuClient(client)} 
@@ -611,17 +580,10 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Follow-up Modal */}
-      {showFollowUp && followUpClient && (
-        <LogFollowUpModal
-          client={followUpClient}
-          onClose={() => { setShowFollowUp(false); setFollowUpClient(null); }}
-          onSave={handleLogFollowUp}
-        />
-      )}
 
       {/* Email Sending Loader */}
       {emailSending && <LogoLoader message="Pushing Email Notification..." />}
+
 
       {/* Schedule Call Modal */}
       {showScheduleCall && scheduleClient && (
@@ -677,6 +639,7 @@ export default function ClientsPage() {
         />
       )}
 
+
       {/* Action Menu (Bottom Sheet) */}
       {activeMenuClient && (
         <ActionMenu 
@@ -686,14 +649,14 @@ export default function ClientsPage() {
             setActiveMenuClient(null);
             switch(action) {
               case 'view': viewDetail(activeMenuClient._id); break;
-              case 'followup': setFollowUpClient(activeMenuClient); setShowFollowUp(true); break;
+              case 'tasks': setTasksClient(activeMenuClient); setShowTasksModal(true); break;
+              case 'schedule_call': setScheduleClient(activeMenuClient); setShowScheduleCall(true); break;
+              case 'schedule_meet': setScheduleClient(activeMenuClient); setShowScheduleMeet(true); break;
               case 'history': viewDetail(activeMenuClient._id); break;
               case 'email': setEmailClient(activeMenuClient); setShowEmailModal(true); break;
               case 'edit': setEditingClient(activeMenuClient); setShowModal(true); break;
               case 'assign': setAssignClient(activeMenuClient); setShowAssignModal(true); break;
               case 'delete': handleDelete(activeMenuClient._id); break;
-              case 'schedule_call': setScheduleClient(activeMenuClient); setShowScheduleCall(true); break;
-              case 'schedule_meet': setScheduleClient(activeMenuClient); setShowScheduleMeet(true); break;
             }
           }}
           canAssign={canAssign}
@@ -702,261 +665,41 @@ export default function ClientsPage() {
         />
       )}
 
-      {/* Detail Modal */}
-      {showDetail && detailData && (
-        <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Client Details</h3>
-              <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
-            </div>
-            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
-              <div className="detail-grid">
-                <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
-                <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
-                <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value"><span className="badge badge-blue">{detailData.lead?.service}</span></div></div>
-                <div className="detail-item"><div className="detail-label">Status</div><div className="detail-value"><span className="badge badge-converted">Converted Client</span></div></div>
-                <div className="detail-item"><div className="detail-label">Call Status</div><div className="detail-value">{detailData.lead?.callStatus}</div></div>
-                <div className="detail-item"><div className="detail-label">Interested</div><div className="detail-value">{detailData.lead?.interestedInService}</div></div>
-                <div className="detail-item"><div className="detail-label">Service Taken</div><div className="detail-value">{detailData.lead?.serviceTaken}</div></div>
-                <div className="detail-item"><div className="detail-label">Next Call</div><div className="detail-value">{detailData.lead?.nextCallDate ? new Date(detailData.lead?.nextCallDate).toLocaleDateString() : '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
-                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
-                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
-                <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
+      <>
+        {showDetail && detailData && (
+          <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+              <div className="modal-header">
+                <h3 className="modal-title">Client Details</h3>
+                <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
               </div>
-
-              <div style={{ marginTop: 32, paddingTop: 32, borderTop: '2px solid var(--border-light)' }}>
-                <div style={{ marginTop: 24 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Activity size={22} style={{ color: 'var(--secondary)' }} /> 
-                      Client Interaction History
-                    </h4>
-                    <button 
-                      className="btn btn-secondary" 
-                      onClick={() => { setShowFollowUp(true); setFollowUpClient(detailData.lead); }}
-                      style={{ borderRadius: 14, padding: '8px 20px', boxShadow: '0 4px 12px rgba(14,165,233,0.2)' }}
-                    >
-                      <Plus size={18} /> New Interaction
-                    </button>
-                  </div>
-
-                  <div className="interaction-history" style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 32,
-                    padding: '4px' 
-                  }}>
-                    {Object.entries(
-                      (detailData.followups || []).reduce((groups, fu) => {
-                        const date = new Date(fu.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' });
-                        if (!groups[date]) groups[date] = [];
-                        groups[date].push(fu);
-                        return groups;
-                      }, {})
-                    ).sort((a, b) => new Date(b[0]) - new Date(a[0])).map(([date, items]) => (
-                      <div key={date} className="date-group" style={{ position: 'relative' }}>
-                        <div style={{ 
-                          padding: '12px 0',
-                          fontSize: '0.75rem', 
-                          fontWeight: 800, 
-                          color: 'var(--text-muted)', 
-                          textTransform: 'uppercase', 
-                          letterSpacing: '0.1em',
-                          marginBottom: 16,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          background: 'white',
-                          position: 'relative',
-                          zIndex: 5
-                        }}>
-                          <span style={{ whiteSpace: 'nowrap', padding: '6px 16px', background: 'var(--secondary-50)', color: 'var(--secondary-dark)', borderRadius: 20, border: '1px solid var(--secondary-100)' }}>{date}</span>
-                          <div style={{ height: 1, flex: 1, background: 'linear-gradient(to right, var(--secondary-100), transparent)' }}></div>
-                        </div>
-                        
-                        <div style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          gap: 24,
-                          borderLeft: '2px solid var(--secondary-100)',
-                          marginLeft: 20,
-                          paddingLeft: 28,
-                          paddingBottom: 20,
-                          position: 'relative'
-                        }}>
-                          {items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(fu => (
-                            <div 
-                              key={fu._id} 
-                              className="follow-up-card-container"
-                              style={{ position: 'relative' }}
-                            >
-                              <div style={{ 
-                                position: 'absolute',
-                                left: -33,
-                                top: 24,
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                background: 'var(--secondary)',
-                                border: '4px solid white',
-                                boxShadow: '0 0 0 2px var(--secondary-50)'
-                              }}></div>
-
-                              <div 
-                                className="follow-up-card"
-                                style={{ 
-                                  background: expandedActivities[fu._id] ? 'white' : 'var(--bg-card)',
-                                  borderRadius: 20,
-                                  border: expandedActivities[fu._id] ? '2px solid var(--secondary-100)' : '1px solid var(--border-light)',
-                                  boxShadow: expandedActivities[fu._id] ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                }}
-                              >
-                                <div style={{ padding: '20px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                      <div style={{ 
-                                        width: 40, 
-                                        height: 40, 
-                                        borderRadius: 12, 
-                                        background: 'var(--secondary-100)', 
-                                        color: 'var(--secondary-dark)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.9rem',
-                                        fontWeight: 800
-                                      }}>
-                                        {(fu.userId?.name || 'S').charAt(0)}
-                                      </div>
-                                      <div>
-                                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                                          {fu.userId?.name || 'System User'}
-                                        </div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                          <Clock size={12} />
-                                          {new Date(fu.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <span className="badge badge-blue" style={{ borderRadius: 10, padding: '4px 12px' }}>
-                                      Interaction
-                                    </span>
-                                  </div>
-                                  
-                                  <div style={{ 
-                                    fontSize: '0.95rem', 
-                                    color: 'var(--text-secondary)', 
-                                    lineHeight: 1.6,
-                                    marginBottom: 16
-                                  }}>
-                                    {expandedActivities[fu._id] ? fu.remarks : (fu.remarks?.substring(0, 80) + (fu.remarks?.length > 80 ? '...' : '')) || 'No notes provided.'}
-                                  </div>
-
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
-                                    <button 
-                                      className="btn btn-ghost btn-sm"
-                                      onClick={() => toggleActivity(fu._id)}
-                                      style={{ color: 'var(--secondary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
-                                    >
-                                      {expandedActivities[fu._id] ? 'Hide Details' : 'View Details'}
-                                      <ChevronRight size={16} style={{ transform: expandedActivities[fu._id] ? 'rotate(-90deg)' : 'rotate(90deg)', transition: '0.2s' }} />
-                                    </button>
-                                  </div>
-                                  
-                                  {expandedActivities[fu._id] && (
-                                    <div style={{ 
-                                      marginTop: 16, 
-                                      padding: 16, 
-                                      background: 'var(--bg-body)', 
-                                      borderRadius: 16, 
-                                      display: 'grid', 
-                                      gridTemplateColumns: 'repeat(2, 1fr)', 
-                                      gap: 16 
-                                    }}>
-                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><Phone size={14} /></div>
-                                        <div>
-                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Call Status</div>
-                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.callStatus}</div>
-                                        </div>
-                                      </div>
-                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><CheckCircle size={14} /></div>
-                                        <div>
-                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Service Status</div>
-                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.serviceTaken}</div>
-                                        </div>
-                                      </div>
-                                      {fu.nextCallDate && (
-                                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', gridColumn: '1 / -1', background: 'var(--secondary-50)', padding: '12px', borderRadius: 12 }}>
-                                          <Clock size={14} style={{ color: 'var(--secondary)' }} />
-                                          <div>
-                                            <div style={{ fontSize: '0.65rem', color: 'var(--secondary-dark)', textTransform: 'uppercase', fontWeight: 800 }}>Next Check-in</div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>{new Date(fu.nextCallDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {(!detailData.followups || detailData.followups.length === 0) && (
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '60px 40px', 
-                        background: 'linear-gradient(135deg, var(--secondary-50), white)', 
-                        borderRadius: 32, 
-                        border: '2px dashed var(--secondary-100)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 16
-                      }}>
-                        <div style={{ 
-                          width: 80, 
-                          height: 80, 
-                          borderRadius: '50%', 
-                          background: 'white', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          boxShadow: 'var(--shadow-md)'
-                        }}>
-                          <Phone size={40} style={{ color: 'var(--secondary)', opacity: 0.8 }} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--secondary-dark)' }}>Start Interaction History</div>
-                          <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: 4 }}>No interaction history recorded for this client yet.</p>
-                        </div>
-                        <button 
-                          className="btn btn-primary" 
-                          onClick={() => { setShowFollowUp(true); setFollowUpClient(detailData.lead); }}
-                          style={{ marginTop: 8, borderRadius: 12 }}
-                        >
-                          <Plus size={18} /> Record Interaction
-                        </button>
-                      </div>
-                    )}
-                  </div>
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
+                <div className="detail-grid">
+                  <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
+                  <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
+                  <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
+                  <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value">{detailData.lead?.service}</div></div>
+                  <div className="detail-item"><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
+                  <div className="detail-item"><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
+                  
+                  {detailData.lead?.customFields?.map((field, idx) => (
+                    <div key={idx} className="detail-item">
+                      <div className="detail-label">{field.label}</div>
+                      <div className="detail-value">{field.value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+        {showTasksModal && tasksClient && (
+          <ClientTasksModal 
+            client={tasksClient} 
+            onClose={() => { setShowTasksModal(false); setTasksClient(null); }} 
+          />
+        )}
+      </>
     </div>
   );
 }
@@ -988,11 +731,12 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       email: { label: 'Email', required: false },
       service: { label: 'Service', required: true },
       location: { label: 'Location', required: false },
-      leadReference: { label: 'Reference', required: false }
+      leadReference: { label: 'Reference', required: false },
+      remarks: { label: 'Remarks', required: false }
     };
-    if (!formSettings?.defaultFields) return defaults[name];
+    if (!formSettings?.defaultFields) return defaults[name] || { label: name, required: false };
     const conf = formSettings.defaultFields.find(f => f.name === name);
-    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : defaults[name];
+    return conf ? { label: conf.label, required: conf.isRequired, minLength: conf.minLength, maxLength: conf.maxLength } : (defaults[name] || { label: name, required: false });
   };
   const [newField, setNewField] = useState({ label: '', value: '', fieldType: 'Short answer', options: [] });
   const [showAddField, setShowAddField] = useState(false);
@@ -1002,7 +746,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
-      const val = form[field] || '';
+      const val = String(form[field] || '');
       
       if (config.required && !val.trim()) return false;
       if (val.trim() && config.minLength && val.trim().length < config.minLength) return false;
@@ -1219,9 +963,11 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
               </div>
             )}
 
+            <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
+
             <div className="form-group" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Custom Fields</label>
+                <label className="form-label" style={{ marginBottom: 0, fontSize: '1.1rem', fontWeight: 800 }}>Additional Fields</label>
                 {!showAddField && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddField(true)} style={{ color: 'var(--secondary)', fontWeight: 700 }}>
                     <Plus size={14} /> Add more fields
@@ -1434,36 +1180,6 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
               )}
             </div>
 
-            {/* Standard Fields */}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Call Status</label>
-                <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                  <option value="Pending">Pending</option>
-                  <option value="Received">Received</option>
-                  <option value="Not Received">Not Received</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Service Taken</label>
-                <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Next Call Date</label>
-                <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Follow-up Date</label>
-                <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-              </div>
-            </div>
-            {/* Standard Fields */}
 
             {canAssign && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
@@ -1515,8 +1231,8 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
           <button className="bottom-sheet-item" onClick={() => onAction('schedule_meet')} style={{ color: '#8b5cf6' }}>
             <Video size={20} /> Meet
           </button>
-          <button className="bottom-sheet-item" onClick={() => onAction('followup')}>
-            <Phone size={20} /> Log Interaction
+          <button className="bottom-sheet-item" onClick={() => onAction('tasks')} style={{ color: 'var(--secondary)' }}>
+            <Calendar size={20} /> Tasks
           </button>
           <button className="bottom-sheet-item" onClick={() => onAction('history')}>
             <Activity size={20} /> Activity Log
@@ -1544,6 +1260,101 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
         <button className="btn btn-outline btn-block" style={{ marginTop: 24 }} onClick={onClose}>
           Close
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ClientTasksModal({ client, onClose }) {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(`/api/tasks?leadId=${client._id}`);
+        const data = await res.json();
+        setTasks(data.tasks || []);
+      } catch (err) {
+        console.error('Failed to fetch tasks', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTasks();
+  }, [client._id]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 28 }}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--secondary-50)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={22} />
+            </div>
+            <div>
+              <h3 className="modal-title" style={{ fontSize: '1.2rem' }}>Tasks for {client.name}</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Scheduled activities and reminders</p>
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="modal-body" style={{ padding: '24px 32px', maxHeight: '70vh', overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}><div className="spinner"></div></div>
+          ) : tasks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ width: 64, height: 64, background: 'var(--bg-body)', color: 'var(--text-muted)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', opacity: 0.5 }}>
+                <Clock size={32} />
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>No tasks found for this client</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {tasks.map(task => (
+                <div key={task._id} style={{ 
+                  padding: '16px', 
+                  background: 'var(--bg-body)', 
+                  borderRadius: 16, 
+                  border: '1px solid var(--border-light)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ 
+                      width: 48, 
+                      height: 48, 
+                      borderRadius: 14, 
+                      background: task.type === 'Call' ? '#dcfce7' : '#fef9c3', 
+                      color: task.type === 'Call' ? '#166534' : '#854d0e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {task.type === 'Call' ? <Phone size={20} /> : <Video size={20} />}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{task.title}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Calendar size={12} />
+                        {new Date(task.scheduledAt || task.dueDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className={`badge ${task.status === 'Completed' ? 'badge-green' : 'badge-yellow'}`} style={{ borderRadius: 10, fontSize: '0.7rem' }}>
+                      {task.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer" style={{ borderTop: 'none', padding: '0 32px 32px' }}>
+          <button className="btn btn-primary btn-block" onClick={onClose} style={{ borderRadius: 12 }}>Understood</button>
+        </div>
       </div>
     </div>
   );

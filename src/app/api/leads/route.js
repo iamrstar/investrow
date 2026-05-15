@@ -94,7 +94,10 @@ export async function POST(request) {
     await dbConnect();
     const body = await request.json();
 
-    const settings = await FormControl.findOne({ singletonId: 'settings' }).lean();
+    const isConverted = body.response === 'Converted';
+    const settingsType = isConverted ? 'client' : 'lead';
+    const settings = await FormControl.findOne({ singletonId: `${settingsType}_settings` }).lean();
+
     if (settings) {
       if (settings.defaultFields) {
         for (const field of settings.defaultFields) {

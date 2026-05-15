@@ -3,33 +3,39 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { Save, Plus, Trash2, Settings, ListPlus, ToggleLeft, ToggleRight, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Plus, Trash2, Settings, ListPlus, ToggleLeft, ToggleRight, GripVertical, ChevronUp, ChevronDown, ArrowLeft, FileText, Users } from 'lucide-react';
 
 export default function FormControlPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
   
+  const [targetType, setTargetType] = useState(null); // 'lead' or 'client'
   const [settings, setSettings] = useState({
     defaultFields: [],
     globalCustomFields: []
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
   const [draggedDefaultIndex, setDraggedDefaultIndex] = useState(null);
 
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' || !targetType) return;
     
-    fetch('/api/form-control')
+    setLoading(true);
+    fetch(`/api/form-control?type=${targetType}`)
       .then(r => r.json())
       .then(data => {
         if (data.success) {
           setSettings(data.settings);
         }
         setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
       });
-  }, [user]);
+  }, [user, targetType]);
 
   const moveDefaultField = (index, direction) => {
     const updated = [...settings.defaultFields];
@@ -102,14 +108,14 @@ export default function FormControlPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/form-control', {
+      const res = await fetch(`/api/form-control?type=${targetType}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      addToast('Form settings updated successfully', 'success');
+      addToast(`${targetType === 'lead' ? 'Lead' : 'Client'} form settings updated successfully`, 'success');
     } catch (error) {
       addToast(error.message || 'Failed to update settings', 'error');
     } finally {
@@ -157,19 +163,105 @@ export default function FormControlPage() {
     return <div className="page-content"><h3>Unauthorized</h3></div>;
   }
 
+  if (!targetType) {
+    return (
+      <div className="page-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <h1 className="page-title" style={{ fontSize: '2.5rem', marginBottom: 16 }}>Form Control Settings</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Which form would you like to customize?</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, width: '100%', maxWidth: 800 }}>
+          <button 
+            onClick={() => setTargetType('lead')}
+            style={{ 
+              background: 'white', 
+              border: '2px solid var(--border-light)', 
+              borderRadius: 24, 
+              padding: 40, 
+              cursor: 'pointer', 
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 20,
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            className="hover-card"
+          >
+            <div style={{ padding: 20, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: 20 }}>
+              <FileText size={48} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Lead Form</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Configure fields for potential customers and initial inquiries.</p>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => setTargetType('client')}
+            style={{ 
+              background: 'white', 
+              border: '2px solid var(--border-light)', 
+              borderRadius: 24, 
+              padding: 40, 
+              cursor: 'pointer', 
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 20,
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            className="hover-card"
+          >
+            <div style={{ padding: 20, background: 'var(--accent-50)', color: 'var(--accent)', borderRadius: 20 }}>
+              <Users size={48} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Client Form</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Configure fields for converted customers and active accounts.</p>
+            </div>
+          </button>
+        </div>
+        
+        <style jsx>{`
+          .hover-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--secondary);
+            boxShadow: var(--shadow-md);
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   if (loading) return <div className="page-content"><div className="spinner"></div></div>;
 
   return (
     <div className="page-content">
       <div className="page-header" style={{ marginBottom: 32 }}>
-        <div>
-          <h1 className="page-title">
-            <Settings size={28} style={{ color: 'var(--secondary)', verticalAlign: 'middle', marginRight: 8 }} />
-            Form Control Settings
-          </h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>
-            Customize the default fields and add global custom fields for all leads and clients.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button 
+            className="btn btn-ghost" 
+            onClick={() => { setTargetType(null); setSettings({ defaultFields: [], globalCustomFields: [] }); }}
+            style={{ padding: 8, borderRadius: 12 }}
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="page-title">
+              {targetType === 'lead' ? (
+                <FileText size={28} style={{ color: 'var(--secondary)', verticalAlign: 'middle', marginRight: 8 }} />
+              ) : (
+                <Users size={28} style={{ color: 'var(--accent)', verticalAlign: 'middle', marginRight: 8 }} />
+              )}
+              {targetType === 'lead' ? 'Lead' : 'Client'} Form Settings
+            </h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+              Customize the fields specifically for your {targetType === 'lead' ? 'leads' : 'clients'}.
+            </p>
+          </div>
         </div>
         <button 
           className="btn btn-primary" 
@@ -177,7 +269,7 @@ export default function FormControlPage() {
           disabled={saving}
           style={{ padding: '12px 24px', borderRadius: 12 }}
         >
-          <Save size={18} /> {saving ? 'Saving...' : 'Save All Changes'}
+          <Save size={18} /> {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
 

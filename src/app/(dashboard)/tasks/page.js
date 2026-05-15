@@ -42,11 +42,12 @@ export default function TasksPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/tasks/stats');
+      const url = typeFilter ? `/api/tasks/stats?type=${typeFilter}` : '/api/tasks/stats';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.counts) setStats(data);
     } catch (err) { console.error('Failed to fetch stats', err); }
-  }, []);
+  }, [typeFilter]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -283,7 +284,13 @@ export default function TasksPage() {
                         <div>
                           <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0' }}>{task.title}</h4>
                           <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={14} /> {task.scheduledAt ? new Date(task.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(task.dueDate).toLocaleDateString()}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Clock size={14} /> 
+                              {task.scheduledAt ? 
+                                new Date(task.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 
+                                new Date(task.dueDate).toLocaleDateString()
+                              }
+                            </span>
                             {task.leadId && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {task.leadId.name}</span>}
                             {task.meetingType && <span className="badge badge-blue">{task.meetingType}</span>}
                           </div>

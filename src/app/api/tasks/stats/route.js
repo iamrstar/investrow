@@ -8,9 +8,23 @@ export async function GET(request) {
 
   await dbConnect();
 
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+
   const baseFilter = {};
   if (authUser.role === 'user') {
     baseFilter.assignedTo = authUser._id;
+  }
+
+  // Category counts (Cards) should always show the total for each type, regardless of selected type
+  const leadTasksCount = await Task.countDocuments({ ...baseFilter, type: 'Task', status: { $ne: 'Completed' } });
+  const meetingsCount = await Task.countDocuments({ ...baseFilter, type: 'Meeting', status: { $ne: 'Completed' } });
+  const callsCount = await Task.countDocuments({ ...baseFilter, type: 'Call', status: { $ne: 'Completed' } });
+
+  // Tab counts should respect the selected type card
+  const tabFilter = { ...baseFilter };
+  if (type) {
+    tabFilter.type = type;
   }
 
   // Today range
@@ -18,18 +32,9 @@ export async function GET(request) {
   const todayStart = new Date(now.setHours(0, 0, 0, 0));
   const todayEnd = new Date(now.setHours(23, 59, 59, 999));
 
-  // Count Lead Tasks (type: 'Task')
-  const leadTasks = await Task.countDocuments({ ...baseFilter, type: 'Task', status: { $ne: 'Completed' } });
-
-  // Count Meetings (type: 'Meeting')
-  const meetings = await Task.countDocuments({ ...baseFilter, type: 'Meeting', status: { $ne: 'Completed' } });
-
-  // Count Calls (type: 'Call')
-  const calls = await Task.countDocuments({ ...baseFilter, type: 'Call', status: { $ne: 'Completed' } });
-
-  // Count for Tabs (Total/Filtered by date)
+  // Count for Tabs (Today/Upcoming/Missed)
   const today = await Task.countDocuments({
-    ...baseFilter,
+    ...tabFilter,
     $or: [
       { dueDate: { $gte: todayStart, $lte: todayEnd } },
       { scheduledAt: { $gte: todayStart, $lte: todayEnd } }
@@ -37,7 +42,7 @@ export async function GET(request) {
   });
 
   const upcoming = await Task.countDocuments({
-    ...baseFilter,
+    ...tabFilter,
     $or: [
       { dueDate: { $gt: todayEnd } },
       { scheduledAt: { $gt: todayEnd } }
@@ -45,7 +50,7 @@ export async function GET(request) {
   });
 
   const missed = await Task.countDocuments({
-    ...baseFilter,
+    ...tabFilter,
     status: { $ne: 'Completed' },
     $or: [
       { dueDate: { $lt: todayStart } },
@@ -55,9 +60,9 @@ export async function GET(request) {
 
   return Response.json({
     counts: {
-      leadTasks,
-      meetings,
-      calls,
+      leadTasks: leadTasksCount,
+      meetings: meetingsCount,
+      calls: callsCount,
     },
     tabs: {
       today,
