@@ -261,6 +261,14 @@ export default function ClientsPage() {
     <div className="table-actions">
       <button 
         className="btn btn-ghost btn-sm" 
+        onClick={() => { window.location.href = `tel:${client.phone}`; }}
+        title="Call Now"
+        style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
+      >
+        <Phone size={16} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
         onClick={() => setActiveMenuClient(client)} 
         title="More Actions"
         style={{ background: 'var(--border-light)' }}
@@ -1225,6 +1233,9 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
           </button>
+          <a href={`tel:${client.phone}`} className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)', textDecoration: 'none' }}>
+            <Phone size={20} /> Call Now
+          </a>
           <button className="bottom-sheet-item" onClick={() => onAction('schedule_call')} style={{ color: 'var(--secondary)' }}>
             <Phone size={20} /> Schedule Call
           </button>

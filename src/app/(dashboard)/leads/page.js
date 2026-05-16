@@ -313,8 +313,8 @@ export default function LeadsPage() {
     <div className="table-actions">
       <button 
         className="btn btn-ghost btn-sm" 
-        onClick={() => { setFollowUpLead(lead); setShowFollowUp(true); }}
-        title="Log Follow-up"
+        onClick={() => { window.location.href = `tel:${lead.phone}`; setFollowUpLead(lead); setShowFollowUp(true); }}
+        title="Call & Log Follow-up"
         style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
       >
         <Phone size={16} />
@@ -1794,6 +1794,9 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
           </button>
+          <a href={`tel:${lead.phone}`} className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)', textDecoration: 'none' }}>
+            <Phone size={20} /> Call Now
+          </a>
           <button className="bottom-sheet-item" onClick={() => onAction('schedule_call')} style={{ color: 'var(--secondary)' }}>
             <Phone size={20} /> Schedule Call
           </button>

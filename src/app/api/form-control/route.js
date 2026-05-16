@@ -52,33 +52,8 @@ export async function GET(request) {
 
     if (!settings) {
       settings = await FormControl.create({ ...getDefaultSettings(type), singletonId });
-    } else {
-      // Ensure all default fields from getDefaultSettings exist
-      const defaultSet = getDefaultSettings(type);
-      let changed = false;
-
-      // Add missing fields
-      defaultSet.defaultFields.forEach(df => {
-        if (!settings.defaultFields.some(f => f.name === df.name)) {
-          settings.defaultFields.push(df);
-          changed = true;
-        }
-      });
-
-      // Remove forbidden fields for clients
-      if (type === 'client') {
-        const forbiddenFields = ['callStatus', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'interestedInService'];
-        const filtered = settings.defaultFields.filter(f => !forbiddenFields.includes(f.name));
-        if (filtered.length !== settings.defaultFields.length) {
-          settings.defaultFields = filtered;
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        await settings.save();
-      }
     }
+
     
     return Response.json({ success: true, settings });
   } catch (error) {
