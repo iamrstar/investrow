@@ -25,7 +25,8 @@ const getDefaultSettings = (type) => {
 
   return {
     defaultFields: fields,
-    globalCustomFields: []
+    globalCustomFields: [],
+    onboardingFields: []
   };
 };
 
@@ -101,6 +102,17 @@ export async function PUT(request) {
 
     if (body.globalCustomFields) {
       settings.globalCustomFields = body.globalCustomFields.map(f => ({
+        label: f.label,
+        fieldType: f.fieldType || 'Short answer',
+        options: Array.isArray(f.options) ? f.options.filter(o => typeof o === 'string' && o.trim() !== '') : [],
+        isRequired: !!f.isRequired,
+        minLength: f.minLength || null,
+        maxLength: f.maxLength || null
+      }));
+    }
+
+    if (body.onboardingFields) {
+      settings.onboardingFields = body.onboardingFields.map(f => ({
         label: f.label,
         fieldType: f.fieldType || 'Short answer',
         options: Array.isArray(f.options) ? f.options.filter(o => typeof o === 'string' && o.trim() !== '') : [],

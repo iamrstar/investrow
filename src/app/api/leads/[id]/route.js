@@ -77,7 +77,8 @@ export async function PUT(request, { params }) {
     if (settings) {
       if (settings.defaultFields) {
         for (const field of settings.defaultFields) {
-          if (field.isRequired && (!body[field.name] || String(body[field.name]).trim() === '')) {
+          const value = body[field.name] !== undefined ? body[field.name] : existingLead[field.name];
+          if (field.isRequired && (!value || String(value).trim() === '')) {
             return Response.json({ error: `${field.label || field.name} is required` }, { status: 400 });
           }
         }
@@ -86,7 +87,10 @@ export async function PUT(request, { params }) {
       if (settings.globalCustomFields) {
         for (const gField of settings.globalCustomFields) {
           if (gField.isRequired) {
-            const customFieldValue = body.customFields?.find(f => f.label === gField.label)?.value;
+            const bodyField = body.customFields?.find(f => f.label === gField.label);
+            const existingField = existingLead.customFields?.find(f => f.label === gField.label);
+            const customFieldValue = bodyField !== undefined ? bodyField.value : existingField?.value;
+            
             if (!customFieldValue || String(customFieldValue).trim() === '') {
               return Response.json({ error: `${gField.label} is required` }, { status: 400 });
             }
@@ -94,9 +98,13 @@ export async function PUT(request, { params }) {
         }
       }
     } else {
-      if (!body.name) return Response.json({ error: 'Name is required' }, { status: 400 });
-      if (!body.phone) return Response.json({ error: 'Phone is required' }, { status: 400 });
-      if (!body.service) return Response.json({ error: 'Service is required' }, { status: 400 });
+      const name = body.name !== undefined ? body.name : existingLead.name;
+      const phone = body.phone !== undefined ? body.phone : existingLead.phone;
+      const service = body.service !== undefined ? body.service : existingLead.service;
+      
+      if (!name) return Response.json({ error: 'Name is required' }, { status: 400 });
+      if (!phone) return Response.json({ error: 'Phone is required' }, { status: 400 });
+      if (!service) return Response.json({ error: 'Service is required' }, { status: 400 });
     }
 
     const lead = await Lead.findByIdAndUpdate(id, body, { new: true, runValidators: true });
@@ -109,6 +117,11 @@ export async function PUT(request, { params }) {
 
       let oldVal = existingLead[key];
       let newVal = body[key];
+
+      if (key === 'onboardingData' || key === 'customFields') {
+        oldVal = JSON.stringify(oldVal);
+        newVal = JSON.stringify(newVal);
+      }
 
       // Standardize comparison for dates
       if (oldVal instanceof Date || (typeof oldVal === 'string' && !isNaN(Date.parse(oldVal)) && oldVal.includes('-'))) {

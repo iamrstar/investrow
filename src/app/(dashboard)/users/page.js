@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff } from 'lucide-react';
+import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff, FileText } from 'lucide-react';
+import UserDocumentsModal from '@/components/UserDocumentsModal';
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -15,6 +16,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [showPasswords, setShowPasswords] = useState({}); // Track visibility per user ID
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentsUser, setDocumentsUser] = useState(null);
 
 
 
@@ -155,6 +158,14 @@ export default function UsersPage() {
                         >
                           <Eye size={16} />
                         </button>
+                        <button 
+                          className="btn btn-ghost btn-sm" 
+                          onClick={() => { setDocumentsUser(u); setShowDocumentsModal(true); }}
+                          title="Documents"
+                          style={{ color: 'var(--primary)' }}
+                        >
+                          <FileText size={16} />
+                        </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => { setEditingUser(u); setShowModal(true); }}><Edit size={16} /></button>
                         <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(u._id)} style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
                       </div>
@@ -172,6 +183,14 @@ export default function UsersPage() {
           editUser={editingUser}
           onClose={() => { setShowModal(false); setEditingUser(null); }}
           onSave={handleSave}
+        />
+      )}
+      
+      {showDocumentsModal && documentsUser && (
+        <UserDocumentsModal
+          user={documentsUser}
+          onClose={() => { setShowDocumentsModal(false); setDocumentsUser(null); }}
+          onUpdate={fetchUsers}
         />
       )}
     </div>

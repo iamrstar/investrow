@@ -24,7 +24,8 @@ const GlobalCustomFieldSchema = new mongoose.Schema({
 const FormControlSchema = new mongoose.Schema({
   singletonId: { type: String, default: 'settings', unique: true },
   defaultFields: [DefaultFieldSchema],
-  globalCustomFields: [GlobalCustomFieldSchema]
+  globalCustomFields: [GlobalCustomFieldSchema],
+  onboardingFields: [GlobalCustomFieldSchema]
 }, {
   timestamps: true,
 });

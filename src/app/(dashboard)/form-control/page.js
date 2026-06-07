@@ -10,9 +10,11 @@ export default function FormControlPage() {
   const { addToast } = useToast();
   
   const [targetType, setTargetType] = useState(null); // 'lead' or 'client'
+  const [viewMode, setViewMode] = useState('standard'); // 'standard' or 'onboarding'
   const [settings, setSettings] = useState({
     defaultFields: [],
-    globalCustomFields: []
+    globalCustomFields: [],
+    onboardingFields: []
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -159,6 +161,44 @@ export default function FormControlPage() {
     setSettings({ ...settings, globalCustomFields: updated });
   };
 
+  const addOnboardingField = () => {
+    setSettings({
+      ...settings,
+      onboardingFields: [
+        { label: 'New Onboarding Field', fieldType: 'Short answer', options: [], isRequired: false },
+        ...(settings.onboardingFields || []),
+      ]
+    });
+  };
+
+  const updateOnboardingField = (index, field, value) => {
+    const updated = [...(settings.onboardingFields || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === 'fieldType' && !['Multiple choice', 'Checkboxes', 'Dropdown'].includes(value)) {
+      updated[index].options = [];
+    }
+    if (field === 'fieldType' && ['Multiple choice', 'Checkboxes', 'Dropdown'].includes(value) && !Array.isArray(updated[index].options)) {
+      updated[index].options = [];
+    }
+    setSettings({ ...settings, onboardingFields: updated });
+  };
+
+  const removeOnboardingField = (index) => {
+    const updated = [...(settings.onboardingFields || [])];
+    updated.splice(index, 1);
+    setSettings({ ...settings, onboardingFields: updated });
+  };
+
+  const moveOnboardingField = (index, direction) => {
+    const updated = [...(settings.onboardingFields || [])];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= updated.length) return;
+    
+    const [movedItem] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, movedItem);
+    setSettings({ ...settings, onboardingFields: updated });
+  };
+
   if (user?.role !== 'admin') {
     return <div className="page-content"><h3>Unauthorized</h3></div>;
   }
@@ -171,14 +211,14 @@ export default function FormControlPage() {
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Which form would you like to customize?</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, width: '100%', maxWidth: 800 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, width: '100%', maxWidth: 1000 }}>
           <button 
             onClick={() => setTargetType('lead')}
             style={{ 
               background: 'white', 
               border: '2px solid var(--border-light)', 
               borderRadius: 24, 
-              padding: 40, 
+              padding: 24, 
               cursor: 'pointer', 
               transition: 'all 0.3s ease',
               display: 'flex',
@@ -204,7 +244,7 @@ export default function FormControlPage() {
               background: 'white', 
               border: '2px solid var(--border-light)', 
               borderRadius: 24, 
-              padding: 40, 
+              padding: 24, 
               cursor: 'pointer', 
               transition: 'all 0.3s ease',
               display: 'flex',
@@ -221,6 +261,32 @@ export default function FormControlPage() {
             <div style={{ textAlign: 'center' }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Client Form</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Configure fields for converted customers and active accounts.</p>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => { setTargetType('lead'); setViewMode('onboarding'); }}
+            style={{ 
+              background: 'white', 
+              border: '2px solid var(--border-light)', 
+              borderRadius: 24, 
+              padding: 24, 
+              cursor: 'pointer', 
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 20,
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            className="hover-card"
+          >
+            <div style={{ padding: 20, background: '#f3e8ff', color: '#9333ea', borderRadius: 20 }}>
+              <ListPlus size={48} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Onboarding Form</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Configure required fields and documents for converting a lead.</p>
             </div>
           </button>
         </div>
@@ -244,7 +310,7 @@ export default function FormControlPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button 
             className="btn btn-ghost" 
-            onClick={() => { setTargetType(null); setSettings({ defaultFields: [], globalCustomFields: [] }); }}
+            onClick={() => { setTargetType(null); setViewMode('standard'); setSettings({ defaultFields: [], globalCustomFields: [], onboardingFields: [] }); }}
             style={{ padding: 8, borderRadius: 12 }}
           >
             <ArrowLeft size={24} />
@@ -256,10 +322,10 @@ export default function FormControlPage() {
               ) : (
                 <Users size={28} style={{ color: 'var(--accent)', verticalAlign: 'middle', marginRight: 8 }} />
               )}
-              {targetType === 'lead' ? 'Lead' : 'Client'} Form Settings
+              {targetType === 'lead' ? (viewMode === 'onboarding' ? 'Onboarding' : 'Lead') : 'Client'} Form Settings
             </h1>
             <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-              Customize the fields specifically for your {targetType === 'lead' ? 'leads' : 'clients'}.
+              Customize the fields specifically for your {targetType === 'lead' ? (viewMode === 'onboarding' ? 'onboarding process' : 'leads') : 'clients'}.
             </p>
           </div>
         </div>
@@ -276,6 +342,7 @@ export default function FormControlPage() {
       <div style={{ display: 'grid', gap: 32, gridTemplateColumns: '1fr' }}>
         
         {/* Default Fields Configuration */}
+        {viewMode === 'standard' && (
         <div style={{ background: 'white', padding: 32, borderRadius: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-light)' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 24, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <ListPlus size={20} style={{ color: 'var(--secondary)' }} />
@@ -383,8 +450,10 @@ export default function FormControlPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Global Custom Fields Configuration */}
+        {viewMode === 'standard' && (
         <div style={{ background: 'white', padding: 32, borderRadius: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-light)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -579,6 +648,184 @@ export default function FormControlPage() {
             </div>
           )}
         </div>
+        )}
+
+        {/* Onboarding Fields Configuration */}
+        {targetType === 'lead' && viewMode === 'onboarding' && (
+        <div style={{ background: 'white', padding: 32, borderRadius: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Plus size={20} style={{ color: 'var(--secondary)' }} />
+              Onboarding Process Fields
+            </h2>
+            <button className="btn btn-outline" onClick={addOnboardingField} style={{ borderRadius: 12 }}>
+              <Plus size={16} /> Add Onboarding Field
+            </button>
+          </div>
+          
+          {(!settings.onboardingFields || settings.onboardingFields.length === 0) ? (
+            <div className="empty-state" style={{ padding: '40px 20px', background: 'var(--bg-body)', borderRadius: 16 }}>
+              <ListPlus size={32} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
+              <p>No onboarding fields defined yet.</p>
+              <button className="btn btn-secondary btn-sm" onClick={addOnboardingField} style={{ marginTop: 12 }}>Add First Field</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {settings.onboardingFields.map((field, idx) => (
+                <div key={idx} style={{ background: 'var(--bg-body)', padding: 24, borderRadius: 16, border: '1px solid var(--border-light)', position: 'relative' }}>
+                  <div 
+                    style={{ 
+                      position: 'absolute', 
+                      top: 16, 
+                      right: 16, 
+                      display: 'flex', 
+                      gap: 8,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <button 
+                        onClick={() => moveOnboardingField(idx, 'up')}
+                        disabled={idx === 0}
+                        style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 6, padding: 4, cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
+                        title="Move Up"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button 
+                        onClick={() => moveOnboardingField(idx, 'down')}
+                        disabled={idx === settings.onboardingFields.length - 1}
+                        style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 6, padding: 4, cursor: idx === settings.onboardingFields.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === settings.onboardingFields.length - 1 ? 0.3 : 1 }}
+                        title="Move Down"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => removeOnboardingField(idx)}
+                      style={{ color: '#ef4444', background: 'white', border: '1px solid var(--border-light)', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                      title="Remove Field"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  <div className="form-row" style={{ marginBottom: 16, paddingRight: 40 }}>
+                    <div className="form-group">
+                      <label className="form-label">Field Label</label>
+                      <input 
+                        className="form-input" 
+                        value={field.label} 
+                        onChange={e => updateOnboardingField(idx, 'label', e.target.value)} 
+                        style={{ background: 'white' }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Field Type</label>
+                      <select 
+                        className="form-select" 
+                        value={field.fieldType} 
+                        onChange={e => updateOnboardingField(idx, 'fieldType', e.target.value)}
+                        style={{ background: 'white' }}
+                      >
+                        <option value="Short answer">Short answer</option>
+                        <option value="Paragraph">Paragraph</option>
+                        <option value="Multiple choice">Multiple choice</option>
+                        <option value="Checkboxes">Checkboxes</option>
+                        <option value="Dropdown">Dropdown</option>
+                        <option value="File upload">File upload</option>
+                        <option value="Date">Date</option>
+                        <option value="Time">Time</option>
+                        <option value="Number">Number Input</option>
+                        <option value="Text">Text (Legacy)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {['Multiple choice', 'Checkboxes', 'Dropdown'].includes(field.fieldType) && (
+                    <div className="form-group" style={{ marginBottom: 16, paddingRight: 40 }}>
+                      <label className="form-label">Options</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {(Array.isArray(field.options) ? field.options : []).map((opt, optIdx) => (
+                          <div key={optIdx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{optIdx + 1}.</div>
+                            <input 
+                              className="form-input" 
+                              value={opt} 
+                              onChange={e => {
+                                const newOpts = [...field.options];
+                                newOpts[optIdx] = e.target.value;
+                                updateOnboardingField(idx, 'options', newOpts);
+                              }}
+                              style={{ background: 'white' }} 
+                            />
+                            <button 
+                              className="btn btn-ghost btn-sm" 
+                              onClick={() => {
+                                const newOpts = field.options.filter((_, i) => i !== optIdx);
+                                updateOnboardingField(idx, 'options', newOpts);
+                              }}
+                              style={{ color: '#ef4444', padding: 4 }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <button 
+                          className="btn btn-ghost btn-sm" 
+                          onClick={() => {
+                            const newOpts = Array.isArray(field.options) ? [...field.options, ''] : [''];
+                            updateOnboardingField(idx, 'options', newOpts);
+                          }}
+                          style={{ color: 'var(--secondary)', justifyContent: 'flex-start', padding: '4px 0', fontWeight: 600 }}
+                        >
+                          <Plus size={14} /> Add option
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="form-row" style={{ marginBottom: 16, paddingRight: 40 }}>
+                    <div className="form-group">
+                      <label className="form-label">Min Length</label>
+                      <input 
+                        className="form-input" 
+                        type="number" 
+                        placeholder="Unlimited" 
+                        value={field.minLength || ''} 
+                        onChange={e => updateOnboardingField(idx, 'minLength', e.target.value ? parseInt(e.target.value) : null)} 
+                        style={{ background: 'white' }} 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Max Length</label>
+                      <input 
+                        className="form-input" 
+                        type="number" 
+                        placeholder="Unlimited" 
+                        value={field.maxLength || ''} 
+                        onChange={e => updateOnboardingField(idx, 'maxLength', e.target.value ? parseInt(e.target.value) : null)} 
+                        style={{ background: 'white' }} 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Requirement:</label>
+                    <button 
+                      className={`btn ${field.isRequired ? 'btn-secondary' : 'btn-outline'} btn-sm`}
+                      onClick={() => updateOnboardingField(idx, 'isRequired', !field.isRequired)}
+                    >
+                      {field.isRequired ? <ToggleRight size={16} /> : <ToggleLeft size={16} />} 
+                      {field.isRequired ? 'Required Field' : 'Optional Field'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
       </div>
     </div>
   );

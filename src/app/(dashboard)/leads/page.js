@@ -55,6 +55,7 @@ export default function LeadsPage() {
   const [scheduleLead, setScheduleLead] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [onboardingData, setOnboardingData] = useState([]);
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -199,16 +200,66 @@ export default function LeadsPage() {
 
   const handleConvertLead = (lead) => {
     setConvertLead(lead);
+    // Initialize onboarding data based on settings
+    if (formSettings?.onboardingFields) {
+      const initialData = formSettings.onboardingFields.map(f => ({
+        label: f.label,
+        fieldType: f.fieldType,
+        value: f.fieldType === 'Multiple choice' || f.fieldType === 'Dropdown' ? (f.options[0] || '') : (f.fieldType === 'Checkboxes' ? [] : ''),
+        file: null // to store actual file before upload
+      }));
+      setOnboardingData(initialData);
+    } else {
+      setOnboardingData([]);
+    }
   };
 
   const confirmConvertLead = async () => {
     if (!convertLead) return;
+
+    // Validate required fields
+    if (formSettings?.onboardingFields) {
+      for (let i = 0; i < formSettings.onboardingFields.length; i++) {
+        const field = formSettings.onboardingFields[i];
+        const data = onboardingData[i];
+        if (field.isRequired && (!data.value || (Array.isArray(data.value) && data.value.length === 0)) && !data.file) {
+          addToast(`${field.label} is required for onboarding.`, 'error');
+          return;
+        }
+      }
+    }
+
     setConverting(true);
     try {
+      // First, handle any file uploads
+      const processedOnboardingData = [];
+      for (const data of onboardingData) {
+        let finalValue = data.value;
+        if (data.fieldType === 'File upload' && data.file) {
+          const formData = new FormData();
+          formData.append('file', data.file);
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!uploadRes.ok) throw new Error(`Failed to upload ${data.label}`);
+          const uploadData = await uploadRes.json();
+          finalValue = uploadData.url;
+        } else if (Array.isArray(finalValue)) {
+          finalValue = finalValue.join(', ');
+        }
+        
+        processedOnboardingData.push({
+          label: data.label,
+          value: finalValue,
+          fieldType: data.fieldType
+        });
+      }
+
       const res = await fetch(`/api/leads/${convertLead._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: 'Converted' }),
+        body: JSON.stringify({ response: 'Converted', onboardingData: processedOnboardingData }),
       });
 
       if (!res.ok) throw new Error('Failed to convert lead');
@@ -833,6 +884,28 @@ export default function LeadsPage() {
                     <div className="detail-value">{field.value}</div>
                   </div>
                 ))}
+
+                {detailData.lead?.onboardingData?.length > 0 && (
+                  <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 8 }}>Onboarding Documents & Info</h4>
+                    <div className="detail-grid">
+                      {detailData.lead.onboardingData.map((field, idx) => (
+                        <div key={idx} className="detail-item">
+                          <div className="detail-label">{field.label}</div>
+                          <div className="detail-value">
+                            {field.fieldType === 'File upload' && field.value ? (
+                              <a href={field.value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'underline' }}>
+                                View File
+                              </a>
+                            ) : (
+                              field.value || '—'
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">Remarks</div><div className="detail-value">{detailData.lead?.remarks || '—'}</div></div>
               </div>
 
@@ -1069,23 +1142,120 @@ export default function LeadsPage() {
       <>
         {convertLead && (
           <div className="modal-backdrop" onClick={() => !converting && setConvertLead(null)}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center', padding: '32px 24px' }}>
-              <div style={{ width: 64, height: 64, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500, padding: '32px 24px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ width: 64, height: 64, background: 'var(--secondary-50)', color: 'var(--secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', flexShrink: 0 }}>
                 <UserPlus size={32} />
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
-                Convert to Client
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12, textAlign: 'center' }}>
+                Onboarding Process & Convert
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
-                Are you sure you want to convert <strong>{convertLead.name}</strong> to a client? <br/><br/>
-                <span style={{ color: '#ef4444', fontWeight: 600 }}>Once done, the details can't be edited.</span>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5, textAlign: 'center' }}>
+                Please fill in the onboarding details to convert <strong>{convertLead.name}</strong> to a client. <br/>
+                <span style={{ color: '#ef4444', fontWeight: 600 }}>Once done, the lead will be converted.</span>
               </p>
-              <div style={{ display: 'flex', gap: 12 }}>
+
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: 24, padding: '0 8px' }}>
+                {formSettings?.onboardingFields?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {formSettings.onboardingFields.map((field, idx) => {
+                      const data = onboardingData[idx] || {};
+                      return (
+                        <div key={idx} className="form-group">
+                          <label className="form-label">
+                            {field.label} {field.isRequired && <span style={{ color: '#ef4444' }}>*</span>}
+                          </label>
+                          {field.fieldType === 'Short answer' && (
+                            <input className="form-input" value={data.value || ''} onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].value = e.target.value;
+                              setOnboardingData(updated);
+                            }} />
+                          )}
+                          {field.fieldType === 'Paragraph' && (
+                            <textarea className="form-textarea" value={data.value || ''} onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].value = e.target.value;
+                              setOnboardingData(updated);
+                            }} />
+                          )}
+                          {field.fieldType === 'Dropdown' && (
+                            <select className="form-select" value={data.value || ''} onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].value = e.target.value;
+                              setOnboardingData(updated);
+                            }}>
+                              <option value="">Select...</option>
+                              {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          )}
+                          {field.fieldType === 'File upload' && (
+                            <input className="form-input" type="file" onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].file = e.target.files[0];
+                              updated[idx].value = e.target.files[0]?.name || '';
+                              setOnboardingData(updated);
+                            }} />
+                          )}
+                          {field.fieldType === 'Date' && (
+                            <input className="form-input" type="date" value={data.value || ''} onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].value = e.target.value;
+                              setOnboardingData(updated);
+                            }} />
+                          )}
+                          {['Time', 'Number', 'Text'].includes(field.fieldType) && (
+                            <input className="form-input" type={field.fieldType === 'Time' ? 'time' : field.fieldType === 'Number' ? 'number' : 'text'} value={data.value || ''} onChange={e => {
+                              const updated = [...onboardingData];
+                              updated[idx].value = e.target.value;
+                              setOnboardingData(updated);
+                            }} />
+                          )}
+                          {field.fieldType === 'Multiple choice' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {field.options.map(o => (
+                                <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <input type="radio" name={`onboarding-${idx}`} value={o} checked={data.value === o} onChange={e => {
+                                    const updated = [...onboardingData];
+                                    updated[idx].value = e.target.value;
+                                    setOnboardingData(updated);
+                                  }} /> {o}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {field.fieldType === 'Checkboxes' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {field.options.map(o => (
+                                <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <input type="checkbox" checked={Array.isArray(data.value) && data.value.includes(o)} onChange={e => {
+                                    const updated = [...onboardingData];
+                                    let currentVal = Array.isArray(updated[idx].value) ? updated[idx].value : [];
+                                    if (e.target.checked) currentVal.push(o);
+                                    else currentVal = currentVal.filter(v => v !== o);
+                                    updated[idx].value = currentVal;
+                                    setOnboardingData(updated);
+                                  }} /> {o}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No onboarding fields configured by admin.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
                 <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setConvertLead(null)} disabled={converting}>
                   Cancel
                 </button>
                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={confirmConvertLead} disabled={converting}>
-                  {converting ? 'Converting...' : 'Yes, Convert'}
+                  {converting ? 'Converting...' : 'Complete & Convert'}
                 </button>
               </div>
             </div>

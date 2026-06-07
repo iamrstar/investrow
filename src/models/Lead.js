@@ -94,6 +94,17 @@ const LeadSchema = new mongoose.Schema({
       options: { type: [String], default: [] }
     }
   ],
+  onboardingData: [
+    {
+      label: { type: String, required: true },
+      value: { type: String, required: true },
+      fieldType: { 
+        type: String, 
+        enum: ['Short answer', 'Paragraph', 'Multiple choice', 'Checkboxes', 'Dropdown', 'File upload', 'Date', 'Time', 'Number', 'Text'], 
+        default: 'Short answer' 
+      }
+    }
+  ],
 }, {
   timestamps: true,
 });

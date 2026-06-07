@@ -40,6 +40,8 @@ export async function PUT(request, { params }) {
       updateData.password = await hashPassword(body.password);
       updateData.plainPassword = body.password; // Update plain password
     }
+    
+    if (body.documents) updateData.documents = body.documents;
 
     const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
 

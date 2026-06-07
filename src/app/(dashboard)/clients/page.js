@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
+import ClientDocumentsModal from '@/components/ClientDocumentsModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
@@ -38,6 +39,8 @@ export default function ClientsPage() {
   const [expandedActivities, setExpandedActivities] = useState({});
   const [filterDate, setFilterDate] = useState('');
   const [activeMenuClient, setActiveMenuClient] = useState(null);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentsClient, setDocumentsClient] = useState(null);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [tasksClient, setTasksClient] = useState(null);
   const [assignRole, setAssignRole] = useState(''); // 'user'
@@ -657,6 +660,7 @@ export default function ClientsPage() {
             setActiveMenuClient(null);
             switch(action) {
               case 'view': viewDetail(activeMenuClient._id); break;
+              case 'documents': setDocumentsClient(activeMenuClient); setShowDocumentsModal(true); break;
               case 'tasks': setTasksClient(activeMenuClient); setShowTasksModal(true); break;
               case 'schedule_call': setScheduleClient(activeMenuClient); setShowScheduleCall(true); break;
               case 'schedule_meet': setScheduleClient(activeMenuClient); setShowScheduleMeet(true); break;
@@ -696,6 +700,28 @@ export default function ClientsPage() {
                       <div className="detail-value">{field.value}</div>
                     </div>
                   ))}
+                  
+                  {detailData.lead?.onboardingData?.length > 0 && (
+                    <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 8 }}>Onboarding Documents & Info</h4>
+                      <div className="detail-grid">
+                        {detailData.lead.onboardingData.map((field, idx) => (
+                          <div key={idx} className="detail-item">
+                            <div className="detail-label">{field.label}</div>
+                            <div className="detail-value">
+                              {field.fieldType === 'File upload' && field.value ? (
+                                <a href={field.value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'underline' }}>
+                                  View File
+                                </a>
+                              ) : (
+                                field.value || '—'
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -705,6 +731,13 @@ export default function ClientsPage() {
           <ClientTasksModal 
             client={tasksClient} 
             onClose={() => { setShowTasksModal(false); setTasksClient(null); }} 
+          />
+        )}
+        {showDocumentsModal && documentsClient && (
+          <ClientDocumentsModal
+            client={documentsClient}
+            onClose={() => { setShowDocumentsModal(false); setDocumentsClient(null); }}
+            onUpdate={() => fetchClients(pagination.page)}
           />
         )}
       </>
@@ -1232,6 +1265,9 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
         <div className="bottom-sheet-grid">
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('documents')} style={{ color: '#ef4444' }}>
+            <FileText size={20} /> Documents
           </button>
           <a href={`tel:${client.phone}`} className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)', textDecoration: 'none' }}>
             <Phone size={20} /> Call Now

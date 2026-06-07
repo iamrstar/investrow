@@ -36,6 +36,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  documents: [{
+    name: String,
+    url: String,
+    uploadedAt: { type: Date, default: Date.now }
+  }]
 }, {
   timestamps: true,
 });
