@@ -82,6 +82,31 @@ const LeadSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  address: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  city: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  panNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  pincode: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  dateOfBirth: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   customFields: [
     {
       label: { type: String, required: true },
