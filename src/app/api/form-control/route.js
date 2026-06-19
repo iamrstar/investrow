@@ -9,6 +9,11 @@ const getDefaultSettings = (type) => {
     { name: 'email', label: 'Email', isRequired: false },
     { name: 'service', label: 'Service', isRequired: true },
     { name: 'location', label: 'Location', isRequired: false },
+    { name: 'address', label: 'Address', isRequired: false },
+    { name: 'city', label: 'City', isRequired: false },
+    { name: 'panNumber', label: 'Pan Number', isRequired: false },
+    { name: 'pincode', label: 'Pincode', isRequired: false },
+    { name: 'dateOfBirth', label: 'Date Of Birth', isRequired: false },
     { name: 'leadReference', label: type === 'client' ? 'Client Reference' : 'Lead Reference', isRequired: false },
   ];
 
@@ -53,6 +58,22 @@ export async function GET(request) {
 
     if (!settings) {
       settings = await FormControl.create({ ...getDefaultSettings(type), singletonId });
+    } else {
+      // Sync missing default fields for existing settings
+      const defaultDefs = getDefaultSettings(type).defaultFields;
+      const existingNames = new Set(settings.defaultFields.map(f => f.name));
+      let updated = false;
+      
+      for (const defField of defaultDefs) {
+        if (!existingNames.has(defField.name)) {
+          settings.defaultFields.push(defField);
+          updated = true;
+        }
+      }
+      
+      if (updated) {
+        await settings.save();
+      }
     }
 
     

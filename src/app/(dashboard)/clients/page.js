@@ -791,6 +791,11 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     remarks: client?.remarks || '',
     callStatus: client?.callStatus || 'Received',
     location: client?.location || '',
+    address: client?.address || '',
+    city: client?.city || '',
+    panNumber: client?.panNumber || '',
+    pincode: client?.pincode || '',
+    dateOfBirth: client?.dateOfBirth || '',
     customFields: client?.customFields || [],
   });
 
@@ -802,7 +807,12 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       service: { label: 'Service', required: true },
       location: { label: 'Location', required: false },
       leadReference: { label: 'Reference', required: false },
-      remarks: { label: 'Remarks', required: false }
+      remarks: { label: 'Remarks', required: false },
+      address: { label: 'Address', required: false },
+      city: { label: 'City', required: false },
+      panNumber: { label: 'Pan Number', required: false },
+      pincode: { label: 'Pincode', required: false },
+      dateOfBirth: { label: 'Date Of Birth', required: false }
     };
     if (!formSettings?.defaultFields) return defaults[name] || { label: name, required: false };
     const conf = formSettings.defaultFields.find(f => f.name === name);
@@ -813,7 +823,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
   const [saving, setSaving] = useState(false);
 
   const isFormValid = () => {
-    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference'];
+    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'address', 'city', 'panNumber', 'pincode', 'dateOfBirth'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
       const val = String(form[field] || '');
@@ -902,7 +912,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                     ) : (
                       <input 
                         className="form-input" 
-                        type={dField.name === 'email' ? 'email' : 'text'}
+                        type={dField.name === 'email' ? 'email' : dField.name === 'dateOfBirth' ? 'date' : 'text'}
                         value={value} 
                         onChange={onChange} 
                         required={dField.isRequired}

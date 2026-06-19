@@ -1411,6 +1411,11 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     remarks: lead?.remarks || '',
     callStatus: lead?.callStatus || 'Pending',
     location: lead?.location || '',
+    address: lead?.address || '',
+    city: lead?.city || '',
+    panNumber: lead?.panNumber || '',
+    pincode: lead?.pincode || '',
+    dateOfBirth: lead?.dateOfBirth || '',
     customFields: lead?.customFields || [],
   });
 
@@ -1428,7 +1433,12 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
       serviceTaken: { label: 'Service Taken', required: false },
       nextCallDate: { label: 'Next Call Date', required: false },
       followUpDate: { label: 'Follow-up Date', required: false },
-      remarks: { label: 'Remarks', required: false }
+      remarks: { label: 'Remarks', required: false },
+      address: { label: 'Address', required: false },
+      city: { label: 'City', required: false },
+      panNumber: { label: 'Pan Number', required: false },
+      pincode: { label: 'Pincode', required: false },
+      dateOfBirth: { label: 'Date Of Birth', required: false }
     };
     if (!formSettings?.defaultFields) return defaults[name] || { label: name, required: false };
     const conf = formSettings.defaultFields.find(f => f.name === name);
@@ -1439,7 +1449,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
   const [saving, setSaving] = useState(false);
 
   const isFormValid = () => {
-    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks'];
+    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'address', 'city', 'panNumber', 'pincode', 'dateOfBirth'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
       const val = String(form[field] || '');
@@ -1528,7 +1538,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                     ) : (
                       <input 
                         className="form-input" 
-                        type={dField.name === 'email' ? 'email' : 'text'}
+                        type={dField.name === 'email' ? 'email' : dField.name === 'dateOfBirth' ? 'date' : 'text'}
                         value={value} 
                         onChange={onChange} 
                         required={dField.isRequired}
