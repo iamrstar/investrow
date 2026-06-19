@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
 import ClientDocumentsModal from '@/components/ClientDocumentsModal';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
@@ -52,6 +53,7 @@ export default function ClientsPage() {
   const [scheduleClient, setScheduleClient] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -289,39 +291,44 @@ export default function ClientsPage() {
           Client Management
         </h1>
         {canCreate && (
-          <button className="btn btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
-            <Plus size={18} /> Add Client
-          </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn btn-outline add-lead-btn" onClick={() => setShowBulkUpload(true)}>
+              <Plus size={20} /> <span>Bulk Upload</span>
+            </button>
+            <button className="btn btn-primary add-lead-btn" onClick={() => { setEditingClient(null); setShowModal(true); }}>
+              <Plus size={20} /> <span>Add Client</span>
+            </button>
+          </div>
         )}
       </div>
 
       {/* Filters */}
-      <div className="filters-bar">
+      <div className="filters-container">
         <div className="search-input-wrapper">
           <Search />
           <input className="form-input" placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>
-          <option value="">All Services</option>
-          {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        
-        <select className="form-select" value={filterCallStatus} onChange={e => setFilterCallStatus(e.target.value)}>
-          <option value="">All Call Status</option>
-          <option value="Received">Received</option>
-          <option value="Not Received">Not Received</option>
-          <option value="Pending">Pending</option>
-        </select>
-        
-        {/* User Filters for Admin */}
-        {user?.role === 'admin' && (
-          <select className="form-select" value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ maxWidth: 160 }}>
-            <option value="">All Users</option>
-            {teamUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+        <div className="filters-scroll-row">
+          <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>
+            <option value="">All Services</option>
+            {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-        )}
+          
+          <select className="form-select" value={filterCallStatus} onChange={e => setFilterCallStatus(e.target.value)}>
+            <option value="">All Call Status</option>
+            <option value="Received">Received</option>
+            <option value="Not Received">Not Received</option>
+            <option value="Pending">Pending</option>
+          </select>
+          
+          {/* User Filters for Admin */}
+          {user?.role === 'admin' && (
+            <select className="form-select" value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ maxWidth: 160 }}>
+              <option value="">All Users</option>
+              {teamUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+            </select>
+          )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderLeft: '1px solid var(--border-light)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)' }}>FROM</span>
             <input type="date" className="form-input" style={{ width: 120, height: 36, padding: '0 8px', fontSize: '0.8rem' }} value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -330,11 +337,11 @@ export default function ClientsPage() {
             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)' }}>TO</span>
             <input type="date" className="form-input" style={{ width: 120, height: 36, padding: '0 8px', fontSize: '0.8rem' }} value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
-        </div>
 
-        <button className="btn btn-outline" onClick={handleDownloadReport} title="Download Report">
-          <FileText size={18} />
-        </button>
+          <button className="btn btn-outline" onClick={handleDownloadReport} title="Download Report">
+            <FileText size={18} /> Export
+          </button>
+        </div>
       </div>
       
       {filterDate && (
@@ -374,8 +381,15 @@ export default function ClientsPage() {
           <table className="sheet-table">
             <thead>
               <tr>
+                <th>Sr. No.</th>
                 <th>Name</th>
-                <th>Phone</th>
+                <th>Phone / Mobile</th>
+                <th>Email</th>
+                <th>Address</th>
+                <th>City</th>
+                <th>Pan Number</th>
+                <th>Pincode</th>
+                <th>Date Of Birth</th>
                 <th>Service</th>
                 <th>Call Status</th>
                 <th>Assigned To</th>
@@ -384,23 +398,30 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {clients.map(client => (
+              {clients.map((client, index) => (
                 <tr key={client._id}>
-                  <td className="lead-name">{client.name}</td>
-                  <td>
+                  <td data-label="Sr. No.">{(pagination.page - 1) * pagination.limit + index + 1}</td>
+                  <td className="lead-name" data-label="Name">{client.name}</td>
+                  <td data-label="Phone / Mobile">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Phone size={12} style={{ color: 'var(--text-muted)' }} />
                       {client.phone}
                     </div>
                   </td>
-                  <td><span className="badge badge-blue">{client.service}</span></td>
-                  <td>
+                  <td data-label="Email">{client.email || '—'}</td>
+                  <td data-label="Address">{client.address || '—'}</td>
+                  <td data-label="City">{client.city || '—'}</td>
+                  <td data-label="Pan Number">{client.panNumber || '—'}</td>
+                  <td data-label="Pincode">{client.pincode || '—'}</td>
+                  <td data-label="Date Of Birth">{client.dateOfBirth || '—'}</td>
+                  <td data-label="Service"><span className="badge badge-blue">{client.service || '—'}</span></td>
+                  <td data-label="Call Status">
                     <span className={`badge ${client.callStatus === 'Received' ? 'badge-green' : client.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
                       {client.callStatus}
                     </span>
                   </td>
-                  <td>{client.assignedTo?.name || '—'}</td>
-                  <td>
+                  <td data-label="Assigned To">{client.assignedTo?.name || '—'}</td>
+                  <td data-label="Follow-up">
                     {client.followUpDate ? (
                       <button 
                         onClick={() => setFilterDate(client.followUpDate.split('T')[0])}
@@ -419,7 +440,7 @@ export default function ClientsPage() {
                       </button>
                     ) : '—'}
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <RenderClientActions client={client} />
                   </td>
                 </tr>
@@ -741,6 +762,14 @@ export default function ClientsPage() {
           />
         )}
       </>
+
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <BulkUploadModal 
+          onClose={() => setShowBulkUpload(false)} 
+          onSuccess={() => { setShowBulkUpload(false); fetchClients(pagination.page); }}
+        />
+      )}
     </div>
   );
 }
