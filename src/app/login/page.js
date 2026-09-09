@@ -32,20 +32,25 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-logo">
+        <div className="login-logo" style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 12,
+            width: 280,
+            height: 72,
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 14,
-              background: 'linear-gradient(135deg, #0EA5E9, #F97316)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: '0.875rem', color: 'white', letterSpacing: '0.05em',
-            }}>CRM</div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>Investrow</div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#F97316', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Financial Services</div>
-            </div>
+            <img
+              src="/logo.png"
+              alt="Investrow Financial Services"
+              style={{
+                width: 290,
+                height: 290,
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
           </div>
         </div>
         <h1 className="login-title">Welcome Back</h1>

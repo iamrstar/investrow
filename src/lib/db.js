@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Fix Node.js SRV lookup issues on macOS / local resolvers (EBADRESP)
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (e) {
+  // Ignore if setServers fails
+}
 
 /** 
  * Global is used here to maintain a cached connection across hot reloads
@@ -19,18 +27,39 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 8000,
     };
 
     const mongoUri = process.env.MONGODB_URI;
-    
-    if (!mongoUri) {
-      throw new Error('Please define the MONGODB_URI environment variable inside .env');
-    }
 
-    cached.promise = mongoose.connect(mongoUri, opts).then((mongoose) => {
-      console.log('✅ MongoDB Connected successfully to:', mongoUri.split('@')[1]); // Log host for safety
-      return mongoose;
-    });
+    cached.promise = (async () => {
+      if (mongoUri) {
+        try {
+          const conn = await mongoose.connect(mongoUri, opts);
+          console.log('✅ MongoDB Connected successfully to:', mongoUri.split('@')[1] || mongoUri);
+          return conn;
+        } catch (err) {
+          console.warn('⚠️ Could not connect to primary MongoDB (' + err.message + '). Falling back to in-memory MongoMemoryServer...');
+        }
+      }
+
+      try {
+        const { MongoMemoryServer } = await import('mongodb-memory-server');
+        if (!global.__MONGO_MEMORY_SERVER__) {
+          global.__MONGO_MEMORY_SERVER__ = await MongoMemoryServer.create();
+        }
+        const memUri = global.__MONGO_MEMORY_SERVER__.getUri();
+        console.log('✅ Connected to in-memory MongoDB at:', memUri);
+        const conn = await mongoose.connect(memUri, { bufferCommands: false });
+        
+        // Auto-seed default credentials if in-memory
+        await seedDatabase();
+        return conn;
+      } catch (memErr) {
+        console.error('❌ Failed to connect to in-memory MongoDB:', memErr);
+        throw memErr;
+      }
+    })();
   }
 
   try {

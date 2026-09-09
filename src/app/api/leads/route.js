@@ -18,12 +18,27 @@ export async function GET(request) {
   const callStatus = searchParams.get('callStatus');
   const assignedTo = searchParams.get('assignedTo');
   const followUpDate = searchParams.get('followUpDate');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
   const page = parseInt(searchParams.get('page')) || 1;
   const limit = parseInt(searchParams.get('limit')) || 20;
 
   const criteria = [];
 
-  if (followUpDate) {
+  if (startDate || endDate) {
+    const dateQuery = {};
+    if (startDate) {
+      const s = new Date(startDate);
+      s.setHours(0, 0, 0, 0);
+      dateQuery.$gte = s;
+    }
+    if (endDate) {
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
+      dateQuery.$lte = e;
+    }
+    criteria.push({ followUpDate: dateQuery });
+  } else if (followUpDate) {
     const start = new Date(followUpDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(followUpDate);

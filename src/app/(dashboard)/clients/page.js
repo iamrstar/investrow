@@ -9,7 +9,8 @@ import BulkUploadModal from '@/components/BulkUploadModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Users, Clock, CheckCircle, Video, Calendar
+  MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
+  CalendarClock, User
 } from 'lucide-react';
 
 const SERVICES = [
@@ -341,6 +342,60 @@ export default function ClientsPage() {
           <button className="btn btn-outline" onClick={handleDownloadReport} title="Download Report">
             <FileText size={18} /> Export
           </button>
+        </div>
+
+        {/* Quick Follow-up Preset Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            <CalendarClock size={14} color="var(--secondary)" />
+            <span>FOLLOW-UP PRESETS:</span>
+          </div>
+          {[
+            { id: 'all', label: 'All Dates' },
+            { id: '7days', label: 'Next 7 Days', days: 7 },
+            { id: '1month', label: '1 Month', days: 30 },
+            { id: '2months', label: '2 Months', days: 60 },
+            { id: '3months', label: '3 Months', days: 90 },
+            { id: '6months', label: '6 Months', days: 180 },
+            { id: 'today', label: 'Today', days: 0 },
+          ].map(p => {
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  if (p.id === 'all') {
+                    setStartDate('');
+                    setEndDate('');
+                    setFilterDate('');
+                  } else if (p.id === 'today') {
+                    setStartDate(start.toISOString().split('T')[0]);
+                    setEndDate(start.toISOString().split('T')[0]);
+                    setFilterDate('');
+                  } else {
+                    const end = new Date(start.getTime() + p.days * 24 * 60 * 60 * 1000);
+                    setStartDate(start.toISOString().split('T')[0]);
+                    setEndDate(end.toISOString().split('T')[0]);
+                    setFilterDate('');
+                  }
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 10px',
+                  borderRadius: 20,
+                  height: 28,
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       
@@ -895,6 +950,20 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
+            {/* SEGMENT 1: CLIENT DETAILS HEADER */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <div style={{ background: '#3b82f6', color: 'white', padding: 6, borderRadius: 8, display: 'flex' }}>
+                <User size={18} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>
+                  Client Information
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                  Basic profile, contact info, and product/service
+                </p>
+              </div>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
               {formSettings?.defaultFields?.map((dField) => {
@@ -1272,9 +1341,124 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                 </select>
               </div>
             )}
-            <div className="form-group">
-              <label className="form-label">Remarks</label>
-              <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." />
+            {/* SEGMENT 2: FOLLOW-UP & SCHEDULE DETAILS */}
+            <div style={{
+              marginTop: 20,
+              padding: 20,
+              background: '#f0f9ff',
+              borderRadius: 16,
+              border: '1px solid #bae6fd'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ background: '#0ea5e9', color: 'white', padding: 6, borderRadius: 8, display: 'flex' }}>
+                  <CalendarClock size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1' }}>
+                    Follow-up Details & Scheduling
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#0284c7' }}>
+                    Set next follow-up date and initial call status
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Next Follow-up Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={form.followUpDate} 
+                    onChange={e => setForm({ ...form, followUpDate: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                    {[
+                      { label: '+1 Day', days: 1 },
+                      { label: '+7 Days', days: 7 },
+                      { label: '+1 Month', days: 30 },
+                      { label: '+3 Months', days: 90 },
+                      { label: '+6 Months', days: 180 },
+                    ].map(btn => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + btn.days);
+                          setForm({ ...form, followUpDate: d.toISOString().split('T')[0] });
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.7rem',
+                          borderRadius: 6,
+                          background: 'white',
+                          border: '1px solid #7dd3fc',
+                          color: '#0284c7',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Call Status</label>
+                  <select 
+                    className="form-select" 
+                    value={form.callStatus} 
+                    onChange={e => setForm({ ...form, callStatus: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received / Connected</option>
+                    <option value="Not Received">Not Received / Busy</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Client Response</label>
+                  <select 
+                    className="form-select" 
+                    value={form.response} 
+                    onChange={e => setForm({ ...form, response: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  >
+                    <option value="Converted">Converted (Active Client)</option>
+                    <option value="Positive">Positive / Interested</option>
+                    <option value="Pending">Pending / Evaluating</option>
+                    <option value="Negative">Negative / Not Interested</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Next Call Schedule (Optional)</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={form.nextCallDate} 
+                    onChange={e => setForm({ ...form, nextCallDate: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Follow-up Remarks / Notes</label>
+                <textarea 
+                  className="form-textarea" 
+                  value={form.remarks} 
+                  onChange={e => setForm({ ...form, remarks: e.target.value })} 
+                  placeholder="Record conversation details, client needs, or next action items..."
+                  style={{ minHeight: 70, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                />
+              </div>
             </div>
           </div>
           <div className="modal-footer">

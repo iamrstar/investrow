@@ -19,8 +19,8 @@
   --border-light: #f1f5f9;
   --bg-body: #f0f4f8;
   --bg-card: #ffffff;
-  --bg-sidebar: #0c1929;
-  --bg-sidebar-hover: #162a45;
+  --bg-sidebar: #ffffff;
+  --bg-sidebar-hover: #f0f9ff;
   --bg-sidebar-active: #0EA5E9;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
   --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
@@ -131,9 +131,10 @@ body {
 }
 
 .sidebar {
-  width: 270px;
-  background: var(--bg-sidebar);
-  color: white;
+  width: 255px;
+  background: #ffffff;
+  border-right: 1px solid var(--border);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -146,22 +147,24 @@ body {
 }
 
 .sidebar-header {
-  padding: 24px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .sidebar-logo {
-  height: 36px;
+  height: 60px;
   width: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .sidebar-brand {
   font-size: 1.1rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
@@ -178,7 +181,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-muted);
   padding: 16px 12px 8px;
 }
 
@@ -186,9 +189,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -202,13 +205,13 @@ body {
 
 .sidebar-link:hover {
   background: var(--bg-sidebar-hover);
-  color: white;
+  color: var(--secondary-dark);
 }
 
 .sidebar-link.active {
   background: var(--bg-sidebar-active);
   color: white;
-  box-shadow: 0 2px 8px rgba(14,165,233,0.3);
+  box-shadow: 0 4px 12px rgba(14,165,233,0.28);
 }
 
 .sidebar-link svg {
@@ -218,21 +221,21 @@ body {
 }
 
 .sidebar-user {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .sidebar-user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: var(--secondary);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justifyContent: center;
   font-weight: 700;
   font-size: 0.875rem;
   color: white;
@@ -247,7 +250,7 @@ body {
 .sidebar-user-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -255,7 +258,7 @@ body {
 
 .sidebar-user-role {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-muted);
   text-transform: capitalize;
 }
 

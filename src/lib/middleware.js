@@ -5,8 +5,29 @@ import User from '@/models/User';
 
 export async function getAuthUser(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    let token = null;
+
+    // 1. Try reading directly from request cookies or headers (safest in Route Handlers)
+    if (request) {
+      if (typeof request.cookies?.get === 'function') {
+        token = request.cookies.get('token')?.value;
+      }
+      if (!token && typeof request.headers?.get === 'function') {
+        const cookieHeader = request.headers.get('cookie') || '';
+        const match = cookieHeader.match(/(?:^|;\s*)token=([^;]+)/);
+        if (match) token = decodeURIComponent(match[1]);
+      }
+    }
+
+    // 2. Fallback to next/headers cookies()
+    if (!token) {
+      try {
+        const cookieStore = cookies();
+        token = (typeof cookieStore?.then === 'function' ? await cookieStore : cookieStore)?.get('token')?.value;
+      } catch (cErr) {
+        // Ignore if next/headers is unavailable
+      }
+    }
 
     if (!token) return null;
 
