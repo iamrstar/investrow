@@ -91,7 +91,7 @@ export default function Header() {
       </div>
 
       {/* Right Elements */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+      <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
         {/* Tagline & Date */}
         <div style={{
           textAlign: 'right',
@@ -148,6 +148,7 @@ export default function Header() {
 
         {/* Calendar icon */}
         <div
+          className="header-calendar-btn"
           onClick={() => router.push('/follow-ups')}
           style={{
             width: 40,

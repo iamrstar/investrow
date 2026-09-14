@@ -242,7 +242,7 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div style={{
+          <div className="dash-header-quote" style={{
             fontStyle: 'italic',
             color: '#1E293B',
             fontSize: '0.95rem',
@@ -252,15 +252,15 @@ export default function DashboardPage() {
             &ldquo;Small steps with clients, big growth for your future.&rdquo;
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div className="dash-header-date" style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })} &nbsp;|&nbsp; Have a Great Day!
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
               </div>
             </div>
 
             {/* Target Achievement Badge */}
-            <div style={{
+            <div className="dash-header-badge" style={{
               background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
               border: '1px solid #FCD34D',
               borderRadius: 12,
@@ -292,41 +292,43 @@ export default function DashboardPage() {
               <div style={{
                 display: 'flex',
                 background: '#FFFFFF',
-                padding: 4,
-                borderRadius: 12,
+                padding: 3,
+                borderRadius: 10,
                 border: '1px solid #E2E8F0',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
               }}>
                 <button
                   onClick={() => setDashboardMode('admin')}
                   style={{
-                    padding: '7px 14px',
+                    padding: '6px 12px',
                     borderRadius: 8,
                     border: 'none',
-                    fontSize: '0.82rem',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     background: 'transparent',
                     color: '#64748B',
                   }}
                 >
-                  Admin View
+                  Admin
                 </button>
                 <button
                   onClick={() => setDashboardMode('employee')}
                   style={{
-                    padding: '7px 14px',
+                    padding: '6px 12px',
                     borderRadius: 8,
                     border: 'none',
-                    fontSize: '0.82rem',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
                     color: '#FFFFFF',
                     boxShadow: '0 2px 8px rgba(14, 165, 233, 0.28)'
                   }}
                 >
-                  Staff View
+                  Staff
                 </button>
               </div>
             )}
@@ -411,15 +413,11 @@ export default function DashboardPage() {
       {dashboardMode === 'admin' ? (
         <>
           {/* 2. Top 8 Metric KPI Cards Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        gap: 14,
-        marginBottom: 24
-      }}>
+      <div className="dashboard-kpi-grid">
         {/* 1. Total Leads */}
         <div
           onClick={() => router.push('/leads')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
             color: 'white',
@@ -430,20 +428,21 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <Users size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.totalLeads}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total Leads</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>All in CRM ({stats.activePipelineCount || 9} Active)</div>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.totalLeads}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total Leads</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>All in CRM ({stats.activePipelineCount || 9} Active)</div>
         </div>
 
         {/* 2. New Leads */}
         <div
           onClick={() => router.push('/leads?status=New')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
             color: 'white',
@@ -454,20 +453,21 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <UserPlus size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.newLeads}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>New Leads</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Awaiting First Call</div>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.newLeads}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>New Leads</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Awaiting First Call</div>
         </div>
 
         {/* 3. Follow-up Due (Brand Orange) */}
         <div
           onClick={() => router.push('/follow-ups')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
             color: 'white',
@@ -478,15 +478,15 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <Calendar size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.followUpDue}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Follow-up Due</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.followUpDue}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Follow-up Due</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
             🕒 {stats.overdueFollowUps} Overdue
           </div>
         </div>
@@ -494,6 +494,7 @@ export default function DashboardPage() {
         {/* 4. Total Clients (Deep Sky Blue) */}
         <div
           onClick={() => router.push('/clients')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
             color: 'white',
@@ -504,20 +505,21 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <UserCheck size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.totalClients}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total Clients</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Converted from leads</div>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.totalClients}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total Clients</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Converted from leads</div>
         </div>
 
         {/* 5. Monthly SIP Book (Sky Blue Light) */}
         <div
           onClick={() => router.push('/clients')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)',
             color: 'white',
@@ -528,15 +530,15 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, fontWeight: 900
           }}>
             ₹
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.monthlySipBook}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Monthly SIP Book</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+          <div className="kpi-value" style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.monthlySipBook}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Monthly SIP Book</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
             {stats.activeSipsCount || 0} Active SIPs
           </div>
         </div>
@@ -544,6 +546,7 @@ export default function DashboardPage() {
         {/* 6. Total AUM (Bright Orange) */}
         <div
           onClick={() => router.push('/clients')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)',
             color: 'white',
@@ -554,15 +557,15 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <BarChart2 size={20} />
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.totalAum}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total AUM</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+          <div className="kpi-value" style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.totalAum}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total AUM</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
             {stats.totalClients || 0} Portfolios
           </div>
         </div>
@@ -570,6 +573,7 @@ export default function DashboardPage() {
         {/* 7. Insurance Policies */}
         <div
           onClick={() => router.push('/clients')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)',
             color: 'white',
@@ -580,20 +584,21 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <Shield size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.insurancePolicies}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Insurance Policies</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>{stats.insurancePremium} Premium</div>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.insurancePolicies}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Insurance Policies</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>{stats.insurancePremium} Premium</div>
         </div>
 
         {/* 8. Pending Tasks */}
         <div
           onClick={() => router.push('/tasks')}
+          className="dashboard-kpi-card"
           style={{
             background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
             color: 'white',
@@ -604,15 +609,15 @@ export default function DashboardPage() {
             transition: 'transform 0.15s ease'
           }}
         >
-          <div style={{
+          <div className="kpi-icon-wrap" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
           }}>
             <CheckCircle2 size={20} />
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.pendingTasks}</div>
-          <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Pending Tasks</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+          <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{stats.pendingTasks}</div>
+          <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Pending Tasks</div>
+          <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
             🕒 {stats.overdueTasks} Overdue
           </div>
         </div>
@@ -1150,31 +1155,27 @@ export default function DashboardPage() {
         /* ====== EMPLOYEE DASHBOARD VIEW (Panel 3) ====== */
         <div>
           {/* Top 6 Metric KPI Cards Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 14,
-            marginBottom: 24
-          }}>
+          <div className="dashboard-kpi-grid">
             {/* 1. My Total Leads */}
             <div
               onClick={() => router.push('/leads')}
+              className="dashboard-kpi-card"
               style={{
                 background: '#0284C7',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(2, 132, 199, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <Users size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Users size={20} color="white" />
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myTotalLeads}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My Total Leads</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myTotalLeads}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>My Total Leads</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>•</span> Active in CRM
               </div>
             </div>
@@ -1182,22 +1183,23 @@ export default function DashboardPage() {
             {/* 2. My Clients */}
             <div
               onClick={() => router.push('/clients')}
+              className="dashboard-kpi-card"
               style={{
                 background: '#10B981',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <UserPlus size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <UserPlus size={20} color="white" />
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myClients}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My Clients</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myClients}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>My Clients</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>•</span> Active Clients
               </div>
             </div>
@@ -1205,22 +1207,23 @@ export default function DashboardPage() {
             {/* 3. Today's Follow-ups */}
             <div
               onClick={() => router.push('/follow-ups')}
+              className="dashboard-kpi-card"
               style={{
-                background: '#F97316',
+                background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(249, 115, 22, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <Calendar size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Calendar size={20} color="white" />
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myFollowUps}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>Today&apos;s Follow-ups</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myFollowUps}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Today&apos;s Follow-ups</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ display: 'inline-flex', width: 14, height: 14, borderRadius: '50%', background: 'white', color: '#F97316', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 900 }}>!</span>
                 {empStats.myOverdueFollowUps} Overdue
               </div>
@@ -1229,74 +1232,75 @@ export default function DashboardPage() {
             {/* 4. My SIP Book */}
             <div
               onClick={() => router.push('/clients')}
+              className="dashboard-kpi-card"
               style={{
                 background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(99, 102, 241, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <IndianRupee size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <IndianRupee size={20} color="white" />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, lineHeight: 1 }}>{empStats.mySipBook}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My SIP Book</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+              <div className="kpi-value" style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{empStats.mySipBook}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>My SIP Book</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
                 <span style={{ background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: 10 }}>
                   {empStats.activeSipsCount || 0} Active SIPs
                 </span>
-                <span>• Monthly</span>
               </div>
             </div>
 
             {/* 5. My AUM */}
             <div
               onClick={() => router.push('/clients')}
+              className="dashboard-kpi-card"
               style={{
                 background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(217, 119, 6, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <TrendingUp size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <TrendingUp size={20} color="white" />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myAum}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My AUM</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+              <div className="kpi-value" style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{empStats.myAum}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>My AUM</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
                 <span style={{ background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: 10 }}>
-                  {empStats.myClients || 0} Clients Won
+                  {empStats.myClients || 0} Clients
                 </span>
-                <span>• Assets</span>
               </div>
             </div>
 
             {/* 6. My Pending Tasks */}
             <div
               onClick={() => router.push('/tasks')}
+              className="dashboard-kpi-card"
               style={{
                 background: '#06B6D4',
                 color: 'white',
                 borderRadius: 16,
-                padding: '20px 22px',
+                padding: '18px 20px',
                 boxShadow: '0 4px 14px rgba(6, 182, 212, 0.25)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <CheckCircle2 size={22} color="white" />
+              <div className="kpi-icon-wrap" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <CheckCircle2 size={20} color="white" />
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myPendingTasks}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My Pending Tasks</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myPendingTasks}</div>
+              <div className="kpi-title" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>My Pending Tasks</div>
+              <div className="kpi-sub" style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>⏱</span> {empStats.myOverdueTasks} Overdue
               </div>
             </div>
