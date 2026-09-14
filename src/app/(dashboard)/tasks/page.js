@@ -258,71 +258,116 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Task List or Calendar */}
+      {/* Task List and Mini Calendar Side-by-Side (Panel 14) */}
       {loading ? (
         <div className="loading-page" style={{ minHeight: 300 }}><div className="spinner"></div></div>
       ) : viewMode === 'list' ? (
-        <div className="task-list">
-          {tasks.length === 0 ? (
-            <div className="empty-state" style={{ background: 'white', border: '1px solid var(--border-light)' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Calendar size={32} style={{ color: 'var(--text-muted)' }} />
-              </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Workspace Clear</h3>
-              <p>No tasks pending for this category.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
+          
+          {/* Left Column: Tasks List */}
+          <div className="task-list">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>My Tasks</h3>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => { setEditingTask(null); setShowModal(true); }}
+                style={{ background: '#0EA5E9', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Plus size={14} /> Add Task
+              </button>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {tasks.map(task => (
-                <div key={task._id} className="task-card">
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                    <div className={`task-type-icon ${task.type.toLowerCase()}`}>
-                      {task.type === 'Call' ? <Phone size={20} /> : task.type === 'Meeting' ? <Video size={20} /> : <ListTodo size={20} />}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0' }}>{task.title}</h4>
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Clock size={14} /> 
-                              {task.scheduledAt ? 
-                                new Date(task.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 
-                                new Date(task.dueDate).toLocaleDateString()
-                              }
-                            </span>
-                            {task.leadId && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {task.leadId.name}</span>}
-                            {task.meetingType && <span className="badge badge-blue">{task.meetingType}</span>}
+
+            {tasks.length === 0 ? (
+              <div className="empty-state" style={{ background: 'white', borderRadius: 16, border: '1px solid var(--border-light)', padding: '40px 20px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#F0F9FF', color: '#0EA5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Calendar size={28} />
+                </div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 6px 0' }}>Workspace Clear</h3>
+                <p style={{ margin: 0, color: '#64748B', fontSize: '0.9rem' }}>No pending tasks in this category.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {tasks.map(task => {
+                  const isCall = task.type === 'Call';
+                  const isMeet = task.type === 'Meeting';
+
+                  return (
+                    <div 
+                      key={task._id} 
+                      className="task-card"
+                      style={{
+                        background: '#FFFFFF',
+                        borderRadius: 16,
+                        border: '1px solid #E2E8F0',
+                        padding: 16,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: isCall ? '#ECFDF5' : isMeet ? '#EEF2FF' : '#F0F9FF',
+                          color: isCall ? '#059669' : isMeet ? '#4F46E5' : '#0284C7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {isCall ? <Phone size={18} /> : isMeet ? <Video size={18} /> : <ListTodo size={18} />}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 4px 0', color: '#0F172A' }}>{task.title}</h4>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: '0.8rem', color: '#64748B', flexWrap: 'wrap' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <Clock size={12} /> 
+                                  {task.scheduledAt ? 
+                                    new Date(task.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 
+                                    new Date(task.dueDate).toLocaleDateString()
+                                  }
+                                </span>
+                                {task.leadId && <span style={{ fontWeight: 600, color: '#0EA5E9' }}>• {task.leadId.name}</span>}
+                              </div>
+                            </div>
+                            <div className="task-actions" style={{ display: 'flex', gap: 6 }}>
+                              {task.status !== 'Completed' && (
+                                <button 
+                                  className="btn btn-success btn-sm" 
+                                  onClick={() => {
+                                    if (task.type === 'Call' || task.type === 'Meeting') {
+                                      setFollowUpLead(task.leadId);
+                                      setActiveTaskForFollowUp(task);
+                                      setShowFollowUp(true);
+                                    } else {
+                                      handleStatusChange(task, 'Completed');
+                                    }
+                                  }}
+                                  style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: 6 }}
+                                >
+                                  <CheckCircle size={14} /> Done
+                                </button>
+                              )}
+                              <button className="btn btn-ghost btn-sm" onClick={() => { setEditingTask(task); setShowModal(true); }} style={{ padding: 4 }}><Edit size={14} /></button>
+                              <button className="btn btn-ghost btn-sm danger" onClick={() => handleDeleteTask(task._id)} style={{ padding: 4 }}><Trash2 size={14} /></button>
+                            </div>
                           </div>
                         </div>
-                        <div className="task-actions">
-                          {task.status !== 'Completed' && (
-                            <button 
-                              className="btn btn-success btn-sm" 
-                              onClick={() => {
-                                if (task.type === 'Call' || task.type === 'Meeting') {
-                                  setFollowUpLead(task.leadId);
-                                  setActiveTaskForFollowUp(task);
-                                  setShowFollowUp(true);
-                                } else {
-                                  handleStatusChange(task, 'Completed');
-                                }
-                              }}
-                            >
-                              <CheckCircle size={16} /> Confirm
-                            </button>
-                          )}
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setEditingTask(task); setShowModal(true); }}><Edit size={16} /></button>
-                          <button className="btn btn-ghost btn-sm danger" onClick={() => handleDeleteTask(task._id)}><Trash2 size={16} /></button>
-                        </div>
                       </div>
-                      {task.notes && <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: 8, background: '#f8fafc', padding: '12px', borderRadius: 12 }}>{task.notes}</p>}
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Monthly Mini Calendar (Panel 14) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <MiniCalendarWidget tasks={tasks} />
+          </div>
+
         </div>
       ) : (
         <CustomCalendar tasks={tasks} />
@@ -459,6 +504,84 @@ export default function TasksPage() {
         .task-type-icon.meeting { background: #f5f3ff; color: #8b5cf6; }
         .task-type-icon.task { background: #f1f5f9; color: #64748b; }
       `}</style>
+    </div>
+  );
+}
+
+function MiniCalendarWidget({ tasks }) {
+  const [date, setDate] = useState(new Date());
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const blanks = Array.from({ length: firstDay }, (_, i) => i);
+  const todayDate = new Date().getDate();
+  const isCurrentMonth = month === new Date().getMonth() && year === new Date().getFullYear();
+
+  return (
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: 20,
+      padding: '20px 24px',
+      border: '1px solid #E2E8F0',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => setDate(new Date(year, month - 1))}
+          style={{ padding: 4 }}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>
+          {date.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </span>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => setDate(new Date(year, month + 1))}
+          style={{ padding: 4 }}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      {/* Weekdays */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center', marginBottom: 8 }}>
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+          <span key={d} style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>{d}</span>
+        ))}
+      </div>
+
+      {/* Days Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' }}>
+        {blanks.map(b => <div key={`b-${b}`} style={{ height: 32 }} />)}
+        {days.map(d => {
+          const isToday = isCurrentMonth && d === todayDate;
+          return (
+            <div
+              key={d}
+              style={{
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+                fontWeight: isToday ? 800 : 500,
+                borderRadius: '50%',
+                background: isToday ? '#0EA5E9' : 'transparent',
+                color: isToday ? '#FFFFFF' : '#1E293B',
+                cursor: 'pointer',
+                transition: 'all 0.1s ease'
+              }}
+            >
+              {d}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

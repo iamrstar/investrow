@@ -3,7 +3,7 @@ import Lead from '@/models/Lead';
 import { getAuthUser, unauthorized } from '@/lib/middleware';
 
 export async function GET(request) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
@@ -22,6 +22,8 @@ export async function GET(request) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+  const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 60 * 60 * 1000);
   const in7Days = new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
   const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate(), 23, 59, 59, 999);
   const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate(), 23, 59, 59, 999);
@@ -79,9 +81,18 @@ export async function GET(request) {
       e.setHours(23, 59, 59, 999);
       rangeQuery.$lte = e;
     }
-    queryCriteria.push({ followUpDate: rangeQuery });
+    queryCriteria.push({
+      $or: [
+        { followUpDate: rangeQuery },
+        { nextCallDate: rangeQuery }
+      ]
+    });
   } else if (preset === 'today') {
     queryCriteria.push({ followUpDate: { $gte: startOfToday, $lte: endOfToday } });
+  } else if (preset === 'tomorrow') {
+    queryCriteria.push({ followUpDate: { $gte: startOfTomorrow, $lte: endOfTomorrow } });
+  } else if (preset === 'upcoming') {
+    queryCriteria.push({ followUpDate: { $gt: endOfToday } });
   } else if (preset === '7days') {
     queryCriteria.push({ followUpDate: { $gte: startOfToday, $lte: in7Days } });
   } else if (preset === '1month') {
@@ -94,6 +105,8 @@ export async function GET(request) {
     queryCriteria.push({ followUpDate: { $gte: startOfToday, $lte: in6Months } });
   } else if (preset === 'overdue') {
     queryCriteria.push({ followUpDate: { $lt: startOfToday } });
+  } else if (preset === 'all') {
+    queryCriteria.push({ followUpDate: { $ne: null } });
   } else {
     // Default: return items that have a followUpDate defined
     queryCriteria.push({ followUpDate: { $ne: null } });
@@ -108,6 +121,8 @@ export async function GET(request) {
     totalCount,
     overdueCount,
     todayCount,
+    tomorrowCount,
+    upcomingCount,
     sevenDaysCount,
     oneMonthCount,
     twoMonthsCount,
@@ -118,6 +133,8 @@ export async function GET(request) {
     Lead.countDocuments({ ...baseFilter, followUpDate: { $ne: null } }),
     Lead.countDocuments({ ...baseFilter, followUpDate: { $lt: startOfToday } }),
     Lead.countDocuments({ ...baseFilter, followUpDate: { $gte: startOfToday, $lte: endOfToday } }),
+    Lead.countDocuments({ ...baseFilter, followUpDate: { $gte: startOfTomorrow, $lte: endOfTomorrow } }),
+    Lead.countDocuments({ ...baseFilter, followUpDate: { $gt: endOfToday } }),
     Lead.countDocuments({ ...baseFilter, followUpDate: { $gte: startOfToday, $lte: in7Days } }),
     Lead.countDocuments({ ...baseFilter, followUpDate: { $gte: startOfToday, $lte: in1Month } }),
     Lead.countDocuments({ ...baseFilter, followUpDate: { $gte: startOfToday, $lte: in2Months } }),
@@ -140,6 +157,8 @@ export async function GET(request) {
       total: totalCount,
       overdue: overdueCount,
       today: todayCount,
+      tomorrow: tomorrowCount,
+      upcoming: upcomingCount,
       sevenDays: sevenDaysCount,
       oneMonth: oneMonthCount,
       twoMonths: twoMonthsCount,

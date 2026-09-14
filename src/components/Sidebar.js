@@ -11,18 +11,18 @@ import { useState } from 'react';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: Home },
-  { label: 'Leads', href: '/leads', icon: Users },
-  { label: 'Clients', href: '/clients', icon: UserCheck },
+  { label: 'Leads', staffLabel: 'My Leads', href: '/leads', icon: Users },
+  { label: 'Clients', staffLabel: 'My Clients', href: '/clients', icon: UserCheck },
+  { label: 'Follow-ups', href: '/follow-ups', icon: CalendarClock },
+  { label: 'Tasks', href: '/tasks', icon: Layers },
+  { label: 'Calendar', href: '/calendar', icon: Calendar },
   { label: 'Mutual Fund', href: '/clients?service=Mutual+Funds', icon: TrendingUp },
   { label: 'Insurance', href: '/clients?service=Life+Insurance', icon: Shield },
-  { label: 'Bonds & Other Services', href: '/clients?service=FD+%26+Bond', icon: Layers },
-  { label: 'Tasks & Follow-ups', href: '/follow-ups', icon: CalendarClock },
-  { label: 'Calendar', href: '/follow-ups', icon: Calendar },
-  { label: 'Communication', href: '/communication', icon: MessageSquare },
-  { label: 'Reports', href: '/analytics', icon: BarChart3 },
-  { label: 'Employees', href: '/users', adminOnly: true, icon: Users },
   { label: 'Documents', href: '/vault', icon: FolderOpen },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Communication', href: '/communication', icon: MessageSquare },
+  { label: 'Reports', staffLabel: 'Reports (My)', href: '/analytics', icon: BarChart3 },
+  { label: 'Employees', href: '/users', icon: Users, adminOnly: true },
+  { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
 export default function Sidebar() {
@@ -156,7 +156,8 @@ export default function Sidebar() {
             if (item.adminOnly && user.role !== 'admin') return null;
 
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            const itemLabel = (user.role === 'user' && item.staffLabel) ? item.staffLabel : item.label;
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.label === 'Employees' && (pathname === '/users' || pathname === '/employees'));
 
             return (
               <a
@@ -191,7 +192,7 @@ export default function Sidebar() {
                 }}
               >
                 <Icon size={18} color={isActive ? '#FFFFFF' : '#0EA5E9'} />
-                <span style={{ flex: 1 }}>{item.label}</span>
+                <span style={{ flex: 1 }}>{itemLabel}</span>
                 {isActive && (
                   <span style={{
                     width: 6,
@@ -206,39 +207,41 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Invest • Plan • Grow Brand Card at Bottom (Skyblue & Orange) */}
+        {/* Discipline Today Better Tomorrow Brand Card (Matching Staff Reference UI) */}
         <div style={{
           padding: '12px 14px',
           margin: '10px 12px',
-          background: 'linear-gradient(135deg, #F0F9FF 0%, #FFF7ED 100%)',
+          background: 'linear-gradient(135deg, #071E3D 0%, #0B2545 100%)',
           borderRadius: 14,
-          border: '1px solid #BAE6FD',
+          border: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           alignItems: 'center',
-          gap: 12
+          gap: 12,
+          color: 'white',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.12)'
         }}>
-          {/* Sprout Icon with Orange Accent */}
+          {/* Chart Icon with Gold/Orange Accent */}
           <div style={{
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             borderRadius: 10,
-            background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
-            boxShadow: '0 4px 10px rgba(249, 115, 22, 0.25)',
+            boxShadow: '0 4px 10px rgba(245, 158, 11, 0.35)',
             flexShrink: 0
           }}>
-            <Sprout size={18} />
+            <TrendingUp size={20} />
           </div>
 
           <div style={{ lineHeight: 1.25 }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0F172A' }}>
-              Invest • Plan • Grow
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#F8FAFC' }}>
+              Discipline Today Better Tomorrow
             </div>
-            <div style={{ fontSize: '0.68rem', color: '#F97316', fontWeight: 700 }}>
-              Investrow Financial Services
+            <div style={{ fontSize: '0.66rem', color: '#38BDF8', fontWeight: 700, marginTop: 2 }}>
+              INVESTROW • Financial Growth
             </div>
           </div>
         </div>

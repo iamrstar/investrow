@@ -9,8 +9,9 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
     callStatus: lead.callStatus || 'Pending',
     interestedInService: lead.interestedInService || 'Pending',
     serviceTaken: lead.serviceTaken || 'Pending',
-    nextCallDate: lead.nextCallDate ? lead.nextCallDate.split('T')[0] : '',
-    followUpDate: lead.followUpDate ? lead.followUpDate.split('T')[0] : new Date().toISOString().split('T')[0],
+    nextCallDate: lead.nextCallDate ? lead.nextCallDate.split('T')[0] : (lead.followUpDate ? lead.followUpDate.split('T')[0] : ''),
+    followUpDate: lead.followUpDate ? lead.followUpDate.split('T')[0] : (lead.nextCallDate ? lead.nextCallDate.split('T')[0] : ''),
+    interactionDate: new Date().toISOString().split('T')[0],
     remarks: '',
   });
   const [saving, setSaving] = useState(false);
@@ -19,7 +20,15 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
     e.preventDefault();
     if (!form.remarks) return alert('Please add some remarks about the call.');
     setSaving(true);
-    await onSave({ ...lead, ...form });
+    const scheduledNext = form.nextCallDate || form.followUpDate;
+    await onSave({ 
+      ...lead, 
+      ...form,
+      stage: form.response === 'Pending' ? 'New' : form.response,
+      nextCallDate: scheduledNext,
+      followUpDate: scheduledNext,
+      interactionDate: form.interactionDate || new Date().toISOString().split('T')[0]
+    });
     setSaving(false);
   };
 
@@ -55,7 +64,7 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
           <div className="modal-body" style={{ padding: '32px', background: '#f8fafc' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Response Outcome</label>
+                <label className="form-label" style={{ color: '#64748b' }}>Response Outcome / Stage</label>
                 <div style={{ position: 'relative' }}>
                   <select 
                     className="form-select" 
@@ -63,10 +72,13 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
                     onChange={e => setForm({ ...form, response: e.target.value })}
                     style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
                   >
-                    <option value="Pending">Pending / Neutral</option>
-                    <option value="Positive">Positive / Interested</option>
-                    <option value="Negative">Negative / Not Interested</option>
-                    <option value="Converted">Successfully Converted</option>
+                    <option value="Contacted">Contacted / Call Connected</option>
+                    <option value="Interested">Positive / Interested (Qualified)</option>
+                    <option value="Meeting">Meeting Scheduled</option>
+                    <option value="Documents">Documents / KYC Stage</option>
+                    <option value="Converted">Successfully Converted (Client)</option>
+                    <option value="Lost">Negative / Not Interested</option>
+                    <option value="Pending">Pending / Not Contacted Yet</option>
                   </select>
                 </div>
               </div>
@@ -106,22 +118,22 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Follow-up Date</label>
+                <label className="form-label" style={{ color: '#0284C7', fontWeight: 700 }}>Next Call / Follow-up Date</label>
                 <input 
                   className="form-input" 
                   type="date" 
-                  value={form.followUpDate} 
-                  onChange={e => setForm({ ...form, followUpDate: e.target.value })} 
-                  style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                  value={form.nextCallDate || form.followUpDate} 
+                  onChange={e => setForm({ ...form, nextCallDate: e.target.value, followUpDate: e.target.value })} 
+                  style={{ height: 48, borderRadius: 12, border: '2px solid #0EA5E9', fontWeight: 600, background: '#F0F9FF' }}
                 />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Schedule Next Call</label>
+                <label className="form-label" style={{ color: '#64748b' }}>Call Interaction Date</label>
                 <input 
                   className="form-input" 
                   type="date" 
-                  value={form.nextCallDate} 
-                  onChange={e => setForm({ ...form, nextCallDate: e.target.value })} 
+                  value={form.interactionDate} 
+                  onChange={e => setForm({ ...form, interactionDate: e.target.value })} 
                   style={{ height: 48, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
                 />
               </div>

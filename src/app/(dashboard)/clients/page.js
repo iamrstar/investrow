@@ -10,7 +10,7 @@ import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
-  CalendarClock, User
+  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee
 } from 'lucide-react';
 
 const SERVICES = [
@@ -35,6 +35,8 @@ export default function ClientsPage() {
   const [teamUsers, setTeamUsers] = useState([]);
   const [showDetail, setShowDetail] = useState(null);
   const [detailData, setDetailData] = useState(null);
+  const [clientDetailTab, setClientDetailTab] = useState('overview');
+  const [mfTab, setMfTab] = useState('portfolio');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailClient, setEmailClient] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
@@ -756,49 +758,633 @@ export default function ClientsPage() {
       <>
         {showDetail && detailData && (
           <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-              <div className="modal-header">
-                <h3 className="modal-title">Client Details</h3>
-                <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
-                <div className="detail-grid">
-                  <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
-                  <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
-                  <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
-                  <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value">{detailData.lead?.service}</div></div>
-                  <div className="detail-item"><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
-                  <div className="detail-item"><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
-                  
-                  {detailData.lead?.customFields?.map((field, idx) => (
-                    <div key={idx} className="detail-item">
-                      <div className="detail-label">{field.label}</div>
-                      <div className="detail-value">{field.value}</div>
+            <div 
+              className="modal" 
+              onClick={e => e.stopPropagation()} 
+              style={{ 
+                maxWidth: 960, 
+                width: '95%',
+                borderRadius: 24, 
+                overflow: 'hidden', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                maxHeight: '92vh',
+                background: '#FFFFFF',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              {/* Client Profile Header (Panel 7) */}
+              <div style={{ 
+                padding: '24px 28px', 
+                background: '#FFFFFF', 
+                borderBottom: '1px solid #E2E8F0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ 
+                    width: 56, 
+                    height: 56, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', 
+                    color: '#FFFFFF', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    fontSize: '1.4rem', 
+                    fontWeight: 800,
+                    boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)'
+                  }}>
+                    {detailData.lead?.name ? detailData.lead.name.charAt(0).toUpperCase() : 'C'}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                        {detailData.lead?.name || 'Amit Kumar'}
+                      </h2>
+                      <span style={{ 
+                        background: '#ECFDF5', 
+                        color: '#059669', 
+                        border: '1px solid #A7F3D0',
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        padding: '2px 10px', 
+                        borderRadius: 12 
+                      }}>
+                        Active
+                      </span>
                     </div>
-                  ))}
-                  
-                  {detailData.lead?.onboardingData?.length > 0 && (
-                    <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
-                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 8 }}>Onboarding Documents & Info</h4>
-                      <div className="detail-grid">
-                        {detailData.lead.onboardingData.map((field, idx) => (
-                          <div key={idx} className="detail-item">
-                            <div className="detail-label">{field.label}</div>
-                            <div className="detail-value">
-                              {field.fieldType === 'File upload' && field.value ? (
-                                <a href={field.value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'underline' }}>
-                                  View File
-                                </a>
-                              ) : (
-                                field.value || '—'
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, fontSize: '0.85rem', color: '#64748B', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, color: '#0EA5E9' }}>
+                        INV-C-1001
+                      </span>
+                      <span>•</span>
+                      <span>{detailData.lead?.phone || '98XXXX1234'}</span>
+                      <span>•</span>
+                      <span>{detailData.lead?.email || 'amit@gmail.com'}</span>
+                      <span>•</span>
+                      <span>{detailData.lead?.city || detailData.lead?.location || 'Dhanbad'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={() => {
+                      setEditingClient(detailData.lead);
+                      setShowDetail(null);
+                      setShowModal(true);
+                    }}
+                    style={{ 
+                      borderRadius: 10, 
+                      padding: '8px 16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 6,
+                      color: '#0EA5E9',
+                      borderColor: '#0EA5E9'
+                    }}
+                  >
+                    <Edit size={16} /> Edit
+                  </button>
+                  <button className="modal-close" onClick={() => setShowDetail(null)} style={{ padding: 8 }}>
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Tabs */}
+              <div style={{ 
+                display: 'flex', 
+                gap: 8, 
+                padding: '12px 28px', 
+                background: '#F8FAFC', 
+                borderBottom: '1px solid #E2E8F0',
+                overflowX: 'auto'
+              }}>
+                {[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'kyc', label: 'KYC & Documents' },
+                  { id: 'investments', label: 'Mutual Fund / Investment' },
+                  { id: 'services', label: 'Other Services' },
+                  { id: 'tasks', label: 'Tasks' },
+                  { id: 'activities', label: 'Activities' },
+                ].map(tab => {
+                  const isActive = clientDetailTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setClientDetailTab(tab.id)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 10,
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        border: isActive ? '1px solid #0EA5E9' : '1px solid transparent',
+                        background: isActive ? '#0EA5E9' : 'transparent',
+                        color: isActive ? '#FFFFFF' : '#64748B',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Modal Body with Multi-Tab Content */}
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px 28px', background: '#FFFFFF' }}>
+                
+                {/* TAB 1: OVERVIEW (Panel 7) */}
+                {clientDetailTab === 'overview' && (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+                      {/* Personal Details Card */}
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '20px 24px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <User size={18} style={{ color: '#0EA5E9' }} />
+                          Personal Details
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>DOB:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.dateOfBirth || '12-05-1988'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>PAN:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>{detailData.lead?.panNumber || 'ABCPK1234D'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Address:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.address || 'Dhanbad, Jharkhand'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>City / Pincode:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.city || 'Dhanbad'} - {detailData.lead?.pincode || '826001'}</span>
+                        </div>
+                      </div>
+
+                      {/* Advisory & Account Profile */}
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '20px 24px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Shield size={18} style={{ color: '#F97316' }} />
+                          Financial Advisory Profile
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Relationship Manager:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.assignedTo?.name || 'Rahul Kumar'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Client Since:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>
+                            {new Date(detailData.lead?.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Risk Profile:</span>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            padding: '2px 8px', 
+                            borderRadius: 6, 
+                            background: '#FFF7ED', 
+                            color: '#EA580C', 
+                            fontWeight: 700, 
+                            fontSize: '0.8rem',
+                            width: 'fit-content'
+                          }}>
+                            Moderate
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Family Members:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 600 }}>3 Members</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Monthly SIP Book:</span>
+                          <span style={{ color: '#0EA5E9', fontWeight: 800 }}>
+                            ₹ {detailData.lead?.sipAmount ? Number(detailData.lead.sipAmount).toLocaleString('en-IN') : '0'}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Total Portfolio AUM:</span>
+                          <span style={{ color: '#059669', fontWeight: 800 }}>
+                            ₹ {detailData.lead?.investmentAmount ? Number(detailData.lead.investmentAmount).toLocaleString('en-IN') : '0'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Additional Custom Fields if any */}
+                    {detailData.lead?.customFields?.length > 0 && (
+                      <div style={{ marginTop: 20, background: '#F8FAFC', padding: 20, borderRadius: 16, border: '1px solid #E2E8F0' }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 12, color: '#0F172A' }}>Additional Information</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                          {detailData.lead.customFields.map((field, idx) => (
+                            <div key={idx}>
+                              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>{field.label}</div>
+                              <div style={{ fontSize: '0.875rem', color: '#0F172A', fontWeight: 700 }}>{field.value || '—'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 2: KYC & DOCUMENTS (Panel 8) */}
+                {clientDetailTab === 'kyc' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#0EA5E9', color: '#FFFFFF', fontSize: '0.8rem', fontWeight: 700 }}>
+                          KYC Details
+                        </span>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Documents
+                        </span>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Verification
+                        </span>
+                      </div>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => {
+                          setDocumentsClient(detailData.lead);
+                          setShowDocumentsModal(true);
+                        }}
+                        style={{ color: '#0EA5E9', borderColor: '#BAE6FD', background: '#F0F9FF', borderRadius: 8 }}
+                      >
+                        <Upload size={14} /> Upload New Document
+                      </button>
+                    </div>
+
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Document Name</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Status</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Upload</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'right' }}>View</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { name: 'PAN Card', status: 'Uploaded', uploaded: true },
+                            { name: 'Aadhaar Card', status: 'Uploaded', uploaded: true },
+                            { name: 'Address Proof', status: 'Uploaded', uploaded: true },
+                            { name: 'Bank Statement', status: 'Uploaded', uploaded: true },
+                            { name: 'Cancelled Cheque', status: 'Uploaded', uploaded: true },
+                            { name: 'FATCA / Declaration', status: 'Pending', uploaded: false },
+                          ].map((doc, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0F172A' }}>
+                                {doc.name}
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '3px 10px',
+                                  borderRadius: 12,
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  background: doc.uploaded ? '#ECFDF5' : '#FFF7ED',
+                                  color: doc.uploaded ? '#059669' : '#EA580C',
+                                  border: `1px solid ${doc.uploaded ? '#A7F3D0' : '#FED7AA'}`
+                                }}>
+                                  {doc.uploaded ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                                  {doc.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <button 
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => {
+                                    setDocumentsClient(detailData.lead);
+                                    setShowDocumentsModal(true);
+                                  }}
+                                  style={{ padding: '4px 10px', borderRadius: 8, fontSize: '0.75rem', color: '#0EA5E9' }}
+                                >
+                                  Upload
+                                </button>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <button 
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => addToast(`Viewing verified ${doc.name}`, 'info')}
+                                  style={{ color: '#64748B', padding: 6 }}
+                                  title="View Document"
+                                >
+                                  <Eye size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: MUTUAL FUND / INVESTMENT (Panel 9) */}
+                {clientDetailTab === 'investments' && (
+                  <div>
+                    {/* Sub-Tabs & Add Action */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {['Portfolio', 'SIP', 'Transactions', 'Goal Planning'].map(st => {
+                          const isSel = mfTab.toLowerCase() === st.toLowerCase();
+                          return (
+                            <button
+                              key={st}
+                              onClick={() => setMfTab(st.toLowerCase())}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: 16,
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                border: isSel ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
+                                background: isSel ? '#0EA5E9' : '#FFFFFF',
+                                color: isSel ? '#FFFFFF' : '#475569',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {st}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={() => addToast('Add Investment modal ready', 'info')}
+                        style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, background: '#0EA5E9' }}
+                      >
+                        <Plus size={14} /> Add Investment
+                      </button>
+                    </div>
+
+                    {/* 3 Summary KPI Cards (Panel 9) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Total Investment
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', marginTop: 4 }}>
+                          ₹ 4,50,000
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Current Value
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0EA5E9', marginTop: 4 }}>
+                          ₹ 5,90,000
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Gain / Loss
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          +31.1%
+                          <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600 }}>(+₹ 1,40,000)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Portfolio Holdings Table */}
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Folio No</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Scheme Name</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Type</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Investment</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Current Value</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700, textAlign: 'right' }}>Gain/Loss</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { folio: '123456/78', scheme: 'SBI Bluechip Fund', type: 'Equity Large Cap', inv: '₹ 2,00,000', curr: '₹ 2,65,000', gain: '+32.5%' },
+                            { folio: '876543/21', scheme: 'HDFC Flexi Cap Fund', type: 'Equity Flexi Cap', inv: '₹ 1,50,000', curr: '₹ 1,80,000', gain: '+20.0%' },
+                            { folio: '987654/32', scheme: 'Axis Midcap Fund', type: 'Equity Mid Cap', inv: '₹ 1,00,000', curr: '₹ 1,45,000', gain: '+45.0%' },
+                          ].map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{item.folio}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.scheme}</td>
+                              <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.type}</span></td>
+                              <td style={{ padding: '14px 18px', fontWeight: 600 }}>{item.inv}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>{item.curr}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>{item.gain}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: OTHER SERVICES (Panel 10) */}
+                {clientDetailTab === 'services' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+                    {/* Insurance Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <Shield size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Insurance</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track policies, renewals and premiums.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Policy form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#0EA5E9', borderColor: '#0EA5E9' }}
+                      >
+                        + Add Policy
+                      </button>
+                    </div>
+
+                    {/* Bonds Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FFF7ED', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <TrendingUp size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Bonds</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Government & Corporate Bonds.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Bond form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#EA580C', borderColor: '#EA580C' }}
+                      >
+                        + Add Investment
+                      </button>
+                    </div>
+
+                    {/* Demat / Trading Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <ArrowUpRight size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Demat / Trading</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track trading accounts & portfolio.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Demat form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}
+                      >
+                        + Add Account
+                      </button>
+                    </div>
+
+                    {/* Tax Services Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <FileText size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Tax Services</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>ITR, GST, and tax advisory services.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Tax Filing form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#4F46E5', borderColor: '#4F46E5' }}
+                      >
+                        + Add Service
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 5: TASKS */}
+                {clientDetailTab === 'tasks' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Client Tasks</h4>
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={() => {
+                          setTasksClient(detailData.lead);
+                          setShowTasksModal(true);
+                        }}
+                        style={{ borderRadius: 8 }}
+                      >
+                        <Plus size={14} /> Add Task
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="checkbox" style={{ width: 16, height: 16 }} />
+                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Annual Portfolio Review with Amit Kumar</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EA580C', background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>Due Today</span>
+                      </div>
+                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="checkbox" style={{ width: 16, height: 16 }} />
+                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Collect pending FATCA declaration document</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284C7', background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>Upcoming</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 6: ACTIVITIES */}
+                {clientDetailTab === 'activities' && (
+                  <div>
+                    <h4 style={{ margin: '0 0 16px 0', fontWeight: 800, color: '#0F172A' }}>Interaction & Communication History</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Phone size={16} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>Call Completed</span>
+                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>09 Sep 10:00 AM</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Discussed SIP options and increased monthly allocation to ₹15,000.</p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Send size={16} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>WhatsApp Sent</span>
+                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>08 Sep 04:30 PM</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Sent scheme brochure and portfolio performance report.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           </div>
@@ -851,6 +1437,8 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     panNumber: client?.panNumber || '',
     pincode: client?.pincode || '',
     dateOfBirth: client?.dateOfBirth || '',
+    investmentAmount: client?.investmentAmount || '',
+    sipAmount: client?.sipAmount || '',
     customFields: client?.customFields || [],
   });
 
@@ -1446,6 +2034,37 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                     onChange={e => setForm({ ...form, nextCallDate: e.target.value })}
                     style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
                   />
+                </div>
+              </div>
+
+              {/* Financial Profile: SIP & AUM */}
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#166534', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IndianRupee size={16} /> Investment & Financial Portfolio
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Monthly SIP Book Amount (₹)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 10000"
+                      value={form.sipAmount} 
+                      onChange={e => setForm({ ...form, sipAmount: e.target.value })}
+                      style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Total Portfolio AUM (₹)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 500000"
+                      value={form.investmentAmount} 
+                      onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
+                      style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
+                    />
+                  </div>
                 </div>
               </div>
 

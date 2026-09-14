@@ -8,7 +8,6 @@ import { sendEmail, templates } from '@/lib/email';
 export async function GET(request) {
   const authUser = await getAuthUser();
   if (!authUser) return unauthorized();
-  if (!checkRole(authUser, ['admin'])) return forbidden();
 
   await dbConnect();
 

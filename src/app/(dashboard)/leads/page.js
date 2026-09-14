@@ -9,12 +9,16 @@ import BulkUploadModal from '@/components/BulkUploadModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Clock, CheckCircle, Video, Calendar
+  MoreVertical, Clock, CheckCircle, Video, Calendar, IndianRupee
 } from 'lucide-react';
 
 const SERVICES = [
   'Mutual Funds', 'Life Insurance', 'Health Insurance', 'Tax Planning',
   'General Insurance', 'FD & Bond', 'Stock Market & Demat', 'NPS',
+];
+
+const STATUS_TABS = [
+  'All', 'New', 'Contacted', 'Interested', 'Meeting', 'Documents', 'Converted', 'Lost'
 ];
 
 export default function LeadsPage() {
@@ -23,6 +27,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
+  const [counts, setCounts] = useState({});
   const [search, setSearch] = useState('');
   const [filterService, setFilterService] = useState('');
   const [filterResponse, setFilterResponse] = useState('');
@@ -84,6 +89,7 @@ export default function LeadsPage() {
       const data = await res.json();
       setLeads(data.leads || []);
       setPagination(data.pagination || { total: 0, page: 1, pages: 1 });
+      if (data.counts) setCounts(data.counts);
     } catch (err) {
       addToast('Failed to load leads', 'error');
     } finally {
@@ -341,7 +347,7 @@ export default function LeadsPage() {
         l.response,
         l.callStatus,
         l.assignedTo?.name || 'Unassigned',
-        l.followUpDate ? new Date(l.followUpDate).toLocaleDateString() : '',
+        (l.nextCallDate || l.followUpDate) ? new Date(l.nextCallDate || l.followUpDate).toLocaleDateString() : '',
         (l.remarks || '').replace(/,/g, ';'),
         new Date(l.createdAt).toLocaleDateString()
       ]);
@@ -362,26 +368,49 @@ export default function LeadsPage() {
     }
   };
 
-  const RenderLeadActions = ({ lead }) => (
-    <div className="table-actions">
-      <button 
-        className="btn btn-ghost btn-sm" 
-        onClick={() => { window.location.href = `tel:${lead.phone}`; setFollowUpLead(lead); setShowFollowUp(true); }}
-        title="Call & Log Follow-up"
-        style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
-      >
-        <Phone size={16} />
-      </button>
-      <button 
-        className="btn btn-ghost btn-sm" 
-        onClick={() => setActiveMenuLead(lead)} 
-        title="More Actions"
-        style={{ background: 'var(--border-light)' }}
-      >
-        <MoreVertical size={16} />
-      </button>
-    </div>
-  );
+  const RenderLeadActions = ({ lead }) => {
+    const cleanPhone = (lead.phone || '').replace(/[^0-9]/g, '');
+    const waPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+    return (
+      <div className="table-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => { window.location.href = `tel:${lead.phone}`; setFollowUpLead(lead); setShowFollowUp(true); }}
+          title="Call & Log Follow-up"
+          style={{ color: '#059669', border: '1px solid #A7F3D0', background: '#ECFDF5', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <Phone size={15} />
+        </button>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => {
+            const msg = encodeURIComponent(`Hello ${lead.name}, thank you for contacting Investrow Financial Services.`);
+            window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
+          }}
+          title="Chat on WhatsApp"
+          style={{ color: '#16A34A', border: '1px solid #BBF7D0', background: '#F0FDF4', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <Send size={15} />
+        </button>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => { setEditingLead(lead); setShowModal(true); }}
+          title="Edit Lead"
+          style={{ color: '#0EA5E9', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <Edit size={15} />
+        </button>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => setActiveMenuLead(lead)} 
+          title="More Actions"
+          style={{ color: '#64748B', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <MoreVertical size={15} />
+        </button>
+      </div>
+    );
+  };
 
   const getFieldConfig = (name) => {
     const defaults = {
@@ -435,11 +464,17 @@ export default function LeadsPage() {
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select className="form-select" value={filterResponse} onChange={e => setFilterResponse(e.target.value)}>
-            <option value="">All Responses</option>
+            <option value="">All Statuses</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Interested">Interested</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Documents">Documents</option>
+            <option value="Converted">Converted</option>
+            <option value="Lost">Lost</option>
+            <option value="Pending">Pending</option>
             <option value="Positive">Positive</option>
             <option value="Negative">Negative</option>
-            <option value="Pending">Pending</option>
-            <option value="Converted">Converted</option>
           </select>
           <select className="form-select" value={filterCallStatus} onChange={e => setFilterCallStatus(e.target.value)}>
             <option value="">All Call Status</option>
@@ -498,6 +533,54 @@ export default function LeadsPage() {
       )}
 
 
+      {/* Horizontal Status Filter Tabs (Panel 4) */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 16 }}>
+        {STATUS_TABS.map(tab => {
+          const isSelected = (!filterResponse && tab === 'All') || filterResponse === tab;
+          const count = counts[tab] !== undefined ? counts[tab] : null;
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                if (tab === 'All') setFilterResponse('');
+                else setFilterResponse(tab);
+              }}
+              style={{
+                padding: '8px 18px',
+                borderRadius: 20,
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                border: isSelected ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
+                background: isSelected ? '#0EA5E9' : '#FFFFFF',
+                color: isSelected ? '#FFFFFF' : '#475569',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                boxShadow: isSelected ? '0 4px 12px rgba(14, 165, 233, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>{tab}</span>
+              {count !== null && (
+                <span style={{
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  background: isSelected ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
+                  color: isSelected ? '#FFFFFF' : '#64748B',
+                }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Unified Spreadsheet (Sheet) View */}
       <div className="sheet-container">
         {loading ? (
@@ -508,76 +591,118 @@ export default function LeadsPage() {
           <table className="sheet-table">
             <thead>
               <tr>
-                <th>Sr. No.</th>
+                <th>ID</th>
                 <th>Name</th>
-                <th>Phone / Mobile</th>
+                <th>Mobile</th>
+                <th>Source</th>
+                <th>Product</th>
+                <th>Status</th>
+                <th>Assigned</th>
+                <th>Next Follow-up</th>
+                <th>Action</th>
                 <th>Email</th>
-                <th>Address</th>
                 <th>City</th>
-                <th>Pan Number</th>
-                <th>Pincode</th>
-                <th>Date Of Birth</th>
-                <th>Service</th>
-                <th>Response</th>
-                <th>Call Status</th>
-                <th>Assigned To</th>
-                <th>Follow-up</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead, index) => (
-                <tr key={lead._id}>
-                  <td data-label="Sr. No.">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                  <td className="lead-name" data-label="Name">{lead.name}</td>
-                  <td data-label="Phone / Mobile">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-                      {lead.phone}
-                    </div>
-                  </td>
-                  <td data-label="Email">{lead.email || '—'}</td>
-                  <td data-label="Address">{lead.address || '—'}</td>
-                  <td data-label="City">{lead.city || '—'}</td>
-                  <td data-label="Pan Number">{lead.panNumber || '—'}</td>
-                  <td data-label="Pincode">{lead.pincode || '—'}</td>
-                  <td data-label="Date Of Birth">{lead.dateOfBirth || '—'}</td>
-                  <td data-label="Service"><span className="badge badge-blue">{lead.service || '—'}</span></td>
-                  <td data-label="Response">
-                    <span className={`badge badge-${lead.response === 'Positive' ? 'positive' : lead.response === 'Negative' ? 'negative' : lead.response === 'Converted' ? 'converted' : 'pending'}`}>
-                      {lead.response}
-                    </span>
-                  </td>
-                  <td data-label="Call Status">
-                    <span className={`badge ${lead.callStatus === 'Received' ? 'badge-green' : lead.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
-                      {lead.callStatus}
-                    </span>
-                  </td>
-                  <td data-label="Assigned To">{lead.assignedTo?.name || '—'}</td>
-                  <td data-label="Follow-up">
-                    {lead.followUpDate ? (
-                      <button 
-                        onClick={() => setFilterDate(lead.followUpDate.split('T')[0])}
-                        style={{ 
-                          background: 'none', 
-                          border: 'none',
-                          color: 'var(--secondary-dark)',
-                          fontSize: '0.8125rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          padding: 0,
-                          textDecoration: 'underline'
-                        }}
-                      >
-                        {new Date(lead.followUpDate).toLocaleDateString()}
-                      </button>
-                    ) : '—'}
-                  </td>
-                  <td>
-                    <RenderLeadActions lead={lead} />
-                  </td>
-                </tr>
-              ))}
+              {leads.map((lead, index) => {
+                const leadIdStr = `INV-L-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
+                const resp = lead.response || 'New';
+                const statusStyle = resp === 'Interested' 
+                  ? { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' }
+                  : resp === 'Follow-up'
+                  ? { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' }
+                  : resp === 'New'
+                  ? { bg: '#F0F9FF', text: '#0284C7', border: '#BAE6FD' }
+                  : resp === 'Meeting'
+                  ? { bg: '#EEF2FF', text: '#4F46E5', border: '#C7D2FE' }
+                  : resp === 'Contacted'
+                  ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' }
+                  : resp === 'Converted' || resp === 'Positive'
+                  ? { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' }
+                  : { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' };
+
+                return (
+                  <tr key={lead._id}>
+                    <td data-label="ID" style={{ fontWeight: 700, color: '#0EA5E9', fontSize: '0.85rem' }}>
+                      {leadIdStr}
+                    </td>
+                    <td className="lead-name" data-label="Name" style={{ fontWeight: 600, color: '#0F172A' }}>
+                      {lead.name}
+                    </td>
+                    <td data-label="Mobile">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Phone size={12} style={{ color: '#0EA5E9' }} />
+                        <span style={{ fontWeight: 600 }}>{lead.phone}</span>
+                      </div>
+                    </td>
+                    <td data-label="Source">
+                      <span style={{ 
+                        padding: '3px 8px', 
+                        borderRadius: 6, 
+                        background: '#F1F5F9', 
+                        color: '#475569', 
+                        fontSize: '0.78rem', 
+                        fontWeight: 600 
+                      }}>
+                        {lead.leadReference || lead.source || 'Website'}
+                      </span>
+                    </td>
+                    <td data-label="Product">
+                      <span style={{ 
+                        padding: '3px 8px', 
+                        borderRadius: 6, 
+                        background: '#E0F2FE', 
+                        color: '#0369A1', 
+                        fontSize: '0.78rem', 
+                        fontWeight: 700 
+                      }}>
+                        {lead.service || 'Mutual Funds'}
+                      </span>
+                    </td>
+                    <td data-label="Status">
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: 12,
+                        background: statusStyle.bg,
+                        color: statusStyle.text,
+                        border: `1px solid ${statusStyle.border}`,
+                        fontSize: '0.78rem',
+                        fontWeight: 700
+                      }}>
+                        {resp}
+                      </span>
+                    </td>
+                    <td data-label="Assigned" style={{ fontWeight: 500, color: '#334155' }}>
+                      {lead.assignedTo?.name || 'Unassigned'}
+                    </td>
+                    <td data-label="Next Follow-up">
+                      {(lead.nextCallDate || lead.followUpDate) ? (
+                        <button 
+                          onClick={() => setFilterDate((lead.nextCallDate || lead.followUpDate).split('T')[0])}
+                          style={{ 
+                            background: '#FFF7ED', 
+                            border: '1px solid #FFEDD5',
+                            color: '#EA580C',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '3px 8px',
+                            borderRadius: 6
+                          }}
+                        >
+                          {new Date(lead.nextCallDate || lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </button>
+                      ) : '—'}
+                    </td>
+                    <td>
+                      <RenderLeadActions lead={lead} />
+                    </td>
+                    <td data-label="Email" style={{ color: '#64748B', fontSize: '0.82rem' }}>{lead.email || '—'}</td>
+                    <td data-label="City" style={{ color: '#64748B', fontSize: '0.82rem' }}>{lead.city || lead.location || '—'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -1403,6 +1528,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     service: lead?.service || '',
     leadReference: lead?.leadReference || '',
     assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
+    stage: lead?.stage || (lead?.response === 'Positive' ? 'Interested' : (lead?.response === 'Pending' ? 'New' : lead?.response)) || 'New',
     response: lead?.response || 'Pending',
     interestedInService: lead?.interestedInService || 'Pending',
     serviceTaken: lead?.serviceTaken || 'Pending',
@@ -1416,6 +1542,8 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     panNumber: lead?.panNumber || '',
     pincode: lead?.pincode || '',
     dateOfBirth: lead?.dateOfBirth || '',
+    investmentAmount: lead?.investmentAmount || '',
+    sipAmount: lead?.sipAmount || '',
     customFields: lead?.customFields || [],
   });
 
@@ -1449,7 +1577,15 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
   const [saving, setSaving] = useState(false);
 
   const isFormValid = () => {
-    const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'address', 'city', 'panNumber', 'pincode', 'dateOfBirth'];
+    if (!form.name?.trim()) return false;
+    if (!form.phone?.trim()) return false;
+    if (!form.service?.trim()) return false;
+
+    // Harmonize checks
+    const effectiveLocation = form.location || form.city || 'Dhanbad';
+    const effectiveLeadRef = form.leadReference || form.source || 'Website';
+
+    const defaultFields = ['name', 'phone', 'email', 'service', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'address', 'panNumber', 'pincode', 'dateOfBirth'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
       const val = String(form[field] || '');
@@ -1459,26 +1595,37 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
       if (val.trim() && config.maxLength && val.trim().length > config.maxLength) return false;
     }
 
-    if (formSettings?.globalCustomFields) {
-      for (const gField of formSettings.globalCustomFields) {
-        const customFieldValue = form.customFields.find(f => f.label === gField.label)?.value || '';
-        
-        if (gField.isRequired && !String(customFieldValue).trim()) return false;
-        if (String(customFieldValue).trim() && gField.minLength && String(customFieldValue).trim().length < gField.minLength) return false;
-        if (String(customFieldValue).trim() && gField.maxLength && String(customFieldValue).trim().length > gField.maxLength) return false;
-      }
-    }
-
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isFormValid()) return;
+    if (!form.name?.trim()) {
+      addToast('Client name is required', 'error');
+      return;
+    }
+    if (!form.phone?.trim()) {
+      addToast('Phone number is required', 'error');
+      return;
+    }
+    if (!form.service?.trim()) {
+      addToast('Product / Service is required', 'error');
+      return;
+    }
+
     setSaving(true);
     const payload = { ...form };
+    if (payload.city && !payload.location) payload.location = payload.city;
+    if (payload.location && !payload.city) payload.city = payload.location;
+    if (payload.source && !payload.leadReference) payload.leadReference = payload.source;
+    if (payload.leadReference && !payload.source) payload.source = payload.leadReference;
+    if (!payload.location) payload.location = payload.city || 'Dhanbad';
+    if (!payload.leadReference) payload.leadReference = payload.source || 'Website';
+    if (payload.nextCallDate && !payload.followUpDate) payload.followUpDate = payload.nextCallDate;
+    if (payload.followUpDate && !payload.nextCallDate) payload.nextCallDate = payload.followUpDate;
+
     // Clean up customFields if any are empty
-    payload.customFields = payload.customFields.filter(f => f.label.trim() && (Array.isArray(f.value) ? f.value.length > 0 : String(f.value).trim()));
+    payload.customFields = (payload.customFields || []).filter(f => f.label.trim() && (Array.isArray(f.value) ? f.value.length > 0 : String(f.value).trim()));
     await onSave(payload);
     setSaving(false);
   };
@@ -1523,7 +1670,21 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
           <div className="modal-body">
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
-              {formSettings?.defaultFields?.filter(f => !['callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'response'].includes(f.name)).map((dField) => {
+              {(() => {
+                const seen = new Set();
+                const defaultFields = formSettings?.defaultFields || [
+                  { name: 'name', label: 'Name', isRequired: true },
+                  { name: 'phone', label: 'Phone', isRequired: true },
+                  { name: 'email', label: 'Email', isRequired: false },
+                  { name: 'service', label: 'Service', isRequired: true },
+                  { name: 'city', label: 'City', isRequired: false },
+                  { name: 'leadReference', label: 'Lead Reference', isRequired: false },
+                ];
+                return defaultFields.filter(f => {
+                  if (seen.has(f.name)) return false;
+                  seen.add(f.name);
+                  return !['callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks', 'response'].includes(f.name);
+                }).map((dField) => {
                 const value = form[dField.name] || '';
                 const onChange = (e) => setForm({ ...form, [dField.name]: e.target.value });
                 
@@ -1554,7 +1715,8 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                     )}
                   </div>
                 );
-              })}
+              });
+              })()}
             </div>
 
             <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
@@ -1886,82 +2048,117 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
               )}
             </div>
 
-            {/* Interaction Tracking Section - Only show if any tracking fields are enabled */}
-            {(formSettings?.defaultFields?.some(f => ['response', 'callStatus', 'interestedInService', 'serviceTaken', 'nextCallDate', 'followUpDate', 'remarks'].includes(f.name))) && (
-              <>
-                <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
-                <div style={{ marginBottom: 20 }}>
-                  <label className="form-label" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 16 }}>
-                    Interaction Tracking
-                  </label>
-                  <div className="form-row">
-                    {formSettings.defaultFields.some(f => f.name === 'response') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('response').label || 'Response'}</label>
-                        <select className="form-select" value={form.response} onChange={e => setForm({ ...form, response: e.target.value })}>
-                          <option value="Pending">Pending</option>
-                          <option value="Positive">Positive</option>
-                          <option value="Negative">Negative</option>
-                          <option value="Converted">Converted</option>
-                        </select>
-                      </div>
-                    )}
-                    {formSettings.defaultFields.some(f => f.name === 'callStatus') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('callStatus').label}</label>
-                        <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-                          <option value="Pending">Pending</option>
-                          <option value="Received">Received</option>
-                          <option value="Not Received">Not Received</option>
-                        </select>
-                      </div>
-                    )}
+            {/* Interaction Tracking Section */}
+            <>
+              <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
+              <div style={{ marginBottom: 20 }}>
+                <label className="form-label" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 16 }}>
+                  Interaction Tracking
+                </label>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Lead Status / Stage</label>
+                    <select 
+                      className="form-select" 
+                      value={form.stage || (form.response === 'Positive' ? 'Interested' : (form.response === 'Pending' ? 'New' : form.response)) || 'New'} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setForm({ ...form, stage: val, response: val });
+                      }}
+                    >
+                      <option value="New">New / Fresh Lead</option>
+                      <option value="Contacted">Contacted / Call Done</option>
+                      <option value="Interested">Interested / Qualified</option>
+                      <option value="Meeting">Meeting Scheduled</option>
+                      <option value="Documents">Documents / KYC</option>
+                      <option value="Converted">Converted (Client)</option>
+                      <option value="Lost">Lost / Not Interested</option>
+                    </select>
                   </div>
-                  <div className="form-row">
-                    {formSettings.defaultFields.some(f => f.name === 'interestedInService') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('interestedInService').label}</label>
-                        <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                          <option value="Pending">Pending</option>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
-                      </div>
-                    )}
-                    {formSettings.defaultFields.some(f => f.name === 'serviceTaken') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('serviceTaken').label}</label>
-                        <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                          <option value="Pending">Pending</option>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
-                      </div>
-                    )}
+                  <div className="form-group">
+                    <label className="form-label">{getFieldConfig('callStatus').label || 'Call Status'}</label>
+                    <select className="form-select" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
+                      <option value="Pending">Pending</option>
+                      <option value="Received">Connected / Received</option>
+                      <option value="Not Received">No Answer / Busy</option>
+                    </select>
                   </div>
-                  <div className="form-row">
-                    {formSettings.defaultFields.some(f => f.name === 'nextCallDate') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('nextCallDate').label}</label>
-                        <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-                      </div>
-                    )}
-                    {formSettings.defaultFields.some(f => f.name === 'followUpDate') && (
-                      <div className="form-group">
-                        <label className="form-label">{getFieldConfig('followUpDate').label}</label>
-                        <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-                      </div>
-                    )}
-                  </div>
-                  {formSettings.defaultFields.some(f => f.name === 'remarks') && (
-                    <div className="form-group" style={{ marginTop: 16 }}>
-                      <label className="form-label">{getFieldConfig('remarks').label}</label>
-                      <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." style={{ minHeight: 100 }} />
+                </div>
+                <div className="form-row">
+                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'interestedInService')) && (
+                    <div className="form-group">
+                      <label className="form-label">{getFieldConfig('interestedInService')?.label || 'Interested in Service'}</label>
+                      <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
+                        <option value="Pending">Pending</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                  )}
+                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'serviceTaken')) && (
+                    <div className="form-group">
+                      <label className="form-label">{getFieldConfig('serviceTaken')?.label || 'Service Taken'}</label>
+                      <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
+                        <option value="Pending">Pending</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
                     </div>
                   )}
                 </div>
-              </>
-            )}
+                <div className="form-row">
+                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'nextCallDate')) && (
+                    <div className="form-group">
+                      <label className="form-label">{getFieldConfig('nextCallDate')?.label || 'Next Call Date'}</label>
+                      <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
+                    </div>
+                  )}
+                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'followUpDate')) && (
+                    <div className="form-group">
+                      <label className="form-label">{getFieldConfig('followUpDate')?.label || 'Follow-up Date'}</label>
+                      <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Financial Portfolio Section */}
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '16px 18px', marginTop: 14 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#166534', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IndianRupee size={16} /> Investment & Financial Portfolio
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Monthly SIP Amount (₹)</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        placeholder="e.g. 10000"
+                        value={form.sipAmount} 
+                        onChange={e => setForm({ ...form, sipAmount: e.target.value })}
+                        style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Total Investment / AUM (₹)</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        placeholder="e.g. 500000"
+                        value={form.investmentAmount} 
+                        onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
+                        style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'remarks')) && (
+                  <div className="form-group" style={{ marginTop: 16 }}>
+                    <label className="form-label">{getFieldConfig('remarks')?.label || 'Remarks'}</label>
+                    <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." style={{ minHeight: 100 }} />
+                  </div>
+                )}
+              </div>
+            </>
 
             {canAssign && (
               <div className="form-group" style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
@@ -1977,7 +2174,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !isFormValid()}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : lead ? 'Update Lead' : 'Create Lead'}
             </button>
           </div>

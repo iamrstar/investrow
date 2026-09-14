@@ -28,12 +28,41 @@ const LeadSchema = new mongoose.Schema({
   },
   service: {
     type: String,
-    enum: [...SERVICES, ''], // allow empty string if not required
-    default: ''
+    trim: true,
+    default: '',
   },
   leadReference: {
     type: String,
+    trim: true,
     default: '',
+  },
+  source: {
+    type: String,
+    trim: true,
+    default: 'Website',
+  },
+  stage: {
+    type: String,
+    trim: true,
+    default: 'New',
+  },
+  status: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  product: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  investmentAmount: {
+    type: Number,
+    default: 0,
+  },
+  sipAmount: {
+    type: Number,
+    default: 0,
   },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
@@ -47,17 +76,17 @@ const LeadSchema = new mongoose.Schema({
   },
   response: {
     type: String,
-    enum: ['Positive', 'Negative', 'Pending', 'Converted'],
+    trim: true,
     default: 'Pending',
   },
   interestedInService: {
     type: String,
-    enum: ['Yes', 'No', 'Pending'],
+    trim: true,
     default: 'Pending',
   },
   serviceTaken: {
     type: String,
-    enum: ['Yes', 'No', 'Pending'],
+    trim: true,
     default: 'Pending',
   },
   nextCallDate: {
@@ -74,7 +103,7 @@ const LeadSchema = new mongoose.Schema({
   },
   callStatus: {
     type: String,
-    enum: ['Received', 'Not Received', 'Pending'],
+    trim: true,
     default: 'Pending',
   },
   location: {

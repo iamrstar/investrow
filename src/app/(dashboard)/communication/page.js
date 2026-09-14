@@ -47,10 +47,12 @@ export default function CommunicationPage() {
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [customMessage, setCustomMessage] = useState(TEMPLATES[0].text);
+  const [channelFilter, setChannelFilter] = useState('All');
   const [history, setHistory] = useState([
-    { id: 1, name: 'Amit Kumar', phone: '9876541234', template: 'SIP Reminder', time: '10:15 AM', channel: 'WhatsApp' },
-    { id: 2, name: 'Priya Sinha', phone: '9812345678', template: 'Insurance Premium', time: '09:40 AM', channel: 'WhatsApp' },
-    { id: 3, name: 'Neha Gupta', phone: '9654328765', template: 'Portfolio Review', time: 'Yesterday', channel: 'WhatsApp' },
+    { id: 1, name: 'Amit Kumar', phone: '9876541234', action: 'Call completed', detail: 'Discussed SIP options and fund allocation.', time: '09 Sep 10:00 AM', channel: 'Calls' },
+    { id: 2, name: 'Priya Sinha', phone: '9812345678', action: 'WhatsApp sent', detail: 'Sent scheme brochure and performance fact sheet.', time: '08 Sep 04:30 PM', channel: 'WhatsApp' },
+    { id: 3, name: 'Rajesh Verma', phone: '9765432109', action: 'Email sent', detail: 'Sent KYC document checklist and onboarding form.', time: '07 Sep 11:30 AM', channel: 'Email' },
+    { id: 4, name: 'Neha Gupta', phone: '9654328765', action: 'Meeting', detail: 'Met at office, discussed retirement & wealth goals.', time: '06 Sep 03:30 PM', channel: 'Meeting' },
   ]);
 
   const handleTemplateChange = (tpl) => {
@@ -258,7 +260,7 @@ export default function CommunicationPage() {
             </div>
           </div>
 
-          {/* Recent Outbound History */}
+          {/* Recent Outbound History & Timeline (Panel 11) */}
           <div style={{
             background: 'white',
             borderRadius: 20,
@@ -266,37 +268,98 @@ export default function CommunicationPage() {
             border: '1px solid #E2E8F0',
             boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
           }}>
-            <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
-              Recent Communication History
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {history.map(item => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    background: '#F8FAFC',
-                    border: '1px solid #F1F5F9'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <MessageSquare size={14} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
+                Communication Timeline
+              </h3>
+              
+              {/* Filter Tabs (Panel 11) */}
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+                {['All', 'Calls', 'WhatsApp', 'Email', 'Meeting'].map(ch => {
+                  const isSel = channelFilter === ch;
+                  return (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => setChannelFilter(ch)}
+                      style={{
+                        padding: '4px 12px',
+                        borderRadius: 14,
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        border: isSel ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
+                        background: isSel ? '#0EA5E9' : '#FFFFFF',
+                        color: isSel ? '#FFFFFF' : '#64748B',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {ch}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {history
+                .filter(item => channelFilter === 'All' || item.channel === channelFilter)
+                .map(item => {
+                  const isCall = item.channel === 'Calls';
+                  const isWA = item.channel === 'WhatsApp';
+                  const isMail = item.channel === 'Email';
+                  const iconBg = isCall ? '#ECFDF5' : isWA ? '#F0FDF4' : isMail ? '#EFF6FF' : '#F5F3FF';
+                  const iconColor = isCall ? '#059669' : isWA ? '#16A34A' : isMail ? '#2563EB' : '#7C3AED';
+
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        background: '#F8FAFC',
+                        border: '1px solid #F1F5F9'
+                      }}
+                    >
+                      <div style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 8, 
+                        background: iconBg, 
+                        color: iconColor, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: 2
+                      }}>
+                        {isCall ? <Phone size={16} /> : isWA ? <Send size={16} /> : isMail ? <Mail size={16} /> : <Calendar size={16} />}
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A' }}>
+                            {item.action}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
+                            {item.time}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: 3 }}>
+                          {item.detail}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: 4, display: 'flex', gap: 6 }}>
+                          <span style={{ fontWeight: 600, color: '#0EA5E9' }}>{item.name}</span>
+                          <span>•</span>
+                          <span>{item.phone}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A' }}>{item.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{item.phone} • {item.template}</div>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
-                    {item.time}
-                  </span>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
         </div>

@@ -204,8 +204,8 @@ export default function Header() {
               <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a' }}>
                 {user.name || 'Birendra Kumar'}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'capitalize' }}>
-                {user.role === 'admin' ? 'Director (Admin)' : 'Executive (Staff)'}
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                {user.role === 'admin' ? 'Director (Admin)' : (user.designation || 'Sales Executive')}
               </div>
             </div>
 
