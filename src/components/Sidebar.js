@@ -68,20 +68,6 @@ export default function Sidebar() {
       />
 
       <aside
-        style={{
-          width: 255,
-          background: '#FFFFFF',
-          borderRight: '1px solid #E2E8F0',
-          color: '#0F172A',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          position: 'sticky',
-          top: 0,
-          flexShrink: 0,
-          zIndex: 100,
-          boxShadow: '2px 0 10px rgba(15, 23, 42, 0.03)',
-        }}
         className={`sidebar ${mobileOpen ? 'open' : ''}`}
       >
         {/* Brand Header with prominent authentic logo.png */}

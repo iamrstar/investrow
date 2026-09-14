@@ -337,14 +337,14 @@ export default function DashboardPage() {
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           marginBottom: 24,
           flexWrap: 'wrap',
-          gap: 16
+          gap: 12
         }}>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h1 style={{
-              fontSize: '1.85rem',
+              fontSize: 'clamp(1.2rem, 5vw, 1.85rem)',
               fontWeight: 800,
               color: '#0F172A',
               letterSpacing: '-0.02em',
@@ -352,89 +352,57 @@ export default function DashboardPage() {
             }}>
               Welcome Back, {user?.name?.split(' ')[0] || 'Birendra'}!
             </h1>
-            <p style={{ fontSize: '0.9rem', color: '#64748B', margin: 0 }}>
+            <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
               Here&apos;s what&apos;s happening with your business today.
             </p>
           </div>
 
-          {/* View Switcher Pill & Brand Quote Card */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          {/* View Switcher Pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div style={{
               display: 'flex',
               background: '#FFFFFF',
-              padding: 4,
-              borderRadius: 12,
+              padding: 3,
+              borderRadius: 10,
               border: '1px solid #E2E8F0',
               boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
             }}>
               <button
                 onClick={() => setDashboardMode('admin')}
                 style={{
-                  padding: '7px 14px',
+                  padding: '6px 12px',
                   borderRadius: 8,
                   border: 'none',
-                  fontSize: '0.82rem',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                   background: dashboardMode === 'admin' ? 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)' : 'transparent',
                   color: dashboardMode === 'admin' ? '#FFFFFF' : '#64748B',
                   boxShadow: dashboardMode === 'admin' ? '0 2px 8px rgba(14, 165, 233, 0.28)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
-                Admin / Manager View
+                Admin
               </button>
               <button
                 onClick={() => setDashboardMode('employee')}
                 style={{
-                  padding: '7px 14px',
+                  padding: '6px 12px',
                   borderRadius: 8,
                   border: 'none',
-                  fontSize: '0.82rem',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                   background: dashboardMode === 'employee' ? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' : 'transparent',
                   color: dashboardMode === 'employee' ? '#FFFFFF' : '#64748B',
                   boxShadow: dashboardMode === 'employee' ? '0 2px 8px rgba(249, 115, 22, 0.28)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
-                Staff / Employee View
+                Staff
               </button>
-            </div>
-
-            {/* Skyblue & Orange Brand Quote Card */}
-            <div style={{
-              background: 'linear-gradient(135deg, #F0F9FF 0%, #FFF7ED 100%)',
-              border: '1px solid #BAE6FD',
-              borderRadius: 14,
-              padding: '10px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              boxShadow: '0 2px 8px rgba(14, 165, 233, 0.08)'
-            }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369A1' }}>
-                  “Discipline today,
-                </div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#EA580C' }}>
-                  Financial freedom tomorrow.”
-                </div>
-              </div>
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                boxShadow: '0 4px 10px rgba(249, 115, 22, 0.25)'
-              }}>
-                <TrendingUp size={18} />
-              </div>
             </div>
           </div>
         </div>

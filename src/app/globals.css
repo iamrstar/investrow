@@ -133,17 +133,20 @@ body {
 .sidebar {
   width: 255px;
   background: #ffffff;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid #E2E8F0;
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
+  height: 100vh;
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   z-index: 100;
+  flex-shrink: 0;
   transition: var(--transition);
   overflow-y: auto;
+  box-shadow: 2px 0 10px rgba(15, 23, 42, 0.03);
 }
 
 .sidebar-header {
@@ -263,12 +266,13 @@ body {
 }
 
 .main-content {
-  margin-left: 270px;
+  margin-left: 255px;
   flex: 1;
   min-width: 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .top-header {
@@ -1303,8 +1307,7 @@ body {
   }
 
   .page-content {
-    padding: 16px;
-    padding-top: 56px; /* Room for fixed hamburger button */
+    padding: 16px 14px !important;
   }
 
   .page-header {
@@ -1382,6 +1385,8 @@ body {
 .top-nav-header {
   padding: 0 32px;
   gap: 20px;
+  height: 72px;
+  min-height: 72px;
 }
 
 .header-search-wrapper {
