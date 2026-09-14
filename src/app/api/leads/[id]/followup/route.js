@@ -15,7 +15,8 @@ export async function POST(request, { params }) {
     const body = await request.json();
     let { 
       callStatus, response, stage, interestedInService, serviceTaken, 
-      nextCallDate, followUpDate, interactionDate, remarks 
+      nextCallDate, followUpDate, interactionDate, remarks,
+      service, investmentType, sipAmount, sipDay, investmentAmount, schemeName
     } = body;
 
     const currentLead = await Lead.findById(id);
@@ -85,6 +86,14 @@ export async function POST(request, { params }) {
       resolvedResponse = 'Pending';
     }
 
+    // Parse financial values
+    const finalService = service || currentLead.service || 'Mutual Funds';
+    const finalInvestmentType = investmentType !== undefined ? investmentType : (currentLead.investmentType || '');
+    const finalSipAmount = sipAmount !== undefined ? (Number(sipAmount) || 0) : (currentLead.sipAmount || 0);
+    const finalSipDay = sipDay !== undefined ? (Number(sipDay) || null) : currentLead.sipDay;
+    const finalInvestmentAmount = investmentAmount !== undefined ? (Number(investmentAmount) || 0) : (currentLead.investmentAmount || 0);
+    const finalSchemeName = schemeName !== undefined ? schemeName : (currentLead.schemeName || '');
+
     // 1. Create the FollowUp record
     const followup = await FollowUp.create({
       leadId: id,
@@ -94,12 +103,18 @@ export async function POST(request, { params }) {
       stage: resolvedStage,
       interestedInService: interestedInService || 'Pending',
       serviceTaken: serviceTaken || 'Pending',
+      service: finalService,
+      investmentType: finalInvestmentType,
+      sipAmount: finalSipAmount,
+      sipDay: finalSipDay,
+      investmentAmount: finalInvestmentAmount,
+      schemeName: finalSchemeName,
       nextCallDate: scheduledNext,
       followUpDate: pastInteractionDate,
       remarks,
     });
 
-    // 2. Update the Lead with the upgraded stage and synchronized dates
+    // 2. Update the Lead with the upgraded stage and synchronized dates & financials
     const updatedLead = await Lead.findByIdAndUpdate(
       id,
       {
@@ -108,6 +123,12 @@ export async function POST(request, { params }) {
         callStatus: callStatus || currentLead.callStatus,
         interestedInService: interestedInService || currentLead.interestedInService,
         serviceTaken: serviceTaken || currentLead.serviceTaken,
+        service: finalService,
+        investmentType: finalInvestmentType,
+        sipAmount: finalSipAmount,
+        sipDay: finalSipDay,
+        investmentAmount: finalInvestmentAmount,
+        schemeName: finalSchemeName,
         nextCallDate: scheduledNext,
         followUpDate: scheduledNext,
         remarks: remarks || currentLead.remarks,

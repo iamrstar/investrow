@@ -408,14 +408,17 @@ export default function FollowUpCalendar({
           </div>
         </div>
 
-        {/* Day of Week Headers */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0',
-          textAlign: 'center'
-        }}>
+        {/* Horizontal Scroll Container for Small / Mobile Screens */}
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ minWidth: 640 }}>
+            {/* Day of Week Headers */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 1fr)',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              textAlign: 'center'
+            }}>
           {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((dayName, idx) => (
             <div
               key={dayName}
@@ -549,6 +552,8 @@ export default function FollowUpCalendar({
               </div>
             );
           })}
+        </div>
+          </div>
         </div>
       </div>
 

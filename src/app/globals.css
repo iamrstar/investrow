@@ -1354,6 +1354,23 @@ body {
   .modal {
     max-width: 100%;
     margin: 10px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 14px !important;
+  }
+
+  .modal-header {
+    padding: 16px 16px !important;
+  }
+
+  .modal-footer {
+    padding: 14px 16px !important;
   }
 
   .login-card {
@@ -1361,9 +1378,78 @@ body {
   }
 }
 
+/* ============ TOP NAV HEADER RESPONSIVE ============ */
+.top-nav-header {
+  padding: 0 32px;
+  gap: 20px;
+}
+
+.header-search-wrapper {
+  flex: 0 1 480px;
+  position: relative;
+}
+
+@media (max-width: 992px) {
+  .header-tagline-block {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-nav-header {
+    padding: 0 14px 0 58px !important;
+    gap: 10px !important;
+    height: 60px !important;
+    min-height: 60px !important;
+  }
+
+  .header-search-wrapper {
+    flex: 1 1 auto;
+    min-width: 100px;
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-user-info {
+    display: none !important;
+  }
+  
+  .header-search-wrapper input {
+    font-size: 0.8rem !important;
+    height: 38px !important;
+    padding-left: 36px !important;
+  }
+}
+
+.dashboard-page-container {
+  padding: 24px 32px;
+  background: #F8FAFC;
+  min-height: calc(100vh - 72px);
+}
+
+@media (max-width: 768px) {
+  .dashboard-page-container {
+    padding: 16px 12px;
+    padding-top: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-page-container {
+    padding: 12px 10px;
+    padding-top: 12px;
+  }
+}
+
 @media (max-width: 480px) {
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Prevent Safari zoom on focus by ensuring minimum 16px font-size */
+  .form-input, .form-select, .form-textarea {
+    font-size: 16px !important;
   }
 
   .table-actions {

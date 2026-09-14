@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import {
-  Users, UserPlus, UserCheck, Calendar, Clock,
+  Users, UserPlus, UserCheck, Calendar, Clock, CalendarClock,
   TrendingUp, BarChart2, Shield, CheckCircle2,
   Phone, MessageSquare, Plus, Upload, FileText,
   AlertTriangle, ArrowUpRight, Check, X, Send,
@@ -199,6 +199,9 @@ export default function DashboardPage() {
     myOverdueFollowUps: 0,
     mySipBook: '₹ 0',
     myAum: '₹ 0',
+    activeSipsCount: 0,
+    activeLumpsumCount: 0,
+    upcomingSipAlerts: [],
     myPendingTasks: 0,
     myOverdueTasks: 0,
     followUpsList: [],
@@ -213,7 +216,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ padding: '24px 32px', background: '#F8FAFC', minHeight: 'calc(100vh - 72px)' }}>
+    <div className="dashboard-page-container">
       {/* 1. Header Banner */}
       {dashboardMode === 'employee' ? (
         <div style={{
@@ -442,8 +445,8 @@ export default function DashboardPage() {
           {/* 2. Top 8 Metric KPI Cards Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-        gap: 16,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 14,
         marginBottom: 24
       }}>
         {/* 1. Total Leads */}
@@ -565,7 +568,9 @@ export default function DashboardPage() {
           </div>
           <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.monthlySipBook}</div>
           <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Monthly SIP Book</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Active SIPs</div>
+          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+            {stats.activeSipsCount || 0} Active SIPs
+          </div>
         </div>
 
         {/* 6. Total AUM (Bright Orange) */}
@@ -589,7 +594,9 @@ export default function DashboardPage() {
           </div>
           <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{stats.totalAum}</div>
           <div style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.95, marginTop: 4 }}>Total AUM</div>
-          <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: 6 }}>Portfolio Total</div>
+          <div style={{ fontSize: '0.72rem', opacity: 0.95, marginTop: 6, fontWeight: 700 }}>
+            {stats.totalClients || 0} Portfolios
+          </div>
         </div>
 
         {/* 7. Insurance Policies */}
@@ -643,10 +650,117 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Admin Upcoming SIP Debits Alert Banner */}
+      {stats.upcomingSipAlerts?.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #EFF6FF 0%, #EEF2FF 100%)',
+          border: '1px solid #BFDBFE',
+          borderRadius: 18,
+          padding: '16px 20px',
+          marginBottom: 24,
+          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.05)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: '#3B82F6',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(59, 130, 246, 0.3)'
+              }}>
+                <CalendarClock size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1E3A8A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Upcoming SIP Debits (Next 3 Days)
+                  <span style={{ fontSize: '0.72rem', background: '#3B82F6', color: 'white', fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
+                    {stats.upcomingSipAlerts.length} Due
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: 1 }}>
+                  Automated ECS / NACH debits scheduled within 3 days across all company clients.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 }}>
+            {stats.upcomingSipAlerts.map(sip => (
+              <div
+                key={sip._id}
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  border: '1px solid #DBEAFE',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A' }}>{sip.name}</span>
+                    <span style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      background: sip.dueStatus === 'Today' ? '#FEE2E2' : (sip.dueStatus === 'Tomorrow' ? '#FEF3C7' : '#E0F2FE'),
+                      color: sip.dueStatus === 'Today' ? '#DC2626' : (sip.dueStatus === 'Tomorrow' ? '#D97706' : '#0284C7'),
+                    }}>
+                      {sip.dueStatus} ({sip.sipDay}th)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 2 }}>
+                    {sip.schemeName} • <strong style={{ color: '#059669' }}>{sip.formattedAmount}/mo</strong>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const cleanPhone = String(sip.phone).replace(/[^0-9]/g, '');
+                    const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                    const text = `Dear ${sip.name}, this is a gentle reminder from Investrow Financial Services that your monthly SIP of ${sip.formattedAmount} for ${sip.schemeName} is scheduled for debit on ${sip.sipDay}th. Kindly maintain sufficient bank balance to avoid ECS bounce charges. Happy Investing!`;
+                    window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  title="Send WhatsApp Balance Reminder"
+                  style={{
+                    background: '#25D366',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    boxShadow: '0 2px 6px rgba(37, 211, 102, 0.25)',
+                    flexShrink: 0
+                  }}
+                >
+                  <Send size={12} /> Remind
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 3. Middle Analytics Row (3 Columns) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 20,
         marginBottom: 24
       }}>
@@ -906,7 +1020,7 @@ export default function DashboardPage() {
       {/* 4. Bottom Operational Row (Today's Follow-ups & Recent Activities) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 20,
         marginBottom: 28
       }}>
@@ -1070,8 +1184,8 @@ export default function DashboardPage() {
           {/* Top 6 Metric KPI Cards Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: 16,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: 14,
             marginBottom: 24
           }}>
             {/* 1. My Total Leads */}
@@ -1148,11 +1262,11 @@ export default function DashboardPage() {
             <div
               onClick={() => router.push('/clients')}
               style={{
-                background: '#6366F1',
+                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
                 color: 'white',
                 borderRadius: 16,
                 padding: '20px 22px',
-                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.25)',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
@@ -1162,8 +1276,11 @@ export default function DashboardPage() {
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, lineHeight: 1 }}>{empStats.mySipBook}</div>
               <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My SIP Book</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>•</span> Monthly Book
+              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                <span style={{ background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: 10 }}>
+                  {empStats.activeSipsCount || 0} Active SIPs
+                </span>
+                <span>• Monthly</span>
               </div>
             </div>
 
@@ -1171,11 +1288,11 @@ export default function DashboardPage() {
             <div
               onClick={() => router.push('/clients')}
               style={{
-                background: '#D97706',
+                background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
                 color: 'white',
                 borderRadius: 16,
                 padding: '20px 22px',
-                boxShadow: '0 4px 14px rgba(217, 119, 6, 0.25)',
+                boxShadow: '0 4px 14px rgba(217, 119, 6, 0.28)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
@@ -1185,8 +1302,11 @@ export default function DashboardPage() {
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, lineHeight: 1 }}>{empStats.myAum}</div>
               <div style={{ fontSize: '0.88rem', fontWeight: 600, opacity: 0.95, marginTop: 6 }}>My AUM</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>•</span> Current AUM
+              <div style={{ fontSize: '0.75rem', opacity: 0.95, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                <span style={{ background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: 10 }}>
+                  {empStats.myClients || 0} Clients Won
+                </span>
+                <span>• Assets</span>
               </div>
             </div>
 
@@ -1214,10 +1334,117 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Staff Upcoming SIP Debits Alert Banner */}
+          {empStats.upcomingSipAlerts?.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #EFF6FF 0%, #EEF2FF 100%)',
+              border: '1px solid #BFDBFE',
+              borderRadius: 18,
+              padding: '16px 20px',
+              marginBottom: 24,
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.05)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#3B82F6',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.3)'
+                  }}>
+                    <CalendarClock size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1E3A8A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      My Upcoming SIP Debits (Next 3 Days)
+                      <span style={{ fontSize: '0.72rem', background: '#3B82F6', color: 'white', fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
+                        {empStats.upcomingSipAlerts.length} Due
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: 1 }}>
+                      Your assigned clients with automated SIP debits scheduled within 3 days. Send 1-click WhatsApp balance reminders to prevent bounces!
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 }}>
+                {empStats.upcomingSipAlerts.map(sip => (
+                  <div
+                    key={sip._id}
+                    style={{
+                      background: '#FFFFFF',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      border: '1px solid #DBEAFE',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A' }}>{sip.name}</span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: 6,
+                          background: sip.dueStatus === 'Today' ? '#FEE2E2' : (sip.dueStatus === 'Tomorrow' ? '#FEF3C7' : '#E0F2FE'),
+                          color: sip.dueStatus === 'Today' ? '#DC2626' : (sip.dueStatus === 'Tomorrow' ? '#D97706' : '#0284C7'),
+                        }}>
+                          {sip.dueStatus} ({sip.sipDay}th)
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 2 }}>
+                        {sip.schemeName} • <strong style={{ color: '#059669' }}>{sip.formattedAmount}/mo</strong>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const cleanPhone = String(sip.phone).replace(/[^0-9]/g, '');
+                        const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                        const text = `Dear ${sip.name}, this is a gentle reminder from Investrow Financial Services that your monthly SIP of ${sip.formattedAmount} for ${sip.schemeName} is scheduled for debit on ${sip.sipDay}th. Kindly maintain sufficient bank balance to avoid ECS bounce charges. Happy Investing!`;
+                        window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`, '_blank');
+                      }}
+                      title="Send WhatsApp Balance Reminder"
+                      style={{
+                        background: '#25D366',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        boxShadow: '0 2px 6px rgba(37, 211, 102, 0.25)',
+                        flexShrink: 0
+                      }}
+                    >
+                      <Send size={12} /> Remind
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Middle Row: Today's Follow-ups & My Recent Leads */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 20,
             marginBottom: 24
           }}>
@@ -1396,7 +1623,7 @@ export default function DashboardPage() {
           {/* Bottom Row: My Targets, My Tasks, Quick Actions */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 20,
             marginBottom: 24
           }}>
@@ -1884,7 +2111,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 16 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Phone Number *</label>
                     <input
@@ -1909,7 +2136,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Interested Product</label>
                     <select
@@ -2000,7 +2227,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Follow-up Date</label>
                     <input

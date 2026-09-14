@@ -38,21 +38,18 @@ export default function Header() {
   };
 
   return (
-    <header style={{
+    <header className="top-nav-header" style={{
       background: 'white',
       borderBottom: '1px solid #e2e8f0',
-      height: 72,
-      padding: '0 32px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 20,
       position: 'sticky',
       top: 0,
       zIndex: 40,
     }}>
       {/* Search Input */}
-      <div style={{ flex: '0 1 480px', position: 'relative' }}>
+      <div className="header-search-wrapper">
         <Search
           size={18}
           style={{
@@ -200,7 +197,7 @@ export default function Header() {
               {getInitials(user.name)}
             </div>
 
-            <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+            <div className="header-user-info" style={{ textAlign: 'left', lineHeight: 1.2 }}>
               <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a' }}>
                 {user.name || 'Birendra Kumar'}
               </div>

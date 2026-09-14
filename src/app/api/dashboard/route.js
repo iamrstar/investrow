@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Lead from '@/models/Lead';
 import Task from '@/models/Task';
@@ -22,8 +23,12 @@ export async function GET(request) {
   let taskFilter = {};
 
   if (authUser.role === 'user') {
-    leadFilter = { assignedTo: authUser._id };
-    taskFilter = { assignedTo: authUser._id };
+    const userObjectId = mongoose.Types.ObjectId.isValid(authUser._id)
+      ? new mongoose.Types.ObjectId(authUser._id)
+      : authUser._id;
+
+    leadFilter = { assignedTo: { $in: [authUser._id, userObjectId] } };
+    taskFilter = { assignedTo: { $in: [authUser._id, userObjectId] } };
   }
 
   const now = new Date();
@@ -45,6 +50,12 @@ export async function GET(request) {
     });
   }
 
+  // Calculate upcoming SIP debit days (today and next 2 days)
+  const todayDay = now.getDate();
+  const nextDay1 = (todayDay % 31) + 1;
+  const nextDay2 = ((todayDay + 1) % 31) + 1;
+  const targetSipDays = [todayDay, nextDay1, nextDay2];
+
   const [
     totalLeadsAll,
     activePipelineCount,
@@ -63,7 +74,8 @@ export async function GET(request) {
     stageCountsAgg,
     activeWithFollowUpCount,
     financialAgg,
-    monthlyLeadsAgg
+    monthlyLeadsAgg,
+    dbUpcomingSips
   ] = await Promise.all([
     // 1. Total Leads in CRM
     Lead.countDocuments(leadFilter),
@@ -165,7 +177,7 @@ export async function GET(request) {
       ]
     }),
 
-    // 17. Financial totals (SIP, AUM, Insurance Premium)
+    // 17. Financial totals (SIP, AUM, Insurance Premium, Active SIPs count)
     Lead.aggregate([
       { $match: leadFilter },
       {
@@ -175,14 +187,46 @@ export async function GET(request) {
           totalSip: { $sum: { $ifNull: ['$sipAmount', 0] } },
           convertedInvestment: {
             $sum: {
-              $cond: [{ $eq: ['$response', 'Converted'] }, { $ifNull: ['$investmentAmount', 0] }, 0]
+              $cond: [
+                { $or: [{ $eq: ['$response', 'Converted'] }, { $eq: ['$stage', 'Converted'] }] },
+                { $ifNull: ['$investmentAmount', 0] },
+                0
+              ]
             }
           },
           convertedSip: {
             $sum: {
               $cond: [
-                { $eq: ['$response', 'Converted'] },
+                { $or: [{ $eq: ['$response', 'Converted'] }, { $eq: ['$stage', 'Converted'] }] },
                 { $ifNull: ['$sipAmount', 0] },
+                0
+              ]
+            }
+          },
+          activeSipsCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $or: [{ $eq: ['$response', 'Converted'] }, { $eq: ['$stage', 'Converted'] }] },
+                    { $gt: ['$sipAmount', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          activeLumpsumCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $or: [{ $eq: ['$response', 'Converted'] }, { $eq: ['$stage', 'Converted'] }] },
+                    { $gt: ['$investmentAmount', 0] }
+                  ]
+                },
+                1,
                 0
               ]
             }
@@ -192,7 +236,7 @@ export async function GET(request) {
               $cond: [
                 {
                   $and: [
-                    { $eq: ['$response', 'Converted'] },
+                    { $or: [{ $eq: ['$response', 'Converted'] }, { $eq: ['$stage', 'Converted'] }] },
                     { $in: ['$service', ['Life Insurance', 'Health Insurance', 'General Insurance']] }
                   ]
                 },
@@ -224,16 +268,48 @@ export async function GET(request) {
           amount: { $sum: { $ifNull: ['$investmentAmount', 0] } }
         }
       }
-    ])
+    ]),
+
+    // 19. Upcoming SIP Debits in next 3 days
+    Lead.find({
+      ...leadFilter,
+      $or: [{ response: 'Converted' }, { stage: 'Converted' }],
+      sipAmount: { $gt: 0 },
+      sipDay: { $in: targetSipDays }
+    })
+      .select('name phone service sipAmount sipDay schemeName')
+      .sort({ sipDay: 1 })
+      .lean()
   ]);
 
   const rawConvertedSip = financialAgg[0]?.convertedSip || 0;
   const rawConvertedAum = financialAgg[0]?.convertedInvestment || 0;
   const rawInsPremium = financialAgg[0]?.insurancePremiumSum || 0;
+  const activeSipsCount = financialAgg[0]?.activeSipsCount || 0;
+  const activeLumpsumCount = financialAgg[0]?.activeLumpsumCount || 0;
 
   const monthlySipBook = formatCurrency(rawConvertedSip);
   const totalAum = formatCurrency(rawConvertedAum);
   const insurancePremium = formatCurrency(rawInsPremium);
+
+  // Format upcoming SIP alerts
+  const upcomingSipAlerts = (dbUpcomingSips || []).map(s => {
+    let dueStatus = 'In 2 Days';
+    if (s.sipDay === todayDay) dueStatus = 'Today';
+    else if (s.sipDay === nextDay1) dueStatus = 'Tomorrow';
+
+    return {
+      _id: s._id,
+      name: s.name || 'Client',
+      phone: s.phone || '',
+      service: s.service || 'Mutual Funds',
+      schemeName: s.schemeName || s.service || 'SIP Plan',
+      sipAmount: s.sipAmount || 0,
+      formattedAmount: formatCurrency(s.sipAmount),
+      sipDay: s.sipDay,
+      dueStatus
+    };
+  });
 
   // Conversion rate (Total Converted Clients / Total Leads captured in CRM)
   const conversionRate = totalLeadsAll > 0 ? `${((totalClients / totalLeadsAll) * 100).toFixed(1)}%` : '0.0%';
@@ -484,6 +560,9 @@ export async function GET(request) {
       overdueFollowUps,
       monthlySipBook,
       totalAum,
+      activeSipsCount,
+      activeLumpsumCount,
+      upcomingSipAlerts,
       insurancePolicies,
       insurancePremium,
       pendingTasks,
@@ -513,6 +592,9 @@ export async function GET(request) {
         myOverdueFollowUps: overdueFollowUps,
         mySipBook: monthlySipBook,
         myAum: totalAum,
+        activeSipsCount,
+        activeLumpsumCount,
+        upcomingSipAlerts,
         myPendingTasks: pendingTasks,
         myOverdueTasks: overdueTasks,
         followUpsList: employeeFollowUpsList,

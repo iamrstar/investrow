@@ -64,6 +64,22 @@ const LeadSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  investmentType: {
+    type: String,
+    enum: ['Monthly SIP', 'Lumpsum', 'Both', 'None', ''],
+    default: '',
+  },
+  sipDay: {
+    type: Number,
+    min: 1,
+    max: 31,
+    default: null,
+  },
+  schemeName: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

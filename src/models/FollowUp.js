@@ -31,6 +31,32 @@ const FollowUpSchema = new mongoose.Schema({
     trim: true,
     default: 'Pending',
   },
+  service: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  investmentType: {
+    type: String,
+    default: '',
+  },
+  sipAmount: {
+    type: Number,
+    default: 0,
+  },
+  sipDay: {
+    type: Number,
+    default: null,
+  },
+  investmentAmount: {
+    type: Number,
+    default: 0,
+  },
+  schemeName: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   nextCallDate: {
     type: Date,
     default: null,

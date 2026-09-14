@@ -1203,7 +1203,7 @@ export default function LeadsPage() {
                                       background: 'var(--bg-body)', 
                                       borderRadius: 16, 
                                       display: 'grid', 
-                                      gridTemplateColumns: 'repeat(2, 1fr)', 
+                                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
                                       gap: 16 
                                     }}>
                                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -1521,6 +1521,7 @@ function LeadTasksModal({ lead, onClose }) {
 
 function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }) {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     name: lead?.name || '',
     email: lead?.email || '',
@@ -1542,8 +1543,11 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
     panNumber: lead?.panNumber || '',
     pincode: lead?.pincode || '',
     dateOfBirth: lead?.dateOfBirth || '',
+    investmentType: lead?.investmentType || (lead?.sipAmount ? (lead?.investmentAmount ? 'Both' : 'Monthly SIP') : (lead?.investmentAmount ? 'Lumpsum' : 'Monthly SIP')),
     investmentAmount: lead?.investmentAmount || '',
     sipAmount: lead?.sipAmount || '',
+    sipDay: lead?.sipDay || (lead?.sipAmount ? 10 : ''),
+    schemeName: lead?.schemeName || '',
     customFields: lead?.customFields || [],
   });
 
@@ -1613,6 +1617,35 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
       return;
     }
 
+    // Strict requirement when converting a lead to client
+    const isConverting = form.stage === 'Converted' || form.response === 'Converted';
+    if (isConverting) {
+      if (!form.service?.trim()) {
+        addToast('Product / Service is required for converted client', 'error');
+        return;
+      }
+      if (!form.investmentType || form.investmentType === 'None') {
+        addToast('Please select Investment Type (Monthly SIP or Lumpsum)', 'error');
+        return;
+      }
+      if (['Monthly SIP', 'Both'].includes(form.investmentType)) {
+        if (!form.sipAmount || Number(form.sipAmount) <= 0) {
+          addToast('Monthly SIP Amount (₹) is mandatory for converted client', 'error');
+          return;
+        }
+        if (!form.sipDay || Number(form.sipDay) < 1 || Number(form.sipDay) > 31) {
+          addToast('SIP Debit Day (1st - 31st) is mandatory for converted client', 'error');
+          return;
+        }
+      }
+      if (['Lumpsum', 'Both'].includes(form.investmentType)) {
+        if (!form.investmentAmount || Number(form.investmentAmount) <= 0) {
+          addToast('Total Investment / Lumpsum Amount (₹) is mandatory for converted client', 'error');
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     const payload = { ...form };
     if (payload.city && !payload.location) payload.location = payload.city;
@@ -1669,7 +1702,7 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px 20px', marginBottom: 24 }}>
               {(() => {
                 const seen = new Set();
                 const defaultFields = formSettings?.defaultFields || [
@@ -2122,33 +2155,148 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                 </div>
 
                 {/* Financial Portfolio Section */}
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '16px 18px', marginTop: 14 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#166534', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IndianRupee size={16} /> Investment & Financial Portfolio
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '16px 18px', marginTop: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <IndianRupee size={16} /> Investment & Financial Portfolio
+                    </div>
+                    {form.stage === 'Converted' && (
+                      <span style={{ fontSize: '0.72rem', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                        Required for Converted Client
+                      </span>
+                    )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Monthly SIP Amount (₹)</label>
-                      <input 
-                        type="number" 
-                        className="form-input" 
-                        placeholder="e.g. 10000"
-                        value={form.sipAmount} 
-                        onChange={e => setForm({ ...form, sipAmount: e.target.value })}
-                        style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
-                      />
+
+                  {/* Mode Selector */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: 6 }}>
+                      Investment Mode {form.stage === 'Converted' && '*'}
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8 }}>
+                      {[
+                        { id: 'Monthly SIP', label: 'Monthly SIP' },
+                        { id: 'Lumpsum', label: 'One-time Lumpsum' },
+                        { id: 'Both', label: 'SIP + Lumpsum' },
+                      ].map(mode => {
+                        const active = form.investmentType === mode.id;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => setForm({ ...form, investmentType: mode.id })}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              fontSize: '0.78rem',
+                              fontWeight: active ? 800 : 600,
+                              cursor: 'pointer',
+                              border: active ? '1.5px solid #16A34A' : '1px solid #BBF7D0',
+                              background: active ? '#16A34A' : '#FFFFFF',
+                              color: active ? '#FFFFFF' : '#166534',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {mode.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>Total Investment / AUM (₹)</label>
-                      <input 
-                        type="number" 
-                        className="form-input" 
-                        placeholder="e.g. 500000"
-                        value={form.investmentAmount} 
-                        onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
-                        style={{ height: 42, borderRadius: 10, border: '1px solid #86EFAC', background: 'white' }}
-                      />
+                  </div>
+
+                  {/* Monthly SIP Fields */}
+                  {['Monthly SIP', 'Both'].includes(form.investmentType) && (
+                    <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 10 }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                            Monthly SIP Amount (₹) *
+                          </label>
+                          <input 
+                            type="number" 
+                            className="form-input" 
+                            placeholder="e.g. 10000"
+                            value={form.sipAmount} 
+                            onChange={e => setForm({ ...form, sipAmount: e.target.value })}
+                            style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                            SIP Debit Day (1st - 31st) *
+                          </label>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max="31"
+                            className="form-input" 
+                            placeholder="e.g. 10"
+                            value={form.sipDay || ''} 
+                            onChange={e => setForm({ ...form, sipDay: e.target.value ? parseInt(e.target.value) : '' })}
+                            style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Day Presets */}
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: 600, marginBottom: 4 }}>Quick SIP Debit Presets:</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {[1, 5, 10, 15, 20, 25].map(d => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setForm({ ...form, sipDay: d })}
+                              style={{
+                                padding: '3px 10px',
+                                fontSize: '0.72rem',
+                                borderRadius: 6,
+                                border: form.sipDay === d ? '1.5px solid #16A34A' : '1px solid #CBD5E1',
+                                background: form.sipDay === d ? '#DCFCE7' : '#F8FAFC',
+                                color: form.sipDay === d ? '#15803D' : '#475569',
+                                fontWeight: form.sipDay === d ? 800 : 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {d}th
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* One-time Lumpsum Field */}
+                  {['Lumpsum', 'Both'].includes(form.investmentType) && (
+                    <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                          Total Investment / Lumpsum Amount (₹) *
+                        </label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="e.g. 500000"
+                          value={form.investmentAmount} 
+                          onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
+                          style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scheme Name */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                      Scheme / Fund Name (Optional)
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Mirae Asset Large & Midcap Fund / HDFC Balanced"
+                      value={form.schemeName || ''} 
+                      onChange={e => setForm({ ...form, schemeName: e.target.value })}
+                      style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                    />
                   </div>
                 </div>
                 {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'remarks')) && (
