@@ -13,23 +13,49 @@ const FollowUpSchema = new mongoose.Schema({
   },
   callStatus: {
     type: String,
-    enum: ['Received', 'Not Received', 'Pending'],
+    trim: true,
     default: 'Pending',
   },
   response: {
     type: String,
-    enum: ['Positive', 'Negative', 'Pending', 'Converted'],
+    trim: true,
     default: 'Pending',
   },
   interestedInService: {
     type: String,
-    enum: ['Yes', 'No', 'Pending'],
+    trim: true,
     default: 'Pending',
   },
   serviceTaken: {
     type: String,
-    enum: ['Yes', 'No', 'Pending'],
+    trim: true,
     default: 'Pending',
+  },
+  service: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  investmentType: {
+    type: String,
+    default: '',
+  },
+  sipAmount: {
+    type: Number,
+    default: 0,
+  },
+  sipDay: {
+    type: Number,
+    default: null,
+  },
+  investmentAmount: {
+    type: Number,
+    default: 0,
+  },
+  schemeName: {
+    type: String,
+    trim: true,
+    default: '',
   },
   nextCallDate: {
     type: Date,
@@ -51,4 +77,8 @@ FollowUpSchema.index({ leadId: 1 });
 FollowUpSchema.index({ userId: 1 });
 FollowUpSchema.index({ createdAt: -1 });
 
-export default mongoose.models.FollowUp || mongoose.model('FollowUp', FollowUpSchema);
+if (mongoose.models.FollowUp) {
+  delete mongoose.models.FollowUp;
+}
+
+export default mongoose.model('FollowUp', FollowUpSchema);

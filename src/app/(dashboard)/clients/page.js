@@ -9,7 +9,8 @@ import BulkUploadModal from '@/components/BulkUploadModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Users, Clock, CheckCircle, Video, Calendar
+  MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
+  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee
 } from 'lucide-react';
 
 const SERVICES = [
@@ -34,6 +35,8 @@ export default function ClientsPage() {
   const [teamUsers, setTeamUsers] = useState([]);
   const [showDetail, setShowDetail] = useState(null);
   const [detailData, setDetailData] = useState(null);
+  const [clientDetailTab, setClientDetailTab] = useState('overview');
+  const [mfTab, setMfTab] = useState('portfolio');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailClient, setEmailClient] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
@@ -341,6 +344,60 @@ export default function ClientsPage() {
           <button className="btn btn-outline" onClick={handleDownloadReport} title="Download Report">
             <FileText size={18} /> Export
           </button>
+        </div>
+
+        {/* Quick Follow-up Preset Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            <CalendarClock size={14} color="var(--secondary)" />
+            <span>FOLLOW-UP PRESETS:</span>
+          </div>
+          {[
+            { id: 'all', label: 'All Dates' },
+            { id: '7days', label: 'Next 7 Days', days: 7 },
+            { id: '1month', label: '1 Month', days: 30 },
+            { id: '2months', label: '2 Months', days: 60 },
+            { id: '3months', label: '3 Months', days: 90 },
+            { id: '6months', label: '6 Months', days: 180 },
+            { id: 'today', label: 'Today', days: 0 },
+          ].map(p => {
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  if (p.id === 'all') {
+                    setStartDate('');
+                    setEndDate('');
+                    setFilterDate('');
+                  } else if (p.id === 'today') {
+                    setStartDate(start.toISOString().split('T')[0]);
+                    setEndDate(start.toISOString().split('T')[0]);
+                    setFilterDate('');
+                  } else {
+                    const end = new Date(start.getTime() + p.days * 24 * 60 * 60 * 1000);
+                    setStartDate(start.toISOString().split('T')[0]);
+                    setEndDate(end.toISOString().split('T')[0]);
+                    setFilterDate('');
+                  }
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 10px',
+                  borderRadius: 20,
+                  height: 28,
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       
@@ -701,49 +758,648 @@ export default function ClientsPage() {
       <>
         {showDetail && detailData && (
           <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-              <div className="modal-header">
-                <h3 className="modal-title">Client Details</h3>
-                <button className="modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
-                <div className="detail-grid">
-                  <div className="detail-item"><div className="detail-label">Name</div><div className="detail-value">{detailData.lead?.name}</div></div>
-                  <div className="detail-item"><div className="detail-label">Phone</div><div className="detail-value">{detailData.lead?.phone}</div></div>
-                  <div className="detail-item"><div className="detail-label">Email</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
-                  <div className="detail-item"><div className="detail-label">Service</div><div className="detail-value">{detailData.lead?.service}</div></div>
-                  <div className="detail-item"><div className="detail-label">Location</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
-                  <div className="detail-item"><div className="detail-label">Reference</div><div className="detail-value">{detailData.lead?.leadReference || '—'}</div></div>
-                  
-                  {detailData.lead?.customFields?.map((field, idx) => (
-                    <div key={idx} className="detail-item">
-                      <div className="detail-label">{field.label}</div>
-                      <div className="detail-value">{field.value}</div>
+            <div 
+              className="modal" 
+              onClick={e => e.stopPropagation()} 
+              style={{ 
+                maxWidth: 960, 
+                width: '95%',
+                borderRadius: 24, 
+                overflow: 'hidden', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                maxHeight: '92vh',
+                background: '#FFFFFF',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              {/* Client Profile Header (Panel 7) */}
+              <div style={{ 
+                padding: '24px 28px', 
+                background: '#FFFFFF', 
+                borderBottom: '1px solid #E2E8F0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ 
+                    width: 56, 
+                    height: 56, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', 
+                    color: '#FFFFFF', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    fontSize: '1.4rem', 
+                    fontWeight: 800,
+                    boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)'
+                  }}>
+                    {detailData.lead?.name ? detailData.lead.name.charAt(0).toUpperCase() : 'C'}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                        {detailData.lead?.name || 'Amit Kumar'}
+                      </h2>
+                      <span style={{ 
+                        background: '#ECFDF5', 
+                        color: '#059669', 
+                        border: '1px solid #A7F3D0',
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        padding: '2px 10px', 
+                        borderRadius: 12 
+                      }}>
+                        Active
+                      </span>
                     </div>
-                  ))}
-                  
-                  {detailData.lead?.onboardingData?.length > 0 && (
-                    <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
-                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 8 }}>Onboarding Documents & Info</h4>
-                      <div className="detail-grid">
-                        {detailData.lead.onboardingData.map((field, idx) => (
-                          <div key={idx} className="detail-item">
-                            <div className="detail-label">{field.label}</div>
-                            <div className="detail-value">
-                              {field.fieldType === 'File upload' && field.value ? (
-                                <a href={field.value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'underline' }}>
-                                  View File
-                                </a>
-                              ) : (
-                                field.value || '—'
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, fontSize: '0.85rem', color: '#64748B', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, color: '#0EA5E9' }}>
+                        INV-C-1001
+                      </span>
+                      <span>•</span>
+                      <span>{detailData.lead?.phone || '98XXXX1234'}</span>
+                      <span>•</span>
+                      <span>{detailData.lead?.email || 'amit@gmail.com'}</span>
+                      <span>•</span>
+                      <span>{detailData.lead?.city || detailData.lead?.location || 'Dhanbad'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={() => {
+                      setEditingClient(detailData.lead);
+                      setShowDetail(null);
+                      setShowModal(true);
+                    }}
+                    style={{ 
+                      borderRadius: 10, 
+                      padding: '8px 16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 6,
+                      color: '#0EA5E9',
+                      borderColor: '#0EA5E9'
+                    }}
+                  >
+                    <Edit size={16} /> Edit
+                  </button>
+                  <button className="modal-close" onClick={() => setShowDetail(null)} style={{ padding: 8 }}>
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Tabs */}
+              <div style={{ 
+                display: 'flex', 
+                gap: 8, 
+                padding: '12px 28px', 
+                background: '#F8FAFC', 
+                borderBottom: '1px solid #E2E8F0',
+                overflowX: 'auto'
+              }}>
+                {[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'kyc', label: 'KYC & Documents' },
+                  { id: 'investments', label: 'Mutual Fund / Investment' },
+                  { id: 'services', label: 'Other Services' },
+                  { id: 'tasks', label: 'Tasks' },
+                  { id: 'activities', label: 'Activities' },
+                ].map(tab => {
+                  const isActive = clientDetailTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setClientDetailTab(tab.id)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 10,
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        border: isActive ? '1px solid #0EA5E9' : '1px solid transparent',
+                        background: isActive ? '#0EA5E9' : 'transparent',
+                        color: isActive ? '#FFFFFF' : '#64748B',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Modal Body with Multi-Tab Content */}
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px 28px', background: '#FFFFFF' }}>
+                
+                {/* TAB 1: OVERVIEW (Panel 7) */}
+                {clientDetailTab === 'overview' && (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                      {/* Personal Details Card */}
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '20px 24px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <User size={18} style={{ color: '#0EA5E9' }} />
+                          Personal Details
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 120px) 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>DOB:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.dateOfBirth || '12-05-1988'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>PAN:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>{detailData.lead?.panNumber || 'ABCPK1234D'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Address:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.address || 'Dhanbad, Jharkhand'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>City / Pincode:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.city || 'Dhanbad'} - {detailData.lead?.pincode || '826001'}</span>
+                        </div>
+                      </div>
+
+                      {/* Advisory & Account Profile */}
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '20px 24px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Shield size={18} style={{ color: '#F97316' }} />
+                          Financial Advisory Profile
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 150px) 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Relationship Manager:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.assignedTo?.name || 'Rahul Kumar'}</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Client Since:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 500 }}>
+                            {new Date(detailData.lead?.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Risk Profile:</span>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            padding: '2px 8px', 
+                            borderRadius: 6, 
+                            background: '#FFF7ED', 
+                            color: '#EA580C', 
+                            fontWeight: 700, 
+                            fontSize: '0.8rem',
+                            width: 'fit-content'
+                          }}>
+                            Moderate
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Family Members:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 600 }}>3 Members</span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Investment Type:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                            {detailData.lead?.investmentType || (detailData.lead?.sipAmount ? 'Monthly SIP' : 'Lumpsum')}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Monthly SIP Book:</span>
+                          <span style={{ color: '#0EA5E9', fontWeight: 800 }}>
+                            ₹ {detailData.lead?.sipAmount ? Number(detailData.lead.sipAmount).toLocaleString('en-IN') : '0'}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>SIP Debit Day:</span>
+                          <span style={{ color: '#6366F1', fontWeight: 700 }}>
+                            {detailData.lead?.sipDay ? `${detailData.lead.sipDay}th of each month` : 'Not specified'}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Total Portfolio AUM:</span>
+                          <span style={{ color: '#059669', fontWeight: 800 }}>
+                            ₹ {detailData.lead?.investmentAmount ? Number(detailData.lead.investmentAmount).toLocaleString('en-IN') : '0'}
+                          </span>
+
+                          <span style={{ color: '#64748B', fontWeight: 600 }}>Scheme / Fund:</span>
+                          <span style={{ color: '#0F172A', fontWeight: 600 }}>
+                            {detailData.lead?.schemeName || detailData.lead?.service || '—'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Additional Custom Fields if any */}
+                    {detailData.lead?.customFields?.length > 0 && (
+                      <div style={{ marginTop: 20, background: '#F8FAFC', padding: 20, borderRadius: 16, border: '1px solid #E2E8F0' }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 12, color: '#0F172A' }}>Additional Information</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                          {detailData.lead.customFields.map((field, idx) => (
+                            <div key={idx}>
+                              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>{field.label}</div>
+                              <div style={{ fontSize: '0.875rem', color: '#0F172A', fontWeight: 700 }}>{field.value || '—'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 2: KYC & DOCUMENTS (Panel 8) */}
+                {clientDetailTab === 'kyc' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#0EA5E9', color: '#FFFFFF', fontSize: '0.8rem', fontWeight: 700 }}>
+                          KYC Details
+                        </span>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Documents
+                        </span>
+                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Verification
+                        </span>
+                      </div>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => {
+                          setDocumentsClient(detailData.lead);
+                          setShowDocumentsModal(true);
+                        }}
+                        style={{ color: '#0EA5E9', borderColor: '#BAE6FD', background: '#F0F9FF', borderRadius: 8 }}
+                      >
+                        <Upload size={14} /> Upload New Document
+                      </button>
+                    </div>
+
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Document Name</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Status</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Upload</th>
+                            <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'right' }}>View</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { name: 'PAN Card', status: 'Uploaded', uploaded: true },
+                            { name: 'Aadhaar Card', status: 'Uploaded', uploaded: true },
+                            { name: 'Address Proof', status: 'Uploaded', uploaded: true },
+                            { name: 'Bank Statement', status: 'Uploaded', uploaded: true },
+                            { name: 'Cancelled Cheque', status: 'Uploaded', uploaded: true },
+                            { name: 'FATCA / Declaration', status: 'Pending', uploaded: false },
+                          ].map((doc, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0F172A' }}>
+                                {doc.name}
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '3px 10px',
+                                  borderRadius: 12,
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  background: doc.uploaded ? '#ECFDF5' : '#FFF7ED',
+                                  color: doc.uploaded ? '#059669' : '#EA580C',
+                                  border: `1px solid ${doc.uploaded ? '#A7F3D0' : '#FED7AA'}`
+                                }}>
+                                  {doc.uploaded ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                                  {doc.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <button 
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => {
+                                    setDocumentsClient(detailData.lead);
+                                    setShowDocumentsModal(true);
+                                  }}
+                                  style={{ padding: '4px 10px', borderRadius: 8, fontSize: '0.75rem', color: '#0EA5E9' }}
+                                >
+                                  Upload
+                                </button>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <button 
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => addToast(`Viewing verified ${doc.name}`, 'info')}
+                                  style={{ color: '#64748B', padding: 6 }}
+                                  title="View Document"
+                                >
+                                  <Eye size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: MUTUAL FUND / INVESTMENT (Panel 9) */}
+                {clientDetailTab === 'investments' && (
+                  <div>
+                    {/* Sub-Tabs & Add Action */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {['Portfolio', 'SIP', 'Transactions', 'Goal Planning'].map(st => {
+                          const isSel = mfTab.toLowerCase() === st.toLowerCase();
+                          return (
+                            <button
+                              key={st}
+                              onClick={() => setMfTab(st.toLowerCase())}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: 16,
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                border: isSel ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
+                                background: isSel ? '#0EA5E9' : '#FFFFFF',
+                                color: isSel ? '#FFFFFF' : '#475569',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {st}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={() => addToast('Add Investment modal ready', 'info')}
+                        style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, background: '#0EA5E9' }}
+                      >
+                        <Plus size={14} /> Add Investment
+                      </button>
+                    </div>
+
+                    {/* 3 Summary KPI Cards (Panel 9) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20 }}>
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Total Investment
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', marginTop: 4 }}>
+                          ₹ 4,50,000
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Current Value
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0EA5E9', marginTop: 4 }}>
+                          ₹ 5,90,000
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E2E8F0', 
+                        borderRadius: 16, 
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Gain / Loss
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          +31.1%
+                          <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600 }}>(+₹ 1,40,000)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Portfolio Holdings Table */}
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Folio No</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Scheme Name</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Type</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Investment</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Current Value</th>
+                            <th style={{ padding: '12px 18px', fontWeight: 700, textAlign: 'right' }}>Gain/Loss</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { folio: '123456/78', scheme: 'SBI Bluechip Fund', type: 'Equity Large Cap', inv: '₹ 2,00,000', curr: '₹ 2,65,000', gain: '+32.5%' },
+                            { folio: '876543/21', scheme: 'HDFC Flexi Cap Fund', type: 'Equity Flexi Cap', inv: '₹ 1,50,000', curr: '₹ 1,80,000', gain: '+20.0%' },
+                            { folio: '987654/32', scheme: 'Axis Midcap Fund', type: 'Equity Mid Cap', inv: '₹ 1,00,000', curr: '₹ 1,45,000', gain: '+45.0%' },
+                          ].map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{item.folio}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.scheme}</td>
+                              <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.type}</span></td>
+                              <td style={{ padding: '14px 18px', fontWeight: 600 }}>{item.inv}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>{item.curr}</td>
+                              <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>{item.gain}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: OTHER SERVICES (Panel 10) */}
+                {clientDetailTab === 'services' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+                    {/* Insurance Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <Shield size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Insurance</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track policies, renewals and premiums.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Policy form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#0EA5E9', borderColor: '#0EA5E9' }}
+                      >
+                        + Add Policy
+                      </button>
+                    </div>
+
+                    {/* Bonds Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FFF7ED', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <TrendingUp size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Bonds</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Government & Corporate Bonds.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Bond form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#EA580C', borderColor: '#EA580C' }}
+                      >
+                        + Add Investment
+                      </button>
+                    </div>
+
+                    {/* Demat / Trading Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <ArrowUpRight size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Demat / Trading</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track trading accounts & portfolio.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Add Demat form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}
+                      >
+                        + Add Account
+                      </button>
+                    </div>
+
+                    {/* Tax Services Card */}
+                    <div style={{ 
+                      background: '#FFFFFF', 
+                      border: '1px solid #E2E8F0', 
+                      borderRadius: 16, 
+                      padding: 24, 
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <FileText size={24} />
+                      </div>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Tax Services</h4>
+                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>ITR, GST, and tax advisory services.</p>
+                      <button 
+                        className="btn btn-outline btn-sm" 
+                        onClick={() => addToast('Opening Tax Filing form...', 'info')}
+                        style={{ width: '100%', borderRadius: 8, color: '#4F46E5', borderColor: '#4F46E5' }}
+                      >
+                        + Add Service
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 5: TASKS */}
+                {clientDetailTab === 'tasks' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Client Tasks</h4>
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={() => {
+                          setTasksClient(detailData.lead);
+                          setShowTasksModal(true);
+                        }}
+                        style={{ borderRadius: 8 }}
+                      >
+                        <Plus size={14} /> Add Task
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="checkbox" style={{ width: 16, height: 16 }} />
+                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Annual Portfolio Review with Amit Kumar</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EA580C', background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>Due Today</span>
+                      </div>
+                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="checkbox" style={{ width: 16, height: 16 }} />
+                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Collect pending FATCA declaration document</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284C7', background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>Upcoming</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 6: ACTIVITIES */}
+                {clientDetailTab === 'activities' && (
+                  <div>
+                    <h4 style={{ margin: '0 0 16px 0', fontWeight: 800, color: '#0F172A' }}>Interaction & Communication History</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Phone size={16} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>Call Completed</span>
+                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>09 Sep 10:00 AM</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Discussed SIP options and increased monthly allocation to ₹15,000.</p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Send size={16} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>WhatsApp Sent</span>
+                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>08 Sep 04:30 PM</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Sent scheme brochure and portfolio performance report.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           </div>
@@ -776,6 +1432,7 @@ export default function ClientsPage() {
 
 function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSave }) {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     name: client?.name || '',
     email: client?.email || '',
@@ -784,6 +1441,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     leadReference: client?.leadReference || '',
     assignedTo: client?.assignedTo?._id || client?.assignedTo || '',
     response: 'Converted',
+    stage: 'Converted',
     interestedInService: client?.interestedInService || 'Yes',
     serviceTaken: client?.serviceTaken || 'Yes',
     nextCallDate: client?.nextCallDate ? client.nextCallDate.split('T')[0] : '',
@@ -796,6 +1454,11 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     panNumber: client?.panNumber || '',
     pincode: client?.pincode || '',
     dateOfBirth: client?.dateOfBirth || '',
+    investmentType: client?.investmentType || (client?.sipAmount ? (client?.investmentAmount ? 'Both' : 'Monthly SIP') : (client?.investmentAmount ? 'Lumpsum' : 'Monthly SIP')),
+    investmentAmount: client?.investmentAmount || '',
+    sipAmount: client?.sipAmount || '',
+    sipDay: client?.sipDay || (client?.sipAmount ? 10 : ''),
+    schemeName: client?.schemeName || '',
     customFields: client?.customFields || [],
   });
 
@@ -848,6 +1511,39 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name?.trim()) {
+      addToast('Client name is required', 'error');
+      return;
+    }
+    if (!form.phone?.trim()) {
+      addToast('Phone number is required', 'error');
+      return;
+    }
+    if (!form.service?.trim()) {
+      addToast('Product / Service is required', 'error');
+      return;
+    }
+    if (!form.investmentType || form.investmentType === 'None') {
+      addToast('Please select Investment Type (Monthly SIP or Lumpsum)', 'error');
+      return;
+    }
+    if (['Monthly SIP', 'Both'].includes(form.investmentType)) {
+      if (!form.sipAmount || Number(form.sipAmount) <= 0) {
+        addToast('Monthly SIP Amount (₹) is mandatory for client', 'error');
+        return;
+      }
+      if (!form.sipDay || Number(form.sipDay) < 1 || Number(form.sipDay) > 31) {
+        addToast('SIP Debit Day (1st - 31st) is mandatory for client', 'error');
+        return;
+      }
+    }
+    if (['Lumpsum', 'Both'].includes(form.investmentType)) {
+      if (!form.investmentAmount || Number(form.investmentAmount) <= 0) {
+        addToast('Total Investment / Lumpsum Amount (₹) is mandatory for client', 'error');
+        return;
+      }
+    }
+
     if (!isFormValid()) return;
     setSaving(true);
     const payload = { ...form };
@@ -895,8 +1591,22 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
+            {/* SEGMENT 1: CLIENT DETAILS HEADER */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <div style={{ background: '#3b82f6', color: 'white', padding: 6, borderRadius: 8, display: 'flex' }}>
+                <User size={18} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>
+                  Client Information
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                  Basic profile, contact info, and product/service
+                </p>
+              </div>
+            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px 20px', marginBottom: 24 }}>
               {formSettings?.defaultFields?.map((dField) => {
                 const value = form[dField.name] || '';
                 const onChange = (e) => setForm({ ...form, [dField.name]: e.target.value });
@@ -1272,9 +1982,268 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                 </select>
               </div>
             )}
-            <div className="form-group">
-              <label className="form-label">Remarks</label>
-              <textarea className="form-textarea" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} placeholder="Add notes..." />
+            {/* SEGMENT 2: FOLLOW-UP & SCHEDULE DETAILS */}
+            <div style={{
+              marginTop: 20,
+              padding: 20,
+              background: '#f0f9ff',
+              borderRadius: 16,
+              border: '1px solid #bae6fd'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ background: '#0ea5e9', color: 'white', padding: 6, borderRadius: 8, display: 'flex' }}>
+                  <CalendarClock size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1' }}>
+                    Follow-up Details & Scheduling
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#0284c7' }}>
+                    Set next follow-up date and initial call status
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Next Follow-up Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={form.followUpDate} 
+                    onChange={e => setForm({ ...form, followUpDate: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                    {[
+                      { label: '+1 Day', days: 1 },
+                      { label: '+7 Days', days: 7 },
+                      { label: '+1 Month', days: 30 },
+                      { label: '+3 Months', days: 90 },
+                      { label: '+6 Months', days: 180 },
+                    ].map(btn => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + btn.days);
+                          setForm({ ...form, followUpDate: d.toISOString().split('T')[0] });
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.7rem',
+                          borderRadius: 6,
+                          background: 'white',
+                          border: '1px solid #7dd3fc',
+                          color: '#0284c7',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Call Status</label>
+                  <select 
+                    className="form-select" 
+                    value={form.callStatus} 
+                    onChange={e => setForm({ ...form, callStatus: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received / Connected</option>
+                    <option value="Not Received">Not Received / Busy</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Client Response</label>
+                  <select 
+                    className="form-select" 
+                    value={form.response} 
+                    onChange={e => setForm({ ...form, response: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  >
+                    <option value="Converted">Converted (Active Client)</option>
+                    <option value="Positive">Positive / Interested</option>
+                    <option value="Pending">Pending / Evaluating</option>
+                    <option value="Negative">Negative / Not Interested</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Next Call Schedule (Optional)</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={form.nextCallDate} 
+                    onChange={e => setForm({ ...form, nextCallDate: e.target.value })}
+                    style={{ height: 42, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                  />
+                </div>
+              </div>
+
+              {/* Financial Profile: SIP & AUM */}
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '16px 18px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IndianRupee size={16} /> Investment & Financial Portfolio
+                  </div>
+                  <span style={{ fontSize: '0.72rem', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                    Mandatory Client Record
+                  </span>
+                </div>
+
+                {/* Mode Selector */}
+                <div style={{ marginBottom: 14 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: 6 }}>
+                    Investment Mode *
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8 }}>
+                    {[
+                      { id: 'Monthly SIP', label: 'Monthly SIP' },
+                      { id: 'Lumpsum', label: 'One-time Lumpsum' },
+                      { id: 'Both', label: 'SIP + Lumpsum' },
+                    ].map(mode => {
+                      const active = form.investmentType === mode.id;
+                      return (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setForm({ ...form, investmentType: mode.id })}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            fontSize: '0.78rem',
+                            fontWeight: active ? 800 : 600,
+                            cursor: 'pointer',
+                            border: active ? '1.5px solid #16A34A' : '1px solid #BBF7D0',
+                            background: active ? '#16A34A' : '#FFFFFF',
+                            color: active ? '#FFFFFF' : '#166534',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {mode.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Monthly SIP Fields */}
+                {['Monthly SIP', 'Both'].includes(form.investmentType) && (
+                  <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 10 }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                          Monthly SIP Book Amount (₹) *
+                        </label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="e.g. 10000"
+                          value={form.sipAmount} 
+                          onChange={e => setForm({ ...form, sipAmount: e.target.value })}
+                          style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                          SIP Debit Day (1st - 31st) *
+                        </label>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="31"
+                          className="form-input" 
+                          placeholder="e.g. 10"
+                          value={form.sipDay || ''} 
+                          onChange={e => setForm({ ...form, sipDay: e.target.value ? parseInt(e.target.value) : '' })}
+                          style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick Day Presets */}
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: 600, marginBottom: 4 }}>Quick SIP Debit Presets:</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[1, 5, 10, 15, 20, 25].map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setForm({ ...form, sipDay: d })}
+                            style={{
+                              padding: '3px 10px',
+                              fontSize: '0.72rem',
+                              borderRadius: 6,
+                              border: form.sipDay === d ? '1.5px solid #16A34A' : '1px solid #CBD5E1',
+                              background: form.sipDay === d ? '#DCFCE7' : '#F8FAFC',
+                              color: form.sipDay === d ? '#15803D' : '#475569',
+                              fontWeight: form.sipDay === d ? 800 : 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {d}th
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* One-time Lumpsum Field */}
+                {['Lumpsum', 'Both'].includes(form.investmentType) && (
+                  <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                        Total Portfolio AUM (₹) *
+                      </label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        placeholder="e.g. 500000"
+                        value={form.investmentAmount} 
+                        onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
+                        style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Scheme Name */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
+                    Scheme / Fund Name (Optional)
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Mirae Asset Large & Midcap Fund / HDFC Balanced"
+                    value={form.schemeName || ''} 
+                    onChange={e => setForm({ ...form, schemeName: e.target.value })}
+                    style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#0369a1', fontWeight: 700 }}>Follow-up Remarks / Notes</label>
+                <textarea 
+                  className="form-textarea" 
+                  value={form.remarks} 
+                  onChange={e => setForm({ ...form, remarks: e.target.value })} 
+                  placeholder="Record conversation details, client needs, or next action items..."
+                  style={{ minHeight: 70, borderRadius: 10, border: '1px solid #7dd3fc', background: 'white' }}
+                />
+              </div>
             </div>
           </div>
           <div className="modal-footer">

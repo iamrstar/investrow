@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -29,9 +30,12 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="app-layout">
       <Sidebar />
-      <main className="main-content">
-        {children}
-      </main>
+      <div className="main-content">
+        <Header />
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
