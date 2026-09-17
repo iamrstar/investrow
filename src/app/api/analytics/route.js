@@ -4,6 +4,8 @@ import dbConnect from '@/lib/db';
 import Lead from '@/models/Lead';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     await dbConnect();
@@ -63,6 +65,44 @@ export async function GET(request) {
         : 0
     }));
 
+    // 7. Aggregate by Lead Acquisition Source & Marketing ROI
+    const sourceAgg = await Lead.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: { $ifNull: ["$source", { $ifNull: ["$leadReference", "Website"] }] },
+          totalLeads: { $sum: 1 },
+          convertedCount: {
+            $sum: {
+              $cond: [
+                { $or: [{ $eq: ["$response", "Converted"] }, { $eq: ["$stage", "Converted"] }] },
+                1,
+                0
+              ]
+            }
+          },
+          pipelineCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $ne: ["$response", "Converted"] }, { $ne: ["$stage", "Converted"] }] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { totalLeads: -1 } }
+    ]);
+
+    const sourceStats = sourceAgg.map(s => ({
+      source: s._id || 'Website',
+      totalLeads: s.totalLeads,
+      convertedCount: s.convertedCount,
+      pipelineCount: s.pipelineCount,
+      conversionRate: s.totalLeads > 0 ? Math.round((s.convertedCount / s.totalLeads) * 100) : 0
+    }));
+
     // Calculate totals for summary cards
     const totals = {
       leadsCreated: userStats.reduce((acc, curr) => acc + curr.leadsCreated, 0),
@@ -70,7 +110,7 @@ export async function GET(request) {
       clientsConverted: userStats.reduce((acc, curr) => acc + curr.clientsConverted, 0),
     };
 
-    return NextResponse.json({ success: true, stats: userStats, totals });
+    return NextResponse.json({ success: true, stats: userStats, sourceStats, totals });
   } catch (error) {
     console.error('Analytics Error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch analytics' }, { status: 500 });

@@ -25,6 +25,7 @@ export default function AnalyticsPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [stats, setStats] = useState([]);
+  const [sourceStats, setSourceStats] = useState([]);
   const [totals, setTotals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeReportId, setActiveReportId] = useState('employee_perf');
@@ -44,6 +45,7 @@ export default function AnalyticsPage() {
       const data = await res.json();
       if (data.success) {
         setStats(data.stats || []);
+        setSourceStats(data.sourceStats || []);
         setTotals(data.totals || { leadsCreated: 245, leadsAssigned: 186, clientsConverted: 84 });
       } else {
         addToast(data.error || 'Failed to fetch analytics', 'error');
@@ -265,48 +267,117 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Performance / Breakdown Table */}
+            {/* Performance / Breakdown Table */}
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                <thead>
-                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
-                    <th style={{ padding: '14px 20px', fontWeight: 700 }}>Advisor / Source</th>
-                    <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Leads Handled</th>
-                    <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Active Follow-ups</th>
-                    <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Converted</th>
-                    <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right' }}>Conversion %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStats.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', color: '#94A3B8' }}>
-                        No records match the current filters.
-                      </td>
+              {activeReportId === 'lead_source' ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                      <th style={{ padding: '14px 20px', fontWeight: 700 }}>Lead Acquisition Source</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Total Leads Generated</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Clients Converted</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Active In Pipeline</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Conversion %</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right' }}>Marketing Effectiveness</th>
                     </tr>
-                  ) : (
-                    filteredStats.map((stat, idx) => (
-                      <tr key={stat.userId || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                        <td style={{ padding: '14px 20px' }}>
-                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{stat.name}</div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748B' }}>{stat.email}</div>
-                        </td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600 }}>{stat.leadsCreated}</td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600 }}>{stat.leadsAssigned}</td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                          <span style={{ padding: '3px 10px', borderRadius: 12, background: '#ECFDF5', color: '#059669', fontWeight: 700, fontSize: '0.8rem' }}>
-                            {stat.clientsConverted}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                          <span style={{ fontWeight: 800, color: '#0EA5E9' }}>
-                            {stat.conversionRate}%
-                          </span>
+                  </thead>
+                  <tbody>
+                    {sourceStats.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: '#94A3B8' }}>
+                          No lead source records found for the selected period.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      sourceStats
+                        .filter(s => s.source.toLowerCase().includes(search.toLowerCase()))
+                        .map((s, idx) => {
+                          const isHigh = s.conversionRate >= 25;
+                          const isMed = s.conversionRate >= 12 && s.conversionRate < 25;
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 20px' }}>
+                                <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.92rem' }}>{s.source}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Inbound Marketing Channel</div>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0F172A' }}>
+                                {s.totalLeads}
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: 12, background: '#ECFDF5', color: '#059669', fontWeight: 700, fontSize: '0.8rem' }}>
+                                  {s.convertedCount}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600, color: '#64748B' }}>
+                                {s.pipelineCount}
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                                <span style={{ fontWeight: 800, color: isHigh ? '#059669' : isMed ? '#0EA5E9' : '#EA580C', fontSize: '0.95rem' }}>
+                                  {s.conversionRate}%
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <span style={{
+                                  padding: '4px 12px',
+                                  borderRadius: 12,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800,
+                                  background: isHigh ? '#ECFDF5' : isMed ? '#F0F9FF' : '#FFF7ED',
+                                  color: isHigh ? '#059669' : isMed ? '#0284C7' : '#EA580C',
+                                  border: `1px solid ${isHigh ? '#A7F3D0' : isMed ? '#BAE6FD' : '#FFEDD5'}`
+                                }}>
+                                  {isHigh ? 'High ROI Channel' : isMed ? 'Stable Conversion' : 'Scale / Optimize Ad'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                      <th style={{ padding: '14px 20px', fontWeight: 700 }}>Advisor / Source</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Leads Handled</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Active Follow-ups</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Converted</th>
+                      <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right' }}>Conversion %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStats.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', color: '#94A3B8' }}>
+                          No records match the current filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStats.map((stat, idx) => (
+                        <tr key={stat.userId || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ fontWeight: 700, color: '#0F172A' }}>{stat.name}</div>
+                            <div style={{ fontSize: '0.78rem', color: '#64748B' }}>{stat.email}</div>
+                          </td>
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600 }}>{stat.leadsCreated}</td>
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600 }}>{stat.leadsAssigned}</td>
+                          <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                            <span style={{ padding: '3px 10px', borderRadius: 12, background: '#ECFDF5', color: '#059669', fontWeight: 700, fontSize: '0.8rem' }}>
+                              {stat.clientsConverted}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                            <span style={{ fontWeight: 800, color: '#0EA5E9' }}>
+                              {stat.conversionRate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 

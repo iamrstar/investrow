@@ -56,12 +56,11 @@ export async function GET(request) {
     });
   }
 
-  // Role-based filtering: Admins see all leads; staff users see assigned leads, unassigned leads, or leads they created
+  // Role-based filtering: Admins see all leads; staff users see strictly assigned leads or leads they created
   if (authUser.role === 'user') {
     criteria.push({
       $or: [
         { assignedTo: authUser._id },
-        { assignedTo: null },
         { createdBy: authUser._id }
       ]
     });
@@ -136,7 +135,6 @@ export async function GET(request) {
   const baseRoleFilter = authUser.role === 'user' ? {
     $or: [
       { assignedTo: authUser._id },
-      { assignedTo: null },
       { createdBy: authUser._id }
     ]
   } : {};

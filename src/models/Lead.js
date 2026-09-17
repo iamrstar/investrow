@@ -36,6 +36,16 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  referralName: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  otherSource: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   source: {
     type: String,
     trim: true,
@@ -138,6 +148,31 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
   },
   panNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  aadhaarNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  whatsappNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  bankName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  bankAccountNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  bankIfscCode: {
     type: String,
     default: '',
     trim: true,

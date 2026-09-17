@@ -19,6 +19,9 @@ export async function GET(request) {
 
   await dbConnect();
 
+  const { searchParams } = new URL(request.url);
+  const filterAssignedTo = searchParams.get('assignedTo');
+
   let leadFilter = {};
   let taskFilter = {};
 
@@ -27,8 +30,19 @@ export async function GET(request) {
       ? new mongoose.Types.ObjectId(authUser._id)
       : authUser._id;
 
-    leadFilter = { assignedTo: { $in: [authUser._id, userObjectId] } };
+    leadFilter = {
+      $or: [
+        { assignedTo: { $in: [authUser._id, userObjectId] } },
+        { createdBy: { $in: [authUser._id, userObjectId] } }
+      ]
+    };
     taskFilter = { assignedTo: { $in: [authUser._id, userObjectId] } };
+  } else if (filterAssignedTo && filterAssignedTo !== 'all') {
+    const targetObjectId = mongoose.Types.ObjectId.isValid(filterAssignedTo)
+      ? new mongoose.Types.ObjectId(filterAssignedTo)
+      : filterAssignedTo;
+    leadFilter = { assignedTo: targetObjectId };
+    taskFilter = { assignedTo: targetObjectId };
   }
 
   const now = new Date();
@@ -50,11 +64,18 @@ export async function GET(request) {
     });
   }
 
-  // Calculate upcoming SIP debit days (today and next 2 days)
+  // Calculate upcoming SIP debit days (today and next 5 days)
   const todayDay = now.getDate();
-  const nextDay1 = (todayDay % 31) + 1;
-  const nextDay2 = ((todayDay + 1) % 31) + 1;
-  const targetSipDays = [todayDay, nextDay1, nextDay2];
+  const targetSipDays = [];
+  const daysMap = {};
+  for (let i = 0; i <= 5; i++) {
+    const targetDate = new Date(now.getFullYear(), now.getMonth(), todayDay + i);
+    const dayNum = targetDate.getDate();
+    targetSipDays.push(dayNum);
+    if (i === 0) daysMap[dayNum] = 'Today';
+    else if (i === 1) daysMap[dayNum] = 'Tomorrow';
+    else daysMap[dayNum] = `In ${i} Days`;
+  }
 
   const [
     totalLeadsAll,
@@ -270,14 +291,14 @@ export async function GET(request) {
       }
     ]),
 
-    // 19. Upcoming SIP Debits in next 3 days
+    // 19. Upcoming SIP Debits in next 5 days
     Lead.find({
       ...leadFilter,
       $or: [{ response: 'Converted' }, { stage: 'Converted' }],
       sipAmount: { $gt: 0 },
       sipDay: { $in: targetSipDays }
     })
-      .select('name phone service sipAmount sipDay schemeName')
+      .select('name phone whatsappNumber service sipAmount sipDay schemeName')
       .sort({ sipDay: 1 })
       .lean()
   ]);
@@ -294,14 +315,13 @@ export async function GET(request) {
 
   // Format upcoming SIP alerts
   const upcomingSipAlerts = (dbUpcomingSips || []).map(s => {
-    let dueStatus = 'In 2 Days';
-    if (s.sipDay === todayDay) dueStatus = 'Today';
-    else if (s.sipDay === nextDay1) dueStatus = 'Tomorrow';
+    const dueStatus = daysMap[s.sipDay] || `Day ${s.sipDay}`;
 
     return {
       _id: s._id,
       name: s.name || 'Client',
       phone: s.phone || '',
+      whatsappNumber: s.whatsappNumber || s.phone || '',
       service: s.service || 'Mutual Funds',
       schemeName: s.schemeName || s.service || 'SIP Plan',
       sipAmount: s.sipAmount || 0,
