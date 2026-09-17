@@ -18,6 +18,9 @@ const SERVICES = [
   'General Insurance', 'FD & Bond', 'Stock Market & Demat', 'NPS',
 ];
 
+const SIP_DAYS = [1, 5, 7, 10, 15, 20, 25, 28];
+const TENURE_OPTIONS = [1, 3, 5, 7, 10, 15, 20];
+
 export default function ClientsPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
@@ -1086,9 +1089,16 @@ export default function ClientsPage() {
                                 <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 800, background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>
                                   Scheme #{idx + 1} • {s.service}
                                 </span>
-                                <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
-                                  {s.investmentType}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  {s.tenureYears && (
+                                    <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 800, background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: 6 }}>
+                                      {s.tenureYears} Yrs
+                                    </span>
+                                  )}
+                                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
+                                    {s.investmentType}
+                                  </span>
+                                </div>
                               </div>
                               <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
                                 {s.schemeName || 'Standard Policy / Plan'}
@@ -1328,7 +1338,14 @@ export default function ClientsPage() {
                             detailData.lead.schemes.map((item, idx) => (
                               <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
                                 <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{`SCH-${String(idx + 1).padStart(3, '0')}`}</td>
-                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.schemeName || item.service}</td>
+                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>
+                                  {item.schemeName || item.service}
+                                  {item.tenureYears && (
+                                    <span style={{ marginLeft: 8, fontSize: '0.7rem', color: '#059669', fontWeight: 800, background: '#ECFDF5', padding: '1px 6px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
+                                      {item.tenureYears} Yrs
+                                    </span>
+                                  )}
+                                </td>
                                 <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.service} ({item.investmentType})</span></td>
                                 <td style={{ padding: '14px 18px', fontWeight: 600 }}>
                                   {item.sipAmount > 0 ? `SIP ₹ ${Number(item.sipAmount).toLocaleString('en-IN')}/mo (Day ${item.sipDay || 10})` : `Lumpsum ₹ ${Number(item.investmentAmount || 0).toLocaleString('en-IN')}`}
@@ -1591,6 +1608,75 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     customFields: client?.customFields || [],
   });
 
+  const [schemes, setSchemes] = useState(() => {
+    if (client?.schemes && Array.isArray(client.schemes) && client.schemes.length > 0) {
+      return client.schemes.map(s => ({
+        service: s.service || client?.service || 'Mutual Funds',
+        investmentType: s.investmentType || 'Monthly SIP',
+        schemeName: s.schemeName || '',
+        sipAmount: s.sipAmount || '',
+        sipDay: s.sipDay || 10,
+        investmentAmount: s.investmentAmount || '',
+        tenureYears: s.tenureYears || client?.tenureYears || '',
+      }));
+    }
+    return [
+      {
+        service: client?.service || 'Mutual Funds',
+        investmentType: client?.investmentType || (client?.sipAmount ? (client?.investmentAmount ? 'Both' : 'Monthly SIP') : (client?.investmentAmount ? 'Lumpsum' : 'Monthly SIP')),
+        schemeName: client?.schemeName || '',
+        sipAmount: client?.sipAmount || '',
+        sipDay: client?.sipDay || 10,
+        investmentAmount: client?.investmentAmount || '',
+        tenureYears: client?.tenureYears || '',
+      }
+    ];
+  });
+
+  const handleAddScheme = () => {
+    setSchemes(prev => [
+      ...prev,
+      {
+        service: 'Mutual Funds',
+        investmentType: 'Monthly SIP',
+        schemeName: '',
+        sipAmount: '',
+        sipDay: 10,
+        investmentAmount: '',
+        tenureYears: '',
+      }
+    ]);
+  };
+
+  const handleRemoveScheme = (index) => {
+    if (schemes.length <= 1) return;
+    setSchemes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSchemeChange = (index, field, value) => {
+    setSchemes(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const totalMonthlySip = schemes.reduce((sum, s) => {
+    if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+      return sum + (Number(s.sipAmount) || 0);
+    }
+    return sum;
+  }, 0);
+
+  const totalLumpsum = schemes.reduce((sum, s) => {
+    if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+      return sum + (Number(s.investmentAmount) || 0);
+    }
+    return sum;
+  }, 0);
+
+  const totalCombined = totalMonthlySip + totalLumpsum;
+
   const getFieldConfig = (name) => {
     const defaults = {
       name: { label: 'Name', required: true },
@@ -1618,6 +1704,11 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     const defaultFields = ['name', 'phone', 'email', 'service', 'location', 'leadReference', 'address', 'city', 'panNumber', 'pincode', 'dateOfBirth'];
     for (const field of defaultFields) {
       const config = getFieldConfig(field);
+      if (field === 'service') {
+        const sVal = form.service || schemes[0]?.service || '';
+        if (config.required && !String(sVal).trim()) return false;
+        continue;
+      }
       const val = String(form[field] || '');
       
       if (config.required && !val.trim()) return false;
@@ -1648,34 +1739,75 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       addToast('Phone number is required', 'error');
       return;
     }
-    if (!form.service?.trim()) {
-      addToast('Product / Service is required', 'error');
+
+    if (!schemes || schemes.length === 0) {
+      addToast('At least one investment scheme/product is required', 'error');
       return;
     }
-    if (!form.investmentType || form.investmentType === 'None') {
-      addToast('Please select Investment Type (Monthly SIP or Lumpsum)', 'error');
-      return;
-    }
-    if (['Monthly SIP', 'Both'].includes(form.investmentType)) {
-      if (!form.sipAmount || Number(form.sipAmount) <= 0) {
-        addToast('Monthly SIP Amount (₹) is mandatory for client', 'error');
+
+    // Validate each scheme
+    for (let i = 0; i < schemes.length; i++) {
+      const s = schemes[i];
+      const sNum = i + 1;
+
+      if (!s.service?.trim()) {
+        addToast(`Scheme #${sNum}: Please select Service / Product Category`, 'error');
         return;
       }
-      if (!form.sipDay || Number(form.sipDay) < 1 || Number(form.sipDay) > 31) {
-        addToast('SIP Debit Day (1st - 31st) is mandatory for client', 'error');
-        return;
+
+      if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+        if (!s.sipAmount || Number(s.sipAmount) <= 0) {
+          addToast(`Scheme #${sNum}: Monthly SIP Amount (₹) is mandatory`, 'error');
+          return;
+        }
+        if (!s.sipDay || Number(s.sipDay) < 1 || Number(s.sipDay) > 31) {
+          addToast(`Scheme #${sNum}: Please select a valid SIP Debit Day (1st - 31st)`, 'error');
+          return;
+        }
       }
-    }
-    if (['Lumpsum', 'Both'].includes(form.investmentType)) {
-      if (!form.investmentAmount || Number(form.investmentAmount) <= 0) {
-        addToast('Total Investment / Lumpsum Amount (₹) is mandatory for client', 'error');
-        return;
+
+      if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+        if (!s.investmentAmount || Number(s.investmentAmount) <= 0) {
+          addToast(`Scheme #${sNum}: Lumpsum Investment Amount (₹) is mandatory`, 'error');
+          return;
+        }
       }
     }
 
     if (!isFormValid()) return;
     setSaving(true);
-    const payload = { ...form };
+
+    const formattedSchemes = schemes.map(s => ({
+      service: s.service,
+      investmentType: s.investmentType,
+      schemeName: s.schemeName ? s.schemeName.trim() : '',
+      sipAmount: (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ? (Number(s.sipAmount) || 0) : 0,
+      sipDay: (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ? (Number(s.sipDay) || 10) : null,
+      investmentAmount: (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') ? (Number(s.investmentAmount) || 0) : 0,
+      tenureYears: s.tenureYears ? Number(s.tenureYears) : null,
+    }));
+
+    const primaryService = formattedSchemes[0]?.service || form.service || 'Mutual Funds';
+    const combinedSchemeNames = formattedSchemes.map(s => s.schemeName).filter(Boolean).join(', ');
+    const overallInvestmentType = totalMonthlySip > 0 && totalLumpsum > 0 
+      ? 'Both' 
+      : totalMonthlySip > 0 
+      ? 'Monthly SIP' 
+      : totalLumpsum > 0 
+      ? 'Lumpsum' 
+      : 'None';
+
+    const payload = { 
+      ...form,
+      service: primaryService,
+      investmentType: overallInvestmentType,
+      sipAmount: totalMonthlySip,
+      sipDay: formattedSchemes[0]?.sipDay || 10,
+      investmentAmount: totalLumpsum,
+      schemeName: combinedSchemeNames,
+      tenureYears: formattedSchemes[0]?.tenureYears || null,
+      schemes: formattedSchemes,
+    };
     // Clean up customFields if any are empty
     payload.customFields = payload.customFields.filter(f => f.label.trim() && (Array.isArray(f.value) ? f.value.length > 0 : String(f.value).trim()));
     await onSave(payload);
@@ -1713,7 +1845,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
           <h3 className="modal-title">{client ? 'Edit Client' : 'Add New Client'}</h3>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
@@ -2219,148 +2351,353 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                 </div>
               </div>
 
-              {/* Financial Profile: SIP & AUM */}
-              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '16px 18px', marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IndianRupee size={16} /> Investment & Financial Portfolio
+              {/* Financial Product & Investment Setup (Multi-Scheme Setup) */}
+              <div style={{
+                background: '#F8FAFC',
+                border: '1.5px solid #BBF7D0',
+                borderRadius: 16,
+                padding: '18px 20px',
+                marginBottom: 20
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ background: '#16A34A', color: 'white', padding: 6, borderRadius: 8, display: 'flex' }}>
+                      <IndianRupee size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#166534' }}>
+                        Financial Product & Investment Setup *
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.74rem', color: '#15803D' }}>
+                        Configure all active SIPs, policies, and lumpsum investments for this client
+                      </p>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '0.72rem', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                    Mandatory Client Record
+                  <span style={{
+                    fontSize: '0.74rem',
+                    background: '#DCFCE7',
+                    color: '#15803D',
+                    fontWeight: 800,
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #86EFAC'
+                  }}>
+                    {schemes.length} Scheme{schemes.length > 1 ? 's' : ''} Configured
                   </span>
                 </div>
 
-                {/* Mode Selector */}
-                <div style={{ marginBottom: 14 }}>
-                  <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: 6 }}>
-                    Investment Mode *
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8 }}>
-                    {[
-                      { id: 'Monthly SIP', label: 'Monthly SIP' },
-                      { id: 'Lumpsum', label: 'One-time Lumpsum' },
-                      { id: 'Both', label: 'SIP + Lumpsum' },
-                    ].map(mode => {
-                      const active = form.investmentType === mode.id;
-                      return (
-                        <button
-                          key={mode.id}
-                          type="button"
-                          onClick={() => setForm({ ...form, investmentType: mode.id })}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            fontSize: '0.78rem',
-                            fontWeight: active ? 800 : 600,
-                            cursor: 'pointer',
-                            border: active ? '1.5px solid #16A34A' : '1px solid #BBF7D0',
-                            background: active ? '#16A34A' : '#FFFFFF',
-                            color: active ? '#FFFFFF' : '#166534',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {mode.label}
-                        </button>
-                      );
-                    })}
+                {/* Auto-Calculated Totals Banner */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #0F172A, #1E293B)',
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  color: 'white',
+                  marginBottom: 16,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: 12,
+                  alignItems: 'center',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 700 }}>
+                      Total Monthly SIP
+                    </div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#38BDF8', marginTop: 2 }}>
+                      ₹ {totalMonthlySip.toLocaleString('en-IN')}<span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>/ month</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 700 }}>
+                      Total Lumpsum
+                    </div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#FBBF24', marginTop: 2 }}>
+                      ₹ {totalLumpsum.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#86EFAC', fontWeight: 700 }}>
+                      Total Combined Value
+                    </div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#4ADE80', marginTop: 2 }}>
+                      ₹ {totalCombined.toLocaleString('en-IN')}
+                    </div>
                   </div>
                 </div>
 
-                {/* Monthly SIP Fields */}
-                {['Monthly SIP', 'Both'].includes(form.investmentType) && (
-                  <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 10 }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
-                          Monthly SIP Book Amount (₹) *
-                        </label>
-                        <input 
-                          type="number" 
-                          className="form-input" 
-                          placeholder="e.g. 10000"
-                          value={form.sipAmount} 
-                          onChange={e => setForm({ ...form, sipAmount: e.target.value })}
-                          style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
-                          SIP Debit Day (1st - 31st) *
-                        </label>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          max="31"
-                          className="form-input" 
-                          placeholder="e.g. 10"
-                          value={form.sipDay || ''} 
-                          onChange={e => setForm({ ...form, sipDay: e.target.value ? parseInt(e.target.value) : '' })}
-                          style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
-                        />
-                      </div>
-                    </div>
+                {/* Scheme Cards List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {schemes.map((scheme, index) => {
+                    const isSip = scheme.investmentType === 'Monthly SIP' || scheme.investmentType === 'Both';
+                    const isLump = scheme.investmentType === 'Lumpsum' || scheme.investmentType === 'Both';
 
-                    {/* Quick Day Presets */}
-                    <div>
-                      <div style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: 600, marginBottom: 4 }}>Quick SIP Debit Presets:</div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {[1, 5, 10, 15, 20, 25].map(d => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setForm({ ...form, sipDay: d })}
-                            style={{
-                              padding: '3px 10px',
+                    return (
+                      <div 
+                        key={index}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1.5px solid #E2E8F0',
+                          borderRadius: 14,
+                          padding: '14px 16px',
+                          position: 'relative',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                        }}
+                      >
+                        {/* Card Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{
+                              background: '#0284C7',
+                              color: 'white',
                               fontSize: '0.72rem',
-                              borderRadius: 6,
-                              border: form.sipDay === d ? '1.5px solid #16A34A' : '1px solid #CBD5E1',
-                              background: form.sipDay === d ? '#DCFCE7' : '#F8FAFC',
-                              color: form.sipDay === d ? '#15803D' : '#475569',
-                              fontWeight: form.sipDay === d ? 800 : 600,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {d}th
-                          </button>
-                        ))}
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: 6
+                            }}>
+                              Scheme #{index + 1}
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A' }}>
+                              {scheme.schemeName || scheme.service || 'New Scheme Setup'}
+                            </span>
+                          </div>
+
+                          {schemes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveScheme(index)}
+                              title="Remove this scheme"
+                              style={{
+                                background: '#FEE2E2',
+                                color: '#DC2626',
+                                border: '1px solid #FECACA',
+                                borderRadius: 6,
+                                padding: '4px 8px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={13} /> Remove
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Row 1: Service / Category & Investment Type */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#166534' }}>
+                              Service / Product Category *
+                            </label>
+                            <select 
+                              className="form-select" 
+                              value={scheme.service} 
+                              onChange={e => handleSchemeChange(index, 'service', e.target.value)}
+                              required
+                              style={{ height: 38, borderRadius: 8, border: '1.5px solid #86EFAC', background: 'white', fontWeight: 600, fontSize: '0.82rem' }}
+                            >
+                              {SERVICES.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#166534' }}>
+                              Investment Type *
+                            </label>
+                            <select 
+                              className="form-select" 
+                              value={scheme.investmentType} 
+                              onChange={e => handleSchemeChange(index, 'investmentType', e.target.value)}
+                              required
+                              style={{ height: 38, borderRadius: 8, border: '1.5px solid #86EFAC', background: 'white', fontWeight: 600, fontSize: '0.82rem' }}
+                            >
+                              <option value="Monthly SIP">Monthly SIP (Recurring)</option>
+                              <option value="Lumpsum">Lumpsum (One-Time)</option>
+                              <option value="Both">Both (Monthly SIP + Lumpsum)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Row 2: Scheme / Policy Name & Investment Horizon (Years) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                              Scheme / Policy / Plan Name
+                            </label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              value={scheme.schemeName} 
+                              onChange={e => handleSchemeChange(index, 'schemeName', e.target.value)} 
+                              placeholder="e.g. Parag Parikh Flexi Cap, HDFC Top 100, LIC Tech Term"
+                              style={{ height: 38, borderRadius: 8, background: '#F8FAFC', fontSize: '0.84rem' }}
+                            />
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#0F172A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>Investment Horizon (How many years?)</span>
+                              {scheme.tenureYears && (
+                                <span style={{ fontSize: '0.7rem', color: '#0284C7', fontWeight: 800 }}>
+                                  {scheme.tenureYears} Year{Number(scheme.tenureYears) > 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </label>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <input 
+                                type="number" 
+                                min="1"
+                                max="100"
+                                className="form-input" 
+                                value={scheme.tenureYears || ''} 
+                                onChange={e => handleSchemeChange(index, 'tenureYears', e.target.value ? Number(e.target.value) : '')} 
+                                placeholder="Years"
+                                style={{ height: 38, width: '75px', borderRadius: 8, background: '#F8FAFC', fontSize: '0.84rem', fontWeight: 700 }}
+                              />
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {TENURE_OPTIONS.map(yr => (
+                                  <button
+                                    key={yr}
+                                    type="button"
+                                    onClick={() => handleSchemeChange(index, 'tenureYears', yr)}
+                                    style={{
+                                      padding: '4px 7px',
+                                      borderRadius: 6,
+                                      border: Number(scheme.tenureYears) === yr ? '1.5px solid #0284C7' : '1px solid #CBD5E1',
+                                      background: Number(scheme.tenureYears) === yr ? '#0284C7' : '#FFFFFF',
+                                      color: Number(scheme.tenureYears) === yr ? 'white' : '#334155',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {yr}y
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Inputs: Monthly SIP vs Lumpsum */}
+                        <div style={{ display: 'grid', gridTemplateColumns: scheme.investmentType === 'Both' ? '1fr 1fr' : '1fr', gap: 12 }}>
+                          {isSip && (
+                            <div style={{ background: '#F0F9FF', border: '1.5px solid #BAE6FD', borderRadius: 10, padding: '10px 12px' }}>
+                              <div className="form-group" style={{ marginBottom: 8 }}>
+                                <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 800, color: '#0369A1' }}>
+                                  Monthly SIP Amount (₹) *
+                                </label>
+                                <input 
+                                  type="number" 
+                                  className="form-input" 
+                                  value={scheme.sipAmount} 
+                                  onChange={e => handleSchemeChange(index, 'sipAmount', e.target.value)} 
+                                  placeholder="e.g. 5000"
+                                  required
+                                  style={{ height: 38, borderRadius: 8, border: '1.5px solid #0EA5E9', fontWeight: 800, fontSize: '0.95rem', background: 'white' }}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                                  SIP Debit Day of Month *
+                                </label>
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                                  {SIP_DAYS.map(day => (
+                                    <button
+                                      key={day}
+                                      type="button"
+                                      onClick={() => handleSchemeChange(index, 'sipDay', day)}
+                                      style={{
+                                        padding: '3px 7px',
+                                        borderRadius: 6,
+                                        border: Number(scheme.sipDay) === day ? '1.5px solid #0284C7' : '1px solid #CBD5E1',
+                                        background: Number(scheme.sipDay) === day ? '#0284C7' : '#FFFFFF',
+                                        color: Number(scheme.sipDay) === day ? 'white' : '#334155',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {day}th
+                                    </button>
+                                  ))}
+                                </div>
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  max="31" 
+                                  className="form-input" 
+                                  value={scheme.sipDay || ''} 
+                                  onChange={e => handleSchemeChange(index, 'sipDay', Number(e.target.value))} 
+                                  placeholder="Custom day (1 - 31)"
+                                  required
+                                  style={{ height: 32, borderRadius: 6, fontSize: '0.78rem', background: 'white' }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {isLump && (
+                            <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 10, padding: '10px 12px' }}>
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 800, color: '#B45309' }}>
+                                  Lumpsum Investment Amount (₹) *
+                                </label>
+                                <input 
+                                  type="number" 
+                                  className="form-input" 
+                                  value={scheme.investmentAmount} 
+                                  onChange={e => handleSchemeChange(index, 'investmentAmount', e.target.value)} 
+                                  placeholder="e.g. 100000"
+                                  required
+                                  style={{ height: 38, borderRadius: 8, border: '1.5px solid #F59E0B', fontWeight: 800, fontSize: '0.95rem', background: 'white' }}
+                                />
+                                <span style={{ fontSize: '0.68rem', color: '#92400E', marginTop: 4, display: 'block' }}>
+                                  One-time lump sum capital invested / policy premium
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* One-time Lumpsum Field */}
-                {['Lumpsum', 'Both'].includes(form.investmentType) && (
-                  <div style={{ background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
-                        Total Portfolio AUM (₹) *
-                      </label>
-                      <input 
-                        type="number" 
-                        className="form-input" 
-                        placeholder="e.g. 500000"
-                        value={form.investmentAmount} 
-                        onChange={e => setForm({ ...form, investmentAmount: e.target.value })}
-                        style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Scheme Name */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
-                    Scheme / Fund Name (Optional)
-                  </label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Mirae Asset Large & Midcap Fund / HDFC Balanced"
-                    value={form.schemeName || ''} 
-                    onChange={e => setForm({ ...form, schemeName: e.target.value })}
-                    style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
-                  />
+                    );
+                  })}
                 </div>
+
+                {/* Add Another Scheme / Policy Button */}
+                <button
+                  type="button"
+                  onClick={handleAddScheme}
+                  style={{
+                    width: '100%',
+                    marginTop: 14,
+                    padding: '10px 16px',
+                    borderRadius: 12,
+                    border: '2px dashed #16A34A',
+                    background: '#FFFFFF',
+                    color: '#15803D',
+                    fontSize: '0.84rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#ECFDF5'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#FFFFFF'; }}
+                >
+                  <Plus size={16} />
+                  <span>+ Add Another Scheme / Policy</span>
+                </button>
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>

@@ -1192,9 +1192,16 @@ export default function LeadsPage() {
                               <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 800, background: '#E0F2FE', padding: '2px 6px', borderRadius: 4 }}>
                                 #{idx + 1} {s.service}
                               </span>
-                              <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
-                                {s.investmentType}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {s.tenureYears && (
+                                  <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 6px', borderRadius: 4 }}>
+                                    {s.tenureYears} Yrs
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
+                                  {s.investmentType}
+                                </span>
+                              </div>
                             </div>
                             <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
                               {s.schemeName || 'Standard Plan / Policy'}
@@ -1207,6 +1214,11 @@ export default function LeadsPage() {
                             {s.investmentAmount > 0 && (
                               <div style={{ fontSize: '0.84rem', color: '#D97706', fontWeight: 700, marginTop: 2 }}>
                                 Lumpsum: ₹{s.investmentAmount.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                            {s.tenureYears > 0 && (
+                              <div style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 700, marginTop: 2 }}>
+                                Horizon: {s.tenureYears} Year{s.tenureYears > 1 ? 's' : ''}
                               </div>
                             )}
                           </div>

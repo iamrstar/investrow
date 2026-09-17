@@ -99,6 +99,10 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  tenureYears: {
+    type: Number,
+    default: null,
+  },
   schemes: [
     {
       service: { type: String, trim: true, default: '' },
@@ -107,6 +111,7 @@ const LeadSchema = new mongoose.Schema({
       sipAmount: { type: Number, default: 0 },
       sipDay: { type: Number, default: null },
       investmentAmount: { type: Number, default: 0 },
+      tenureYears: { type: Number, default: null },
       remarks: { type: String, default: '' },
     }
   ],
