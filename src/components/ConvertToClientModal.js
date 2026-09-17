@@ -16,6 +16,7 @@ const SERVICES = [
 ];
 
 const SIP_DAYS = [1, 5, 7, 10, 15, 20, 25, 28];
+const TENURE_OPTIONS = [1, 3, 5, 7, 10, 15, 20];
 
 export default function ConvertToClientModal({ lead, onClose, onConverted }) {
   const { addToast } = useToast();
@@ -47,6 +48,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         sipAmount: s.sipAmount !== undefined && s.sipAmount !== null ? String(s.sipAmount) : '',
         sipDay: s.sipDay || 10,
         investmentAmount: s.investmentAmount !== undefined && s.investmentAmount !== null ? String(s.investmentAmount) : '',
+        tenureYears: s.tenureYears || lead?.tenureYears || '',
       }));
     }
     return [
@@ -58,6 +60,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         sipAmount: lead?.sipAmount ? String(lead.sipAmount) : '',
         sipDay: lead?.sipDay || 10,
         investmentAmount: lead?.investmentAmount ? String(lead.investmentAmount) : '',
+        tenureYears: lead?.tenureYears || '',
       }
     ];
   });
@@ -81,6 +84,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         sipAmount: '',
         sipDay: 10,
         investmentAmount: '',
+        tenureYears: '',
       }
     ]);
   };
@@ -154,6 +158,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         sipAmount: (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ? (Number(s.sipAmount) || 0) : 0,
         sipDay: (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ? (Number(s.sipDay) || 10) : null,
         investmentAmount: (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') ? (Number(s.investmentAmount) || 0) : 0,
+        tenureYears: s.tenureYears ? Number(s.tenureYears) : null,
       }));
 
       const primaryService = formattedSchemes[0]?.service || 'Mutual Funds';
@@ -181,6 +186,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         sipDay: formattedSchemes[0]?.sipDay || 10,
         investmentAmount: totalLumpsum,
         schemeName: combinedSchemeNames,
+        tenureYears: formattedSchemes[0]?.tenureYears || null,
         schemes: formattedSchemes,
         panNumber: form.panNumber ? form.panNumber.toUpperCase().trim() : '',
         bankIfscCode: form.bankIfscCode ? form.bankIfscCode.toUpperCase().trim() : '',
@@ -205,6 +211,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         parts.push(s.investmentType);
         if (s.sipAmount > 0) parts.push(`SIP ₹${s.sipAmount.toLocaleString('en-IN')}/mo (Day ${s.sipDay})`);
         if (s.investmentAmount > 0) parts.push(`Lumpsum ₹${s.investmentAmount.toLocaleString('en-IN')}`);
+        if (s.tenureYears > 0) parts.push(`Tenure: ${s.tenureYears} Year${s.tenureYears > 1 ? 's' : ''}`);
         return `[#${idx + 1}: ${parts.join(' - ')}]`;
       }).join(', ');
 
@@ -601,19 +608,65 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
                         </div>
                       </div>
 
-                      {/* Row 2: Scheme / Policy Name */}
-                      <div className="form-group" style={{ marginBottom: 12 }}>
-                        <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                          Scheme / Policy / Plan Name
-                        </label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={scheme.schemeName} 
-                          onChange={e => handleSchemeChange(index, 'schemeName', e.target.value)} 
-                          placeholder="e.g. Parag Parikh Flexi Cap, HDFC Top 100, LIC Tech Term"
-                          style={{ height: 38, borderRadius: 8, background: '#F8FAFC', fontSize: '0.84rem' }}
-                        />
+                      {/* Row 2: Scheme / Policy Name & Investment Horizon (Years) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                            Scheme / Policy / Plan Name
+                          </label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={scheme.schemeName} 
+                            onChange={e => handleSchemeChange(index, 'schemeName', e.target.value)} 
+                            placeholder="e.g. Parag Parikh Flexi Cap, HDFC Top 100, LIC Tech Term"
+                            style={{ height: 38, borderRadius: 8, background: '#F8FAFC', fontSize: '0.84rem' }}
+                          />
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#0F172A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Investment Horizon (How many years?)</span>
+                            {scheme.tenureYears && (
+                              <span style={{ fontSize: '0.7rem', color: '#0284C7', fontWeight: 800 }}>
+                                {scheme.tenureYears} Year{Number(scheme.tenureYears) > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </label>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input 
+                              type="number" 
+                              min="1"
+                              max="100"
+                              className="form-input" 
+                              value={scheme.tenureYears || ''} 
+                              onChange={e => handleSchemeChange(index, 'tenureYears', e.target.value ? Number(e.target.value) : '')} 
+                              placeholder="Years"
+                              style={{ height: 38, width: '75px', borderRadius: 8, background: '#F8FAFC', fontSize: '0.84rem', fontWeight: 700 }}
+                            />
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              {TENURE_OPTIONS.map(yr => (
+                                <button
+                                  key={yr}
+                                  type="button"
+                                  onClick={() => handleSchemeChange(index, 'tenureYears', yr)}
+                                  style={{
+                                    padding: '4px 7px',
+                                    borderRadius: 6,
+                                    border: Number(scheme.tenureYears) === yr ? '1.5px solid #0284C7' : '1px solid #CBD5E1',
+                                    background: Number(scheme.tenureYears) === yr ? '#0284C7' : '#FFFFFF',
+                                    color: Number(scheme.tenureYears) === yr ? 'white' : '#334155',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {yr}y
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Dynamic Inputs for this Scheme: Monthly SIP vs Lumpsum */}
