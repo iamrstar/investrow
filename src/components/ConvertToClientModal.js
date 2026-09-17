@@ -27,10 +27,15 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
     phone: lead?.phone || '',
     whatsappNumber: lead?.whatsappNumber || lead?.phone || '',
     email: lead?.email || '',
+    dateOfBirth: lead?.dateOfBirth || '',
     city: lead?.city || lead?.location || '',
     address: lead?.address || '',
+    pincode: lead?.pincode || '',
     panNumber: lead?.panNumber || '',
     aadhaarNumber: lead?.aadhaarNumber || '',
+    kycStatus: lead?.kycStatus || 'Verified',
+    riskProfile: lead?.riskProfile || 'Moderate',
+    familyMembers: lead?.familyMembers || '',
     bankName: lead?.bankName || '',
     bankAccountNumber: lead?.bankAccountNumber || '',
     bankIfscCode: lead?.bankIfscCode || '',
@@ -178,8 +183,14 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         response: 'Converted',
         serviceTaken: 'Yes',
         callStatus: 'Received',
-        location: form.city || lead.location || 'Dhanbad',
-        city: form.city || lead.city || 'Dhanbad',
+        location: form.city || lead.location || '',
+        city: form.city || lead.city || '',
+        address: form.address ? form.address.trim() : '',
+        pincode: form.pincode ? form.pincode.trim() : '',
+        dateOfBirth: form.dateOfBirth || '',
+        riskProfile: form.riskProfile || 'Moderate',
+        familyMembers: form.familyMembers ? String(form.familyMembers).trim() : '',
+        kycStatus: form.kycStatus || 'Verified',
         service: primaryService,
         investmentType: overallInvestmentType,
         sipAmount: totalMonthlySip,
@@ -189,6 +200,9 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         tenureYears: formattedSchemes[0]?.tenureYears || null,
         schemes: formattedSchemes,
         panNumber: form.panNumber ? form.panNumber.toUpperCase().trim() : '',
+        aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : '',
+        bankName: form.bankName ? form.bankName.trim() : '',
+        bankAccountNumber: form.bankAccountNumber ? form.bankAccountNumber.trim() : '',
         bankIfscCode: form.bankIfscCode ? form.bankIfscCode.toUpperCase().trim() : '',
       };
 
@@ -353,6 +367,16 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
                   />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>Date of Birth (DOB)</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={form.dateOfBirth} 
+                    onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} 
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>PAN Number</label>
                   <input 
                     type="text" 
@@ -377,6 +401,55 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
                   />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>KYC Status</label>
+                  <select 
+                    className="form-select" 
+                    value={form.kycStatus} 
+                    onChange={e => setForm({ ...form, kycStatus: e.target.value })}
+                    style={{ height: 40, borderRadius: 8, fontWeight: 700 }}
+                  >
+                    <option value="Verified">Verified</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>Risk Profile</label>
+                  <select 
+                    className="form-select" 
+                    value={form.riskProfile} 
+                    onChange={e => setForm({ ...form, riskProfile: e.target.value })}
+                    style={{ height: 40, borderRadius: 8, fontWeight: 700 }}
+                  >
+                    <option value="Conservative">Conservative</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Aggressive">Aggressive</option>
+                    <option value="Very Aggressive">Very Aggressive</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>Family Members</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={form.familyMembers} 
+                    onChange={e => setForm({ ...form, familyMembers: e.target.value })} 
+                    placeholder="e.g. 3 Members"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>Address</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={form.address} 
+                    onChange={e => setForm({ ...form, address: e.target.value })} 
+                    placeholder="Street / House address"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>City / Location</label>
                   <input 
                     type="text" 
@@ -384,6 +457,18 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
                     value={form.city} 
                     onChange={e => setForm({ ...form, city: e.target.value })} 
                     placeholder="e.g. Dhanbad"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>Pincode</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={form.pincode} 
+                    onChange={e => setForm({ ...form, pincode: e.target.value })} 
+                    placeholder="e.g. 826001"
+                    maxLength={6}
                     style={{ height: 40, borderRadius: 8 }}
                   />
                 </div>

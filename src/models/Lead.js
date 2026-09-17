@@ -212,6 +212,30 @@ const LeadSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  riskProfile: {
+    type: String,
+    enum: ['Conservative', 'Moderate', 'Aggressive', 'Very Aggressive', ''],
+    default: 'Moderate',
+  },
+  familyMembers: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  kycStatus: {
+    type: String,
+    enum: ['Pending', 'Verified', 'In Progress', 'Rejected', ''],
+    default: 'Pending',
+  },
+  documents: [
+    {
+      name: { type: String, default: '' },
+      url: { type: String, default: '' },
+      fileType: { type: String, default: '' },
+      uploadedAt: { type: Date, default: Date.now },
+      status: { type: String, default: 'Uploaded' }
+    }
+  ],
   customFields: [
     {
       label: { type: String, required: true },

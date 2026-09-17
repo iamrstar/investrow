@@ -1,14 +1,20 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, FileText, UploadCloud, Trash2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
-export default function ClientDocumentsModal({ client, onClose, onUpdate }) {
+export default function ClientDocumentsModal({ client, onClose, onUpdate, defaultDocName = '' }) {
   const { addToast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const [docName, setDocName] = useState('');
+  const [docName, setDocName] = useState(defaultDocName || '');
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (defaultDocName) {
+      setDocName(defaultDocName);
+    }
+  }, [defaultDocName]);
 
   // Combine onboarding files + adhoc docs
   const onboardingDocs = (client.onboardingData || []).filter(d => 
@@ -46,7 +52,7 @@ export default function ClientDocumentsModal({ client, onClose, onUpdate }) {
 
       // Update lead documents array
       const newDoc = {
-        name: docName,
+        name: docName.trim(),
         url: uploadData.url,
         uploadedAt: new Date().toISOString()
       };
@@ -89,7 +95,7 @@ export default function ClientDocumentsModal({ client, onClose, onUpdate }) {
       
       if (!res.ok) throw new Error('Failed to delete document');
       
-      addToast('Document deleted', 'success');
+      addToast('Document removed', 'success');
       if (onUpdate) onUpdate();
     } catch (err) {
       addToast(err.message, 'error');
@@ -97,45 +103,72 @@ export default function ClientDocumentsModal({ client, onClose, onUpdate }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1250 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh', zIndex: 1251, position: 'relative' }}>
         <div className="modal-header">
           <h3 className="modal-title">Documents for {client.name}</h3>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
         
-        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px', background: 'var(--bg-body)' }}>
+        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px 28px', background: 'var(--bg-body)' }}>
           
           {/* Upload Section */}
-          <div style={{ background: 'white', padding: 24, borderRadius: 16, marginBottom: 24, boxShadow: 'var(--shadow-sm)' }}>
-            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 16, color: 'var(--text-primary)' }}>Upload New Document</h4>
-            <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div className="form-group">
-                <label className="form-label">Document Name / Label</label>
+          <div style={{ background: 'white', padding: 20, borderRadius: 16, marginBottom: 20, boxShadow: 'var(--shadow-sm)', border: '1px solid #E2E8F0' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 14, color: '#0F172A' }}>Upload New Document</h4>
+            <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label className="form-label" style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700 }}>Document Label / Type</label>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B' }}>Quick select:</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {['PAN Card', 'Aadhaar Card', 'Cancelled Cheque', 'Bank Statement', 'Passport'].map(lbl => (
+                    <button
+                      key={lbl}
+                      type="button"
+                      onClick={() => setDocName(lbl)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        border: docName === lbl ? '1.5px solid #0EA5E9' : '1px solid #CBD5E1',
+                        background: docName === lbl ? '#F0F9FF' : '#FFFFFF',
+                        color: docName === lbl ? '#0284C7' : '#475569',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
                 <input 
                   className="form-input" 
                   value={docName}
                   onChange={e => setDocName(e.target.value)}
-                  placeholder="e.g. PAN Card, Agreement"
+                  placeholder="e.g. PAN Card, Aadhaar Card, Cancelled Cheque"
                   required
+                  style={{ height: 38, borderRadius: 8 }}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Select File</label>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Select File (PDF, Image, Scan)</label>
                 <input 
                   type="file"
                   className="form-input"
                   ref={fileInputRef}
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
                   required
+                  style={{ height: 40, borderRadius: 8, padding: '6px 10px' }}
                 />
               </div>
               <button 
                 type="submit" 
                 className="btn btn-primary" 
                 disabled={uploading}
-                style={{ alignSelf: 'flex-start' }}
+                style={{ alignSelf: 'flex-start', borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                {uploading ? 'Uploading...' : <><UploadCloud size={18} /> Upload Document</>}
+                {uploading ? 'Uploading...' : <><UploadCloud size={16} /> Upload Document</>}
               </button>
             </form>
           </div>

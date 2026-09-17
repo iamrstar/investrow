@@ -48,6 +48,7 @@ export default function ClientsPage() {
   const [activeMenuClient, setActiveMenuClient] = useState(null);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [documentsClient, setDocumentsClient] = useState(null);
+  const [documentDefaultName, setDocumentDefaultName] = useState('');
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [tasksClient, setTasksClient] = useState(null);
   const [assignRole, setAssignRole] = useState(''); // 'user'
@@ -60,6 +61,29 @@ export default function ClientsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+  const openUploadFor = (docLabel) => {
+    setDocumentDefaultName(docLabel);
+    setDocumentsClient(detailData?.lead || null);
+    setShowDocumentsModal(true);
+  };
+
+  const handleQuickKycChange = async (newKycStatus) => {
+    if (!detailData?.lead?._id) return;
+    try {
+      const res = await fetch(`/api/leads/${detailData.lead._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kycStatus: newKycStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update KYC status');
+      addToast(`KYC status updated to ${newKycStatus}`, 'success');
+      viewDetail(detailData.lead._id);
+      fetchClients(pagination.page);
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
+  };
 
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
@@ -137,6 +161,9 @@ export default function ClientsPage() {
       setShowModal(false);
       setEditingClient(null);
       fetchClients(pagination.page);
+      if (showDetail && (String(showDetail) === String(clientId))) {
+        viewDetail(clientId);
+      }
     } catch (err) {
       addToast(err.message, 'error');
     }
@@ -572,17 +599,6 @@ export default function ClientsPage() {
 
       <Pagination pagination={pagination} onPageChange={fetchClients} />
 
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <ClientFormModal
-          client={editingClient}
-          users={teamUsers}
-          canAssign={canAssign}
-          formSettings={formSettings}
-          onClose={() => { setShowModal(false); setEditingClient(null); }}
-          onSave={handleSaveClient}
-        />
-      )}
 
       {/* Assign Modal */}
       {showAssignModal && assignClient && (
@@ -866,7 +882,7 @@ export default function ClientsPage() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                        {detailData.lead?.name || 'Amit Kumar'}
+                        {detailData.lead?.name || 'Client Details'}
                       </h2>
                       <span style={{ 
                         background: '#ECFDF5', 
@@ -882,14 +898,22 @@ export default function ClientsPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, fontSize: '0.85rem', color: '#64748B', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 700, color: '#0EA5E9' }}>
-                        {detailData.lead?.leadId || 'INV-1001'}
+                        {detailData.lead?.leadId || '—'}
                       </span>
                       <span>•</span>
-                      <span>{detailData.lead?.phone || '98XXXX1234'}</span>
-                      <span>•</span>
-                      <span>{detailData.lead?.email || 'amit@gmail.com'}</span>
-                      <span>•</span>
-                      <span>{detailData.lead?.city || detailData.lead?.location || 'Dhanbad'}</span>
+                      <span>{detailData.lead?.phone || '—'}</span>
+                      {detailData.lead?.email && (
+                        <>
+                          <span>•</span>
+                          <span>{detailData.lead.email}</span>
+                        </>
+                      )}
+                      {(detailData.lead?.city || detailData.lead?.location) && (
+                        <>
+                          <span>•</span>
+                          <span>{detailData.lead.city || detailData.lead.location}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -899,7 +923,6 @@ export default function ClientsPage() {
                     className="btn btn-outline" 
                     onClick={() => {
                       setEditingClient(detailData.lead);
-                      setShowDetail(null);
                       setShowModal(true);
                     }}
                     style={{ 
@@ -912,7 +935,7 @@ export default function ClientsPage() {
                       borderColor: '#0EA5E9'
                     }}
                   >
-                    <Edit size={16} /> Edit
+                    <Edit size={16} /> Edit Client
                   </button>
                   <button className="modal-close" onClick={() => setShowDetail(null)} style={{ padding: 8 }}>
                     <X size={20} />
@@ -965,105 +988,377 @@ export default function ClientsPage() {
               {/* Modal Body with Multi-Tab Content */}
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px 28px', background: '#FFFFFF' }}>
                 
-                {/* TAB 1: OVERVIEW (Panel 7) */}
-                {clientDetailTab === 'overview' && (
-                  <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-                      {/* Personal Details Card */}
-                      <div style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        padding: '20px 24px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                      }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <User size={18} style={{ color: '#0EA5E9' }} />
-                          Personal Details
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 120px) 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>DOB:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.dateOfBirth || '12-05-1988'}</span>
+                {/* TAB 1: OVERVIEW */}
+                {clientDetailTab === 'overview' && (() => {
+                  const allDocs = [
+                    ...(detailData.lead?.onboardingData || []).filter(d => d.value && String(d.value).startsWith('/uploads/')).map(d => ({
+                      name: d.label,
+                      url: d.value
+                    })),
+                    ...(detailData.lead?.documents || []).map(d => ({
+                      name: d.name,
+                      url: d.url
+                    }))
+                  ];
+                  const pDoc = allDocs.find(d => /pan/i.test(d.name));
+                  const aDoc = allDocs.find(d => /aadhaar|adhar/i.test(d.name));
+                  const bDoc = allDocs.find(d => /bank|cheque|mandate/i.test(d.name));
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>PAN:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>{detailData.lead?.panNumber || 'ABCPK1234D'}</span>
+                  return (
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20, alignItems: 'stretch' }}>
+                        
+                        {/* Card 1: Personal & Contact Details */}
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1.5px solid #E2E8F0', 
+                          borderRadius: 18, 
+                          padding: '22px 24px',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <User size={18} />
+                              </div>
+                              <div>
+                                <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                                  Personal Details
+                                </h4>
+                                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>Identity & Contact</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setEditingClient(detailData.lead);
+                                setShowModal(true);
+                              }}
+                              style={{ color: '#0EA5E9', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '4px 10px', fontSize: '0.74rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                          </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Address:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.address || 'Dhanbad, Jharkhand'}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: '0.86rem', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>DOB</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {detailData.lead?.dateOfBirth ? (detailData.lead.dateOfBirth.includes('T') ? detailData.lead.dateOfBirth.split('T')[0] : detailData.lead.dateOfBirth) : '—'}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>City / Pincode:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 500 }}>{detailData.lead?.city || 'Dhanbad'} - {detailData.lead?.pincode || '826001'}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>PAN Number</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ color: '#0F172A', fontWeight: 800, letterSpacing: '0.04em' }}>
+                                  {detailData.lead?.panNumber || '—'}
+                                </span>
+                                {pDoc ? (
+                                  <a href={pDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                                    ✓ Doc
+                                  </a>
+                                ) : (
+                                  <button onClick={() => openUploadFor('PAN Card')} style={{ fontSize: '0.7rem', color: '#0284C7', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                                    + Upload
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Aadhaar Number</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ color: '#0F172A', fontWeight: 800 }}>
+                                  {detailData.lead?.aadhaarNumber ? `•••• ${detailData.lead.aadhaarNumber.slice(-4)}` : '—'}
+                                </span>
+                                {aDoc ? (
+                                  <a href={aDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                                    ✓ Doc
+                                  </a>
+                                ) : (
+                                  <button onClick={() => openUploadFor('Aadhaar Card')} style={{ fontSize: '0.7rem', color: '#0284C7', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                                    + Upload
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Phone</span>
+                              <a href={`tel:${detailData.lead?.phone}`} style={{ color: '#0EA5E9', fontWeight: 700, textDecoration: 'none' }}>
+                                {detailData.lead?.phone || '—'}
+                              </a>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>WhatsApp</span>
+                              <a href={`https://wa.me/91${(detailData.lead?.whatsappNumber || detailData.lead?.phone || '').replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#10B981', fontWeight: 700, textDecoration: 'none' }}>
+                                {detailData.lead?.whatsappNumber || detailData.lead?.phone || '—'}
+                              </a>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Email</span>
+                              <a href={`mailto:${detailData.lead?.email}`} style={{ color: '#6366F1', fontWeight: 600, textDecoration: 'none', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detailData.lead?.email}>
+                                {detailData.lead?.email || '—'}
+                              </a>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Address</span>
+                              <span style={{ color: '#0F172A', fontWeight: 600, textAlign: 'right', maxWidth: 180, fontSize: '0.82rem' }}>
+                                {detailData.lead?.address || '—'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>City & Pincode</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {[detailData.lead?.city || detailData.lead?.location, detailData.lead?.pincode].filter(Boolean).join(' - ') || '—'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Advisory & Account Profile */}
-                      <div style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        padding: '20px 24px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                      }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Shield size={18} style={{ color: '#F97316' }} />
-                          Financial Advisory Profile
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 150px) 1fr', gap: '12px 8px', fontSize: '0.875rem' }}>
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Relationship Manager:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 700 }}>{detailData.lead?.assignedTo?.name || 'Rahul Kumar'}</span>
+                        {/* Card 2: Financial Advisory Profile */}
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1.5px solid #E2E8F0', 
+                          borderRadius: 18, 
+                          padding: '22px 24px',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#FFEDD5', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Shield size={18} />
+                              </div>
+                              <div>
+                                <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                                  Advisory Profile
+                                </h4>
+                                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>Advisor, KYC & Risk</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setEditingClient(detailData.lead);
+                                setShowModal(true);
+                              }}
+                              style={{ color: '#EA580C', border: '1px solid #FFEDD5', background: '#FFF7ED', borderRadius: 8, padding: '4px 10px', fontSize: '0.74rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                          </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Client Since:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 500 }}>
-                            {new Date(detailData.lead?.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: '0.86rem', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Advisor / RM</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {detailData.lead?.assignedTo?.name || 'Birendra Kumar'}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Risk Profile:</span>
-                          <span style={{ 
-                            display: 'inline-block', 
-                            padding: '2px 8px', 
-                            borderRadius: 6, 
-                            background: '#FFF7ED', 
-                            color: '#EA580C', 
-                            fontWeight: 700, 
-                            fontSize: '0.8rem',
-                            width: 'fit-content'
-                          }}>
-                            Moderate
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Client Since</span>
+                              <span style={{ color: '#0F172A', fontWeight: 600 }}>
+                                {new Date(detailData.lead?.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Family Members:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 600 }}>3 Members</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>KYC Status</span>
+                              <span style={{ 
+                                padding: '2px 8px', 
+                                borderRadius: 6, 
+                                background: detailData.lead?.kycStatus === 'Verified' ? '#DCFCE7' : '#FEF3C7', 
+                                color: detailData.lead?.kycStatus === 'Verified' ? '#15803D' : '#B45309', 
+                                fontWeight: 800, 
+                                fontSize: '0.76rem' 
+                              }}>
+                                {detailData.lead?.kycStatus || (detailData.lead?.panNumber ? 'Verified' : 'Pending')}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Investment Type:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 700 }}>
-                            {detailData.lead?.investmentType || (detailData.lead?.sipAmount ? 'Monthly SIP' : 'Lumpsum')}
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Risk Profile</span>
+                              <span style={{ 
+                                padding: '2px 8px', 
+                                borderRadius: 6, 
+                                background: '#FFF7ED', 
+                                color: '#EA580C', 
+                                fontWeight: 800, 
+                                fontSize: '0.76rem' 
+                              }}>
+                                {detailData.lead?.riskProfile || 'Moderate'}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Monthly SIP Book:</span>
-                          <span style={{ color: '#0EA5E9', fontWeight: 800 }}>
-                            ₹ {detailData.lead?.sipAmount ? Number(detailData.lead.sipAmount).toLocaleString('en-IN') : '0'}
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Family Members</span>
+                              <span style={{ color: '#0F172A', fontWeight: 600 }}>
+                                {detailData.lead?.familyMembers ? `${detailData.lead.familyMembers} Members` : '—'}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>SIP Debit Day:</span>
-                          <span style={{ color: '#6366F1', fontWeight: 700 }}>
-                            {detailData.lead?.sipDay ? `${detailData.lead.sipDay}th of each month` : 'Not specified'}
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Primary Service</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {detailData.lead?.service || 'Mutual Funds'}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Total Portfolio AUM:</span>
-                          <span style={{ color: '#059669', fontWeight: 800 }}>
-                            ₹ {detailData.lead?.investmentAmount ? Number(detailData.lead.investmentAmount).toLocaleString('en-IN') : '0'}
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Investment Plan</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {detailData.lead?.investmentType || (detailData.lead?.sipAmount ? 'Monthly SIP' : 'Lumpsum')}
+                              </span>
+                            </div>
 
-                          <span style={{ color: '#64748B', fontWeight: 600 }}>Scheme / Fund:</span>
-                          <span style={{ color: '#0F172A', fontWeight: 600 }}>
-                            {detailData.lead?.schemeName || detailData.lead?.service || '—'}
-                          </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Monthly SIP Book</span>
+                              <span style={{ color: '#0284C7', fontWeight: 800 }}>
+                                ₹ {(detailData.lead?.sipAmount || 0).toLocaleString('en-IN')}/mo
+                                {detailData.lead?.sipDay ? ` (Day ${detailData.lead.sipDay})` : ''}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Card 3: Bank Account & Compliance Vault */}
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1.5px solid #E2E8F0', 
+                          borderRadius: 18, 
+                          padding: '22px 24px',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <TrendingUp size={18} />
+                              </div>
+                              <div>
+                                <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                                  Bank & Compliance
+                                </h4>
+                                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>Mandate & Document Vault</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setEditingClient(detailData.lead);
+                                setShowModal(true);
+                              }}
+                              style={{ color: '#15803D', border: '1px solid #BBF7D0', background: '#F0FDF4', borderRadius: 8, padding: '4px 10px', fontSize: '0.74rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Edit size={12} /> Link / Edit
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: '0.86rem', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Bank Name</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                {detailData.lead?.bankName || 'Not Linked'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Account No</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                {detailData.lead?.bankAccountNumber ? `•••• •••• ${detailData.lead.bankAccountNumber.slice(-4)}` : '—'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>IFSC Code</span>
+                              <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                {detailData.lead?.bankIfscCode || '—'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>ECS / NACH</span>
+                              <span style={{ 
+                                padding: '2px 8px', 
+                                borderRadius: 6, 
+                                background: detailData.lead?.bankAccountNumber ? '#DCFCE7' : '#FEF3C7', 
+                                color: detailData.lead?.bankAccountNumber ? '#15803D' : '#B45309', 
+                                fontWeight: 800, 
+                                fontSize: '0.76rem' 
+                              }}>
+                                {detailData.lead?.bankAccountNumber ? 'Active Mandate' : 'Pending Setup'}
+                              </span>
+                            </div>
+
+                            {/* Vault & Proofs Subsection */}
+                            <div style={{ marginTop: 4, padding: '10px 12px', background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#475569', letterSpacing: '0.05em', marginBottom: 8, textTransform: 'uppercase' }}>
+                                Document Proofs & Actions
+                              </div>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>Cancelled Cheque</span>
+                                  {bDoc ? (
+                                    <a href={bDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 8px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                                      ✓ View Proof
+                                    </a>
+                                  ) : (
+                                    <button onClick={() => openUploadFor('Cancelled Cheque / Bank Mandate')} style={{ fontSize: '0.72rem', color: '#15803D', background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                                      + Upload Cheque
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>PAN Card Proof</span>
+                                  {pDoc ? (
+                                    <a href={pDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 8px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                                      ✓ View Proof
+                                    </a>
+                                  ) : (
+                                    <button onClick={() => openUploadFor('PAN Card')} style={{ fontSize: '0.72rem', color: '#0284C7', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                                      + Upload PAN
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>Aadhaar Proof</span>
+                                  {aDoc ? (
+                                    <a href={aDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 8px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                                      ✓ View Proof
+                                    </a>
+                                  ) : (
+                                    <button onClick={() => openUploadFor('Aadhaar Card')} style={{ fontSize: '0.72rem', color: '#0284C7', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                                      + Upload Aadhaar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+
                       </div>
-                    </div>
 
                     {/* All Configured Investment Schemes & Policies */}
-                    {detailData.lead?.schemes && detailData.lead.schemes.length > 0 && (
+                    {detailData.lead?.schemes && detailData.lead.schemes.length > 0 ? (
                       <div style={{ 
                         marginTop: 20, 
                         background: '#F0FDF4', 
@@ -1117,6 +1412,17 @@ export default function ClientsPage() {
                           ))}
                         </div>
                       </div>
+                    ) : (
+                      <div style={{ marginTop: 20, background: '#F8FAFC', border: '1.5px dashed #CBD5E1', borderRadius: 16, padding: '20px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#64748B', marginBottom: 4 }}>No investment schemes configured yet</div>
+                        <button 
+                          className="btn btn-outline btn-sm" 
+                          onClick={() => { setEditingClient(detailData.lead); setShowModal(true); }}
+                          style={{ marginTop: 8, color: '#0EA5E9', borderColor: '#BAE6FD' }}
+                        >
+                          + Configure Schemes / Products
+                        </button>
+                      </div>
                     )}
 
                     {/* Additional Custom Fields if any */}
@@ -1134,417 +1440,717 @@ export default function ClientsPage() {
                       </div>
                     )}
                   </div>
-                )}
+                );
+              })()}
 
-                {/* TAB 2: KYC & DOCUMENTS (Panel 8) */}
-                {clientDetailTab === 'kyc' && (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#0EA5E9', color: '#FFFFFF', fontSize: '0.8rem', fontWeight: 700 }}>
-                          KYC Details
-                        </span>
-                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
-                          Documents
-                        </span>
-                        <span style={{ padding: '6px 14px', borderRadius: 20, background: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
-                          Verification
-                        </span>
-                      </div>
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => {
-                          setDocumentsClient(detailData.lead);
-                          setShowDocumentsModal(true);
-                        }}
-                        style={{ color: '#0EA5E9', borderColor: '#BAE6FD', background: '#F0F9FF', borderRadius: 8 }}
-                      >
-                        <Upload size={14} /> Upload New Document
-                      </button>
-                    </div>
+                {/* TAB 2: KYC & DOCUMENTS */}
+                {clientDetailTab === 'kyc' && (() => {
+                  const onboardingDocs = (detailData.lead?.onboardingData || []).filter(d => 
+                    d.value && String(d.value).startsWith('/uploads/')
+                  ).map(d => ({
+                    name: d.label,
+                    url: d.value,
+                    uploadedAt: detailData.lead?.createdAt,
+                    source: 'Onboarding Upload'
+                  }));
+                  const adhocDocs = (detailData.lead?.documents || []).map(d => ({
+                    name: d.name,
+                    url: d.url,
+                    uploadedAt: d.uploadedAt,
+                    source: 'Manual Upload'
+                  }));
+                  const clientDocs = [...onboardingDocs, ...adhocDocs];
+                  const panDoc = clientDocs.find(d => /pan/i.test(d.name));
+                  const aadhaarDoc = clientDocs.find(d => /aadhaar|adhar/i.test(d.name));
+                  const bankDoc = clientDocs.find(d => /bank|cheque|mandate/i.test(d.name));
 
-                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                        <thead>
-                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
-                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Document Name</th>
-                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Status</th>
-                            <th style={{ padding: '12px 20px', fontWeight: 700 }}>Upload</th>
-                            <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'right' }}>View</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[
-                            { name: 'PAN Card', status: 'Uploaded', uploaded: true },
-                            { name: 'Aadhaar Card', status: 'Uploaded', uploaded: true },
-                            { name: 'Address Proof', status: 'Uploaded', uploaded: true },
-                            { name: 'Bank Statement', status: 'Uploaded', uploaded: true },
-                            { name: 'Cancelled Cheque', status: 'Uploaded', uploaded: true },
-                            { name: 'FATCA / Declaration', status: 'Pending', uploaded: false },
-                          ].map((doc, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                              <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0F172A' }}>
-                                {doc.name}
-                              </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  padding: '3px 10px',
-                                  borderRadius: 12,
-                                  fontSize: '0.78rem',
-                                  fontWeight: 700,
-                                  background: doc.uploaded ? '#ECFDF5' : '#FFF7ED',
-                                  color: doc.uploaded ? '#059669' : '#EA580C',
-                                  border: `1px solid ${doc.uploaded ? '#A7F3D0' : '#FED7AA'}`
-                                }}>
-                                  {doc.uploaded ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
-                                  {doc.status}
+                  return (
+                    <div>
+                      {/* Top KYC Verification Status Strip */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16, marginBottom: 24 }}>
+                        
+                        {/* 1. KYC VERIFICATION */}
+                        <div style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 16, padding: '16px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                              KYC Verification Status
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                              <span style={{
+                                padding: '3px 10px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 800,
+                                background: detailData.lead?.kycStatus === 'Verified' ? '#DCFCE7' : detailData.lead?.kycStatus === 'In Progress' ? '#DBEAFE' : '#FEF3C7',
+                                color: detailData.lead?.kycStatus === 'Verified' ? '#15803D' : detailData.lead?.kycStatus === 'In Progress' ? '#1D4ED8' : '#B45309',
+                              }}>
+                                {detailData.lead?.kycStatus || (detailData.lead?.panNumber ? 'Verified' : 'Pending')}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                            <label style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 700, display: 'block', marginBottom: 4 }}>Quick Change Status:</label>
+                            <select
+                              value={detailData.lead?.kycStatus || 'Pending'}
+                              onChange={(e) => handleQuickKycChange(e.target.value)}
+                              className="form-select"
+                              style={{ height: 32, fontSize: '0.78rem', borderRadius: 6, padding: '2px 8px' }}
+                            >
+                              <option value="Verified">Verified (Compliant)</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Rejected">Rejected</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* 2. PAN STATUS */}
+                        <div style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 16, padding: '16px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                PAN Card Status
+                              </div>
+                              {panDoc && (
+                                <a href={panDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textDecoration: 'none' }}>
+                                  ✓ View File
+                                </a>
+                              )}
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              {detailData.lead?.panNumber ? (
+                                <div style={{ fontWeight: 900, color: '#0F172A', fontSize: '1rem', letterSpacing: '0.05em' }}>
+                                  {detailData.lead.panNumber}
+                                </div>
+                              ) : (
+                                <span style={{ color: '#EA580C', fontSize: '0.82rem', fontWeight: 800, background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>
+                                  Pending Upload
                                 </span>
-                              </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <button 
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => {
-                                    setDocumentsClient(detailData.lead);
-                                    setShowDocumentsModal(true);
-                                  }}
-                                  style={{ padding: '4px 10px', borderRadius: 8, fontSize: '0.75rem', color: '#0EA5E9' }}
-                                >
-                                  Upload
-                                </button>
-                              </td>
-                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                                <button 
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => addToast(`Viewing verified ${doc.name}`, 'info')}
-                                  style={{ color: '#64748B', padding: 6 }}
-                                  title="View Document"
-                                >
-                                  <Eye size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                              )}
+                            </div>
+                          </div>
 
-                {/* TAB 3: MUTUAL FUND / INVESTMENT (Panel 9) */}
-                {clientDetailTab === 'investments' && (
-                  <div>
-                    {/* Sub-Tabs & Add Action */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {['Portfolio', 'SIP', 'Transactions', 'Goal Planning'].map(st => {
-                          const isSel = mfTab.toLowerCase() === st.toLowerCase();
-                          return (
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
                             <button
-                              key={st}
-                              onClick={() => setMfTab(st.toLowerCase())}
+                              type="button"
+                              onClick={() => openUploadFor('PAN Card')}
+                              className="btn btn-outline btn-sm"
+                              style={{ width: '100%', borderRadius: 8, fontSize: '0.76rem', fontWeight: 700, borderColor: '#BAE6FD', color: '#0284C7', background: '#F0F9FF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px' }}
+                            >
+                              <Upload size={13} /> {panDoc ? 'Re-upload PAN Card' : '+ Upload PAN Card'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3. AADHAAR STATUS */}
+                        <div style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 16, padding: '16px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                Aadhaar Status
+                              </div>
+                              {aadhaarDoc && (
+                                <a href={aadhaarDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textDecoration: 'none' }}>
+                                  ✓ View File
+                                </a>
+                              )}
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              {detailData.lead?.aadhaarNumber ? (
+                                <div style={{ fontWeight: 900, color: '#0F172A', fontSize: '1rem', letterSpacing: '0.05em' }}>
+                                  •••• •••• {detailData.lead.aadhaarNumber.slice(-4)}
+                                </div>
+                              ) : (
+                                <span style={{ color: '#EA580C', fontSize: '0.82rem', fontWeight: 800, background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>
+                                  Pending Upload
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                            <button
+                              type="button"
+                              onClick={() => openUploadFor('Aadhaar Card')}
+                              className="btn btn-outline btn-sm"
+                              style={{ width: '100%', borderRadius: 8, fontSize: '0.76rem', fontWeight: 700, borderColor: '#BAE6FD', color: '#0284C7', background: '#F0F9FF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px' }}
+                            >
+                              <Upload size={13} /> {aadhaarDoc ? 'Re-upload Aadhaar' : '+ Upload Aadhaar Card'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 4. BANK MANDATE */}
+                        <div style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 16, padding: '16px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                Bank Mandate
+                              </div>
+                              {bankDoc && (
+                                <a href={bankDoc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: '#059669', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textDecoration: 'none' }}>
+                                  ✓ View File
+                                </a>
+                              )}
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              {detailData.lead?.bankAccountNumber ? (
+                                <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.92rem' }}>
+                                  {detailData.lead.bankName || 'Bank'} (•••• {detailData.lead.bankAccountNumber.slice(-4)})
+                                </div>
+                              ) : (
+                                <span style={{ color: '#EA580C', fontSize: '0.82rem', fontWeight: 800, background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>
+                                  Not Linked
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                            <button
+                              type="button"
+                              onClick={() => openUploadFor('Cancelled Cheque / Bank Mandate')}
+                              className="btn btn-outline btn-sm"
+                              style={{ width: '100%', borderRadius: 8, fontSize: '0.76rem', fontWeight: 700, borderColor: '#BBF7D0', color: '#15803D', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px' }}
+                            >
+                              <Upload size={13} /> {bankDoc ? 'Re-upload Cheque' : '+ Upload Cheque / Mandate'}
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
+                          Uploaded Client Documents ({clientDocs.length})
+                        </h4>
+                        <button 
+                          className="btn btn-primary btn-sm" 
+                          onClick={() => {
+                            setDocumentsClient(detailData.lead);
+                            setShowDocumentsModal(true);
+                          }}
+                          style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <Upload size={14} /> Upload New Document
+                        </button>
+                      </div>
+
+                      {clientDocs.length > 0 ? (
+                        <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <thead>
+                              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                                <th style={{ padding: '12px 20px', fontWeight: 700 }}>Document Name</th>
+                                <th style={{ padding: '12px 20px', fontWeight: 700 }}>Source</th>
+                                <th style={{ padding: '12px 20px', fontWeight: 700 }}>Uploaded Date</th>
+                                <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'right' }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {clientDocs.map((doc, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                  <td style={{ padding: '14px 20px', fontWeight: 700, color: '#0F172A' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <FileText size={16} style={{ color: '#0EA5E9' }} />
+                                      {doc.name}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '14px 20px' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F1F5F9', color: '#475569' }}>
+                                      {doc.source}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '0.825rem' }}>
+                                    {new Date(doc.uploadedAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </td>
+                                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                    <a 
+                                      href={doc.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="btn btn-outline btn-sm"
+                                      style={{ padding: '4px 10px', borderRadius: 8, fontSize: '0.75rem', color: '#0EA5E9', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                    >
+                                      <Eye size={13} /> View
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '36px 20px', background: '#F8FAFC', borderRadius: 16, border: '1.5px dashed #CBD5E1' }}>
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <FileText size={22} />
+                          </div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>No Documents Uploaded</div>
+                          <p style={{ fontSize: '0.825rem', color: '#64748B', maxWidth: 420, margin: '0 auto 16px' }}>
+                            Upload PAN Card, Aadhaar Card, Cancelled Cheque, or signed policy forms for this client.
+                          </p>
+                          <button 
+                            className="btn btn-outline btn-sm" 
+                            onClick={() => {
+                              setDocumentsClient(detailData.lead);
+                              setShowDocumentsModal(true);
+                            }}
+                            style={{ borderRadius: 8, color: '#0EA5E9', borderColor: '#0EA5E9' }}
+                          >
+                            <Upload size={14} /> Upload First Document
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* TAB 3: MUTUAL FUND / INVESTMENT */}
+                {clientDetailTab === 'investments' && (() => {
+                  const schemesList = detailData.lead?.schemes || [];
+                  const dynSip = schemesList.reduce((acc, s) => {
+                    if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+                      return acc + (Number(s.sipAmount) || 0);
+                    }
+                    return acc;
+                  }, 0) || Number(detailData.lead?.sipAmount) || 0;
+
+                  const dynLumpsum = schemesList.reduce((acc, s) => {
+                    if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+                      return acc + (Number(s.investmentAmount) || 0);
+                    }
+                    return acc;
+                  }, 0) || Number(detailData.lead?.investmentAmount) || 0;
+
+                  const dynAnnual = dynLumpsum + (dynSip * 12);
+                  const activeSipCount = schemesList.filter(s => (s.sipAmount || 0) > 0).length || (dynSip > 0 ? 1 : 0);
+                  const activeLumpCount = schemesList.filter(s => (s.investmentAmount || 0) > 0).length || (dynLumpsum > 0 ? 1 : 0);
+
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Portfolio & Investment Mandates</h4>
+                        <button 
+                          className="btn btn-primary btn-sm" 
+                          onClick={() => {
+                            setEditingClient(detailData.lead);
+                            setShowModal(true);
+                          }}
+                          style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, background: '#0EA5E9' }}
+                        >
+                          <Plus size={14} /> Add / Edit Schemes
+                        </button>
+                      </div>
+
+                      {/* 3 Summary Dynamic KPI Cards */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1px solid #E2E8F0', 
+                          borderRadius: 16, 
+                          padding: '16px 20px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                        }}>
+                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Monthly SIP Book
+                          </div>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0284C7', marginTop: 4 }}>
+                            ₹ {dynSip.toLocaleString('en-IN')}<span style={{ fontSize: '0.8rem', fontWeight: 600 }}>/mo</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700, marginTop: 4 }}>
+                            {activeSipCount} Active SIP Mandate{activeSipCount !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1px solid #E2E8F0', 
+                          borderRadius: 16, 
+                          padding: '16px 20px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                        }}>
+                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Lumpsum Portfolio
+                          </div>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#D97706', marginTop: 4 }}>
+                            ₹ {dynLumpsum.toLocaleString('en-IN')}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
+                            {activeLumpCount} One-time Investment{activeLumpCount !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1px solid #E2E8F0', 
+                          borderRadius: 16, 
+                          padding: '16px 20px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                        }}>
+                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Annual Committed Value
+                          </div>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#059669', marginTop: 4 }}>
+                            ₹ {dynAnnual.toLocaleString('en-IN')}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
+                            Annual SIP + Lumpsum
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Real Configured Schemes Table */}
+                      {schemesList.length > 0 ? (
+                        <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                            <thead>
+                              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>ID</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Scheme / Plan Name</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Category</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Type</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>SIP Amount & Date</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Lumpsum</th>
+                                <th style={{ padding: '12px 18px', fontWeight: 700, textAlign: 'right' }}>Tenure / Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {schemesList.map((item, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                  <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>
+                                    {`SCH-${String(idx + 1).padStart(3, '0')}`}
+                                  </td>
+                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>
+                                    {item.schemeName || item.service || 'Standard Plan'}
+                                  </td>
+                                  <td style={{ padding: '14px 18px' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#E0F2FE', color: '#0284C7', padding: '3px 8px', borderRadius: 6 }}>
+                                      {item.service || 'Mutual Funds'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '14px 18px', fontWeight: 600, color: '#475569' }}>
+                                    {item.investmentType}
+                                  </td>
+                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0369A1' }}>
+                                    {item.sipAmount > 0 ? (
+                                      <div>
+                                        ₹{Number(item.sipAmount).toLocaleString('en-IN')}/mo
+                                        <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 500 }}>Debit: {item.sipDay || 10}th of month</div>
+                                      </div>
+                                    ) : '—'}
+                                  </td>
+                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#D97706' }}>
+                                    {item.investmentAmount > 0 ? `₹${Number(item.investmentAmount).toLocaleString('en-IN')}` : '—'}
+                                  </td>
+                                  <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: 6 }}>
+                                      {item.tenureYears ? `${item.tenureYears} Yrs • Active` : 'Active'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '40px 20px', background: '#F8FAFC', borderRadius: 16, border: '1.5px dashed #CBD5E1' }}>
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <IndianRupee size={22} />
+                          </div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>No Schemes Configured</div>
+                          <p style={{ fontSize: '0.825rem', color: '#64748B', maxWidth: 420, margin: '0 auto 16px' }}>
+                            Configure active SIPs, mutual funds, or insurance policies for this client to track real portfolio metrics.
+                          </p>
+                          <button 
+                            className="btn btn-outline btn-sm" 
+                            onClick={() => {
+                              setEditingClient(detailData.lead);
+                              setShowModal(true);
+                            }}
+                            style={{ borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}
+                          >
+                            <Plus size={14} /> Add First Scheme
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* TAB 4: OTHER SERVICES */}
+                {clientDetailTab === 'services' && (() => {
+                  const schemesList = detailData.lead?.schemes || [];
+                  const clientServices = Array.from(new Set([
+                    detailData.lead?.service,
+                    ...schemesList.map(s => s.service)
+                  ].filter(Boolean)));
+
+                  return (
+                    <div>
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Service Portfolio & Offerings</h4>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748B' }}>
+                          Active client products and additional investment avenues available for cross-selling.
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                        {SERVICES.map(srv => {
+                          const isActive = clientServices.includes(srv);
+                          const matchedSchemes = schemesList.filter(s => s.service === srv);
+                          return (
+                            <div 
+                              key={srv}
                               style={{
-                                padding: '6px 14px',
+                                background: '#FFFFFF',
+                                border: `1.5px solid ${isActive ? '#86EFAC' : '#E2E8F0'}`,
                                 borderRadius: 16,
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                border: isSel ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
-                                background: isSel ? '#0EA5E9' : '#FFFFFF',
-                                color: isSel ? '#FFFFFF' : '#475569',
-                                cursor: 'pointer'
+                                padding: '20px',
+                                boxShadow: isActive ? '0 2px 8px rgba(16, 185, 129, 0.08)' : '0 1px 3px rgba(0,0,0,0.02)',
+                                position: 'relative'
                               }}
                             >
-                              {st}
-                            </button>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                                <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0F172A' }}>{srv}</h5>
+                                <span style={{
+                                  padding: '2px 8px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 800,
+                                  background: isActive ? '#DCFCE7' : '#F1F5F9',
+                                  color: isActive ? '#15803D' : '#64748B',
+                                  border: `1px solid ${isActive ? '#A7F3D0' : '#E2E8F0'}`
+                                }}>
+                                  {isActive ? 'ACTIVE' : 'AVAILABLE'}
+                                </span>
+                              </div>
+
+                              <p style={{ fontSize: '0.78rem', color: '#64748B', margin: '0 0 14px' }}>
+                                {isActive 
+                                  ? `${matchedSchemes.length || 1} product/policy active in client's portfolio.`
+                                  : `Explore ${srv} options and advisory for client.`}
+                              </p>
+
+                              <button 
+                                className="btn btn-outline btn-sm"
+                                onClick={() => {
+                                  setEditingClient(detailData.lead);
+                                  setShowModal(true);
+                                }}
+                                style={{ 
+                                  width: '100%', 
+                                  borderRadius: 8, 
+                                  fontSize: '0.78rem',
+                                  color: isActive ? '#059669' : '#0EA5E9',
+                                  borderColor: isActive ? '#A7F3D0' : '#BAE6FD',
+                                  background: isActive ? '#F0FDF4' : '#F0F9FF'
+                                }}
+                              >
+                                {isActive ? 'Manage Schemes' : `+ Add ${srv}`}
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
-
-                      <button 
-                        className="btn btn-primary btn-sm" 
-                        onClick={() => addToast('Add Investment modal ready', 'info')}
-                        style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, background: '#0EA5E9' }}
-                      >
-                        <Plus size={14} /> Add Investment
-                      </button>
                     </div>
-
-                    {/* 3 Summary KPI Cards (Panel 9) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20 }}>
-                      <div style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        padding: '16px 20px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
-                      }}>
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                          Total Investment
-                        </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', marginTop: 4 }}>
-                          ₹ 4,50,000
-                        </div>
-                      </div>
-
-                      <div style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        padding: '16px 20px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
-                      }}>
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                          Current Value
-                        </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0EA5E9', marginTop: 4 }}>
-                          ₹ 5,90,000
-                        </div>
-                      </div>
-
-                      <div style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        padding: '16px 20px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
-                      }}>
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                          Gain / Loss
-                        </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          +31.1%
-                          <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600 }}>(+₹ 1,40,000)</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Portfolio Holdings Table */}
-                    <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
-                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Folio No</th>
-                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Scheme Name</th>
-                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Type</th>
-                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Investment</th>
-                            <th style={{ padding: '12px 18px', fontWeight: 700 }}>Current Value</th>
-                            <th style={{ padding: '12px 18px', fontWeight: 700, textAlign: 'right' }}>Gain/Loss</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(detailData.lead?.schemes && detailData.lead.schemes.length > 0) ? (
-                            detailData.lead.schemes.map((item, idx) => (
-                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{`SCH-${String(idx + 1).padStart(3, '0')}`}</td>
-                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>
-                                  {item.schemeName || item.service}
-                                  {item.tenureYears && (
-                                    <span style={{ marginLeft: 8, fontSize: '0.7rem', color: '#059669', fontWeight: 800, background: '#ECFDF5', padding: '1px 6px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
-                                      {item.tenureYears} Yrs
-                                    </span>
-                                  )}
-                                </td>
-                                <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.service} ({item.investmentType})</span></td>
-                                <td style={{ padding: '14px 18px', fontWeight: 600 }}>
-                                  {item.sipAmount > 0 ? `SIP ₹ ${Number(item.sipAmount).toLocaleString('en-IN')}/mo (Day ${item.sipDay || 10})` : `Lumpsum ₹ ${Number(item.investmentAmount || 0).toLocaleString('en-IN')}`}
-                                </td>
-                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>
-                                  {item.investmentAmount > 0 ? `₹ ${Number(item.investmentAmount).toLocaleString('en-IN')}` : `₹ ${(Number(item.sipAmount || 0) * 12).toLocaleString('en-IN')}/yr`}
-                                </td>
-                                <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>
-                                  Active Mandate
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            [
-                              { folio: '123456/78', scheme: 'SBI Bluechip Fund', type: 'Equity Large Cap', inv: '₹ 2,00,000', curr: '₹ 2,65,000', gain: '+32.5%' },
-                              { folio: '876543/21', scheme: 'HDFC Flexi Cap Fund', type: 'Equity Flexi Cap', inv: '₹ 1,50,000', curr: '₹ 1,80,000', gain: '+20.0%' },
-                              { folio: '987654/32', scheme: 'Axis Midcap Fund', type: 'Equity Mid Cap', inv: '₹ 1,00,000', curr: '₹ 1,45,000', gain: '+45.0%' },
-                            ].map((item, idx) => (
-                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{item.folio}</td>
-                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.scheme}</td>
-                                <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.type}</span></td>
-                                <td style={{ padding: '14px 18px', fontWeight: 600 }}>{item.inv}</td>
-                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>{item.curr}</td>
-                                <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>{item.gain}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 4: OTHER SERVICES (Panel 10) */}
-                {clientDetailTab === 'services' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-                    {/* Insurance Card */}
-                    <div style={{ 
-                      background: '#FFFFFF', 
-                      border: '1px solid #E2E8F0', 
-                      borderRadius: 16, 
-                      padding: 24, 
-                      textAlign: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <Shield size={24} />
-                      </div>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Insurance</h4>
-                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track policies, renewals and premiums.</p>
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => addToast('Opening Add Policy form...', 'info')}
-                        style={{ width: '100%', borderRadius: 8, color: '#0EA5E9', borderColor: '#0EA5E9' }}
-                      >
-                        + Add Policy
-                      </button>
-                    </div>
-
-                    {/* Bonds Card */}
-                    <div style={{ 
-                      background: '#FFFFFF', 
-                      border: '1px solid #E2E8F0', 
-                      borderRadius: 16, 
-                      padding: 24, 
-                      textAlign: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FFF7ED', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <TrendingUp size={24} />
-                      </div>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Bonds</h4>
-                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Government & Corporate Bonds.</p>
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => addToast('Opening Add Bond form...', 'info')}
-                        style={{ width: '100%', borderRadius: 8, color: '#EA580C', borderColor: '#EA580C' }}
-                      >
-                        + Add Investment
-                      </button>
-                    </div>
-
-                    {/* Demat / Trading Card */}
-                    <div style={{ 
-                      background: '#FFFFFF', 
-                      border: '1px solid #E2E8F0', 
-                      borderRadius: 16, 
-                      padding: 24, 
-                      textAlign: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <ArrowUpRight size={24} />
-                      </div>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Demat / Trading</h4>
-                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>Track trading accounts & portfolio.</p>
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => addToast('Opening Add Demat form...', 'info')}
-                        style={{ width: '100%', borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}
-                      >
-                        + Add Account
-                      </button>
-                    </div>
-
-                    {/* Tax Services Card */}
-                    <div style={{ 
-                      background: '#FFFFFF', 
-                      border: '1px solid #E2E8F0', 
-                      borderRadius: 16, 
-                      padding: 24, 
-                      textAlign: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <FileText size={24} />
-                      </div>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>Tax Services</h4>
-                      <p style={{ fontSize: '0.825rem', color: '#64748B', margin: '0 0 16px' }}>ITR, GST, and tax advisory services.</p>
-                      <button 
-                        className="btn btn-outline btn-sm" 
-                        onClick={() => addToast('Opening Tax Filing form...', 'info')}
-                        style={{ width: '100%', borderRadius: 8, color: '#4F46E5', borderColor: '#4F46E5' }}
-                      >
-                        + Add Service
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* TAB 5: TASKS */}
                 {clientDetailTab === 'tasks' && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Client Tasks</h4>
+                      <div>
+                        <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Client Tasks & Follow-ups</h4>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+                          Real scheduled tasks and reminders linked to this client
+                        </p>
+                      </div>
                       <button 
                         className="btn btn-primary btn-sm" 
                         onClick={() => {
                           setTasksClient(detailData.lead);
                           setShowTasksModal(true);
                         }}
-                        style={{ borderRadius: 8 }}
+                        style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
                       >
                         <Plus size={14} /> Add Task
                       </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <input type="checkbox" style={{ width: 16, height: 16 }} />
-                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Annual Portfolio Review with Amit Kumar</span>
-                        </div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EA580C', background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>Due Today</span>
+
+                    {detailData.tasks && detailData.tasks.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {detailData.tasks.map(task => {
+                          const isDone = task.status === 'Completed';
+                          return (
+                            <div 
+                              key={task._id} 
+                              style={{ 
+                                padding: '14px 18px', 
+                                background: isDone ? '#F8FAFC' : '#FFFFFF', 
+                                borderRadius: 14, 
+                                border: `1px solid ${isDone ? '#E2E8F0' : '#CBD5E1'}`, 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ 
+                                  width: 34, height: 34, borderRadius: 10, 
+                                  background: task.type === 'Call' ? '#E0F2FE' : task.type === 'Meeting' ? '#FAF5FF' : '#F1F5F9',
+                                  color: task.type === 'Call' ? '#0284C7' : task.type === 'Meeting' ? '#9333EA' : '#475569',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                  {task.type === 'Call' ? <Phone size={16} /> : task.type === 'Meeting' ? <Video size={16} /> : <Calendar size={16} />}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: isDone ? '#94A3B8' : '#0F172A', fontSize: '0.88rem', textDecoration: isDone ? 'line-through' : 'none' }}>
+                                    {task.title}
+                                  </div>
+                                  <div style={{ fontSize: '0.74rem', color: '#64748B', display: 'flex', gap: 8, marginTop: 2 }}>
+                                    <span>Type: {task.type}</span>
+                                    {task.assignedTo?.name && <span>• Assigned to: {task.assignedTo.name}</span>}
+                                    {(task.dueDate || task.scheduledAt) && (
+                                      <span>• Due: {new Date(task.dueDate || task.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <span style={{ 
+                                fontSize: '0.74rem', 
+                                fontWeight: 700, 
+                                padding: '3px 10px', 
+                                borderRadius: 8,
+                                background: isDone ? '#DCFCE7' : task.status === 'In Progress' ? '#E0F2FE' : '#FEF3C7',
+                                color: isDone ? '#15803D' : task.status === 'In Progress' ? '#0284C7' : '#B45309',
+                                border: `1px solid ${isDone ? '#A7F3D0' : task.status === 'In Progress' ? '#BAE6FD' : '#FDE68A'}`
+                              }}>
+                                {task.status || 'Pending'}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div style={{ padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <input type="checkbox" style={{ width: 16, height: 16 }} />
-                          <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.9rem' }}>Collect pending FATCA declaration document</span>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '36px 20px', background: '#F8FAFC', borderRadius: 16, border: '1.5px dashed #CBD5E1' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                          <Calendar size={22} />
                         </div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284C7', background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>Upcoming</span>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>No Tasks Scheduled</div>
+                        <p style={{ fontSize: '0.825rem', color: '#64748B', maxWidth: 420, margin: '0 auto 16px' }}>
+                          Schedule review calls, document collection, or financial planning tasks for this client.
+                        </p>
+                        <button 
+                          className="btn btn-outline btn-sm" 
+                          onClick={() => {
+                            setTasksClient(detailData.lead);
+                            setShowTasksModal(true);
+                          }}
+                          style={{ borderRadius: 8, color: '#4F46E5', borderColor: '#4F46E5' }}
+                        >
+                          <Plus size={14} /> Schedule First Task
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {/* TAB 6: ACTIVITIES */}
-                {clientDetailTab === 'activities' && (
-                  <div>
-                    <h4 style={{ margin: '0 0 16px 0', fontWeight: 800, color: '#0F172A' }}>Interaction & Communication History</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Phone size={16} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>Call Completed</span>
-                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>09 Sep 10:00 AM</span>
-                          </div>
-                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Discussed SIP options and increased monthly allocation to ₹15,000.</p>
-                        </div>
+                {clientDetailTab === 'activities' && (() => {
+                  const combinedActivities = [
+                    ...(detailData.followups || []).map(f => ({
+                      id: `f-${f._id}`,
+                      title: f.callStatus ? `Call: ${f.callStatus}` : 'Follow-up Call',
+                      badge: f.response || 'Follow-up',
+                      badgeColor: f.response === 'Converted' ? '#10B981' : f.response === 'Positive' ? '#0EA5E9' : '#F97316',
+                      description: f.remarks || 'No detailed notes provided',
+                      date: f.createdAt,
+                      user: f.userId?.name || 'Staff',
+                      icon: 'phone'
+                    })),
+                    ...(detailData.activities || []).map(a => ({
+                      id: `a-${a._id}`,
+                      title: a.action || 'Activity Logged',
+                      badge: a.entityType || 'Client',
+                      badgeColor: '#6366F1',
+                      description: a.details || a.description || 'System event recorded',
+                      date: a.createdAt,
+                      user: a.userId?.name || 'System',
+                      icon: 'activity'
+                    }))
+                  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                  return (
+                    <div>
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Interaction & Communication History</h4>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+                          Real timeline of all follow-ups, calls, conversions, and updates recorded for this client
+                        </p>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 14, padding: 14, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Send size={16} />
+                      {combinedActivities.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {combinedActivities.map(item => (
+                            <div 
+                              key={item.id} 
+                              style={{ 
+                                display: 'flex', 
+                                gap: 14, 
+                                padding: '14px 18px', 
+                                background: '#F8FAFC', 
+                                borderRadius: 14, 
+                                border: '1px solid #E2E8F0',
+                                alignItems: 'flex-start'
+                              }}
+                            >
+                              <div style={{ 
+                                width: 34, height: 34, borderRadius: 10, 
+                                background: item.icon === 'phone' ? '#ECFDF5' : '#EEF2FF', 
+                                color: item.icon === 'phone' ? '#059669' : '#4F46E5', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                                marginTop: 2
+                              }}>
+                                {item.icon === 'phone' ? <Phone size={16} /> : <Activity size={16} />}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.88rem' }}>{item.title}</span>
+                                    <span style={{
+                                      padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700,
+                                      background: item.badgeColor ? `${item.badgeColor}15` : '#F1F5F9',
+                                      color: item.badgeColor || '#475569'
+                                    }}>
+                                      {item.badge}
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>
+                                    {new Date(item.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </span>
+                                </div>
+                                <p style={{ margin: '6px 0 2px', fontSize: '0.82rem', color: '#475569' }}>
+                                  {item.description}
+                                </p>
+                                <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
+                                  Logged by: {item.user}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>WhatsApp Sent</span>
-                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>08 Sep 04:30 PM</span>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '36px 20px', background: '#F8FAFC', borderRadius: 16, border: '1.5px dashed #CBD5E1' }}>
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#F1F5F9', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <Activity size={22} />
                           </div>
-                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#475569' }}>Sent scheme brochure and portfolio performance report.</p>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>No Activity Logged Yet</div>
+                          <p style={{ fontSize: '0.825rem', color: '#64748B', maxWidth: 420, margin: '0 auto' }}>
+                            Communication logs, call entries, and client milestone updates will appear here automatically.
+                          </p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
               </div>
             </div>
@@ -1559,11 +2165,31 @@ export default function ClientsPage() {
         {showDocumentsModal && documentsClient && (
           <ClientDocumentsModal
             client={documentsClient}
-            onClose={() => { setShowDocumentsModal(false); setDocumentsClient(null); }}
-            onUpdate={() => fetchClients(pagination.page)}
+            defaultDocName={documentDefaultName}
+            onClose={() => { 
+              setShowDocumentsModal(false); 
+              setDocumentsClient(null); 
+              setDocumentDefaultName('');
+            }}
+            onUpdate={() => {
+              fetchClients(pagination.page);
+              if (showDetail) viewDetail(showDetail);
+            }}
           />
         )}
       </>
+
+      {/* Create/Edit Client Modal (Stacked on top of Detail Modal) */}
+      {showModal && (
+        <ClientFormModal
+          client={editingClient}
+          users={teamUsers}
+          canAssign={canAssign}
+          formSettings={formSettings}
+          onClose={() => { setShowModal(false); setEditingClient(null); }}
+          onSave={handleSaveClient}
+        />
+      )}
 
       {/* Bulk Upload Modal */}
       {showBulkUpload && (
@@ -1583,6 +2209,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     name: client?.name || '',
     email: client?.email || '',
     phone: client?.phone || '',
+    whatsappNumber: client?.whatsappNumber || client?.phone || '',
     service: client?.service || '',
     leadReference: client?.leadReference || '',
     assignedTo: client?.assignedTo?._id || client?.assignedTo || '',
@@ -1597,9 +2224,16 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     location: client?.location || '',
     address: client?.address || '',
     city: client?.city || '',
-    panNumber: client?.panNumber || '',
     pincode: client?.pincode || '',
-    dateOfBirth: client?.dateOfBirth || '',
+    dateOfBirth: client?.dateOfBirth ? (client.dateOfBirth.includes('T') ? client.dateOfBirth.split('T')[0] : client.dateOfBirth) : '',
+    panNumber: client?.panNumber || '',
+    aadhaarNumber: client?.aadhaarNumber || '',
+    kycStatus: client?.kycStatus || 'Verified',
+    riskProfile: client?.riskProfile || 'Moderate',
+    familyMembers: client?.familyMembers || '',
+    bankName: client?.bankName || '',
+    bankAccountNumber: client?.bankAccountNumber || '',
+    bankIfscCode: client?.bankIfscCode || '',
     investmentType: client?.investmentType || (client?.sipAmount ? (client?.investmentAmount ? 'Both' : 'Monthly SIP') : (client?.investmentAmount ? 'Lumpsum' : 'Monthly SIP')),
     investmentAmount: client?.investmentAmount || '',
     sipAmount: client?.sipAmount || '',
@@ -1807,6 +2441,15 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       schemeName: combinedSchemeNames,
       tenureYears: formattedSchemes[0]?.tenureYears || null,
       schemes: formattedSchemes,
+      panNumber: form.panNumber ? form.panNumber.toUpperCase().trim() : '',
+      aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : '',
+      bankName: form.bankName ? form.bankName.trim() : '',
+      bankAccountNumber: form.bankAccountNumber ? form.bankAccountNumber.trim() : '',
+      bankIfscCode: form.bankIfscCode ? form.bankIfscCode.toUpperCase().trim() : '',
+      kycStatus: form.kycStatus || 'Verified',
+      riskProfile: form.riskProfile || 'Moderate',
+      familyMembers: form.familyMembers ? String(form.familyMembers).trim() : '',
+      whatsappNumber: form.whatsappNumber ? form.whatsappNumber.trim() : '',
     };
     // Clean up customFields if any are empty
     payload.customFields = payload.customFields.filter(f => f.label.trim() && (Array.isArray(f.value) ? f.value.length > 0 : String(f.value).trim()));
@@ -1844,8 +2487,8 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
   const confLeadRef = getFieldConfig('leadReference');
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1200 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 840, maxHeight: '92vh', display: 'flex', flexDirection: 'column', zIndex: 1201, position: 'relative' }}>
         <div className="modal-header">
           <h3 className="modal-title">{client ? 'Edit Client' : 'Add New Client'}</h3>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
@@ -1867,13 +2510,13 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px 20px', marginBottom: 24 }}>
-              {formSettings?.defaultFields?.map((dField) => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px 20px', marginBottom: 20 }}>
+              {formSettings?.defaultFields?.filter(f => !['panNumber', 'dateOfBirth'].includes(f.name))?.map((dField) => {
                 const value = form[dField.name] || '';
                 const onChange = (e) => setForm({ ...form, [dField.name]: e.target.value });
                 
                 return (
-                  <div className="form-group" key={dField.name} style={{ gridColumn: ['location', 'leadReference'].includes(dField.name) ? 'span 2' : 'span 1' }}>
+                  <div className="form-group" key={dField.name} style={{ gridColumn: ['location', 'leadReference', 'address'].includes(dField.name) ? 'span 2' : 'span 1' }}>
                     <label className="form-label">{dField.label} {dField.isRequired && '*'}</label>
                     {dField.name === 'service' ? (
                       <select className="form-select" value={value} onChange={onChange} required={dField.isRequired}>
@@ -1883,7 +2526,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                     ) : (
                       <input 
                         className="form-input" 
-                        type={dField.name === 'email' ? 'email' : dField.name === 'dateOfBirth' ? 'date' : 'text'}
+                        type={dField.name === 'email' ? 'email' : 'text'}
                         value={value} 
                         onChange={onChange} 
                         required={dField.isRequired}
@@ -1900,6 +2543,185 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                   </div>
                 );
               })}
+            </div>
+
+            {/* SEGMENT: KYC & ADVISORY PROFILE */}
+            <div style={{
+              padding: '16px 18px',
+              background: '#F8FAFC',
+              borderRadius: 14,
+              border: '1.5px solid #E2E8F0',
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ background: '#0284C7', color: 'white', padding: 5, borderRadius: 8, display: 'flex' }}>
+                  <Shield size={16} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                    KYC & Advisory Profile
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748B' }}>
+                    Identity verification, PAN, Aadhaar, risk rating & family details
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>PAN Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.panNumber}
+                    onChange={e => setForm({ ...form, panNumber: e.target.value.toUpperCase() })}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    style={{ textTransform: 'uppercase', height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Aadhaar Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.aadhaarNumber}
+                    onChange={e => setForm({ ...form, aadhaarNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                    placeholder="12-digit Aadhaar Number"
+                    maxLength={12}
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Date of Birth</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={form.dateOfBirth}
+                    onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>KYC Status</label>
+                  <select
+                    className="form-select"
+                    value={form.kycStatus}
+                    onChange={e => setForm({ ...form, kycStatus: e.target.value })}
+                    style={{ height: 38, borderRadius: 8, fontWeight: 700 }}
+                  >
+                    <option value="Verified">Verified (Compliant)</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Pending">Pending Verification</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Risk Profile</label>
+                  <select
+                    className="form-select"
+                    value={form.riskProfile}
+                    onChange={e => setForm({ ...form, riskProfile: e.target.value })}
+                    style={{ height: 38, borderRadius: 8 }}
+                  >
+                    <option value="Conservative">Conservative</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Aggressive">Aggressive</option>
+                    <option value="Very Aggressive">Very Aggressive</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Family Members / Dependents</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    value={form.familyMembers}
+                    onChange={e => setForm({ ...form, familyMembers: e.target.value })}
+                    placeholder="e.g. 4"
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    value={form.whatsappNumber}
+                    onChange={e => setForm({ ...form, whatsappNumber: e.target.value })}
+                    placeholder="WhatsApp No."
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SEGMENT: BANKING & SETTLEMENT DETAILS */}
+            <div style={{
+              padding: '16px 18px',
+              background: '#F8FAFC',
+              borderRadius: 14,
+              border: '1.5px solid #E2E8F0',
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ background: '#475569', color: 'white', padding: 5, borderRadius: 8, display: 'flex' }}>
+                  <IndianRupee size={16} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                    Banking & Settlement Details
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748B' }}>
+                    Linked bank account for SIP auto-debits, redemptions & payouts
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Bank Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.bankName}
+                    onChange={e => setForm({ ...form, bankName: e.target.value })}
+                    placeholder="e.g. HDFC Bank, ICICI Bank, SBI"
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Account Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.bankAccountNumber}
+                    onChange={e => setForm({ ...form, bankAccountNumber: e.target.value })}
+                    placeholder="e.g. 50100234918231"
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>IFSC Code</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.bankIfscCode}
+                    onChange={e => setForm({ ...form, bankIfscCode: e.target.value.toUpperCase() })}
+                    placeholder="HDFC0001234"
+                    maxLength={11}
+                    style={{ textTransform: 'uppercase', height: 38, borderRadius: 8 }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
