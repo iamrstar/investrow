@@ -12,6 +12,15 @@ const SERVICES = [
 ];
 
 const LeadSchema = new mongoose.Schema({
+  leadId: {
+    type: String,
+    trim: true,
+    index: true,
+  },
+  leadNumber: {
+    type: Number,
+    index: true,
+  },
   name: {
     type: String,
     trim: true,
@@ -90,6 +99,17 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  schemes: [
+    {
+      service: { type: String, trim: true, default: '' },
+      investmentType: { type: String, default: 'Monthly SIP' },
+      schemeName: { type: String, trim: true, default: '' },
+      sipAmount: { type: Number, default: 0 },
+      sipDay: { type: Number, default: null },
+      investmentAmount: { type: Number, default: 0 },
+      remarks: { type: String, default: '' },
+    }
+  ],
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

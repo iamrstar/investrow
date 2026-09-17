@@ -174,8 +174,37 @@ export async function PUT(request, { params }) {
     if (body.nextCallDate === '' || body.nextCallDate === null) {
       body.nextCallDate = null;
     }
-    if (body.followUpDate === '' || body.followUpDate === null) {
-      body.followUpDate = null;
+    // Ensure persistent leadId and leadNumber if missing
+    if (!existingLead.leadNumber || !existingLead.leadId) {
+      const highestLead = await Lead.findOne({ leadNumber: { $exists: true, $ne: null } })
+        .sort({ leadNumber: -1 })
+        .select('leadNumber')
+        .lean();
+      const nextNum = (highestLead && typeof highestLead.leadNumber === 'number') ? highestLead.leadNumber + 1 : 1001;
+      body.leadNumber = nextNum;
+      body.leadId = `INV-${nextNum}`;
+    }
+
+    // Sync multi-scheme totals with top-level financial metrics
+    if (body.schemes && Array.isArray(body.schemes) && body.schemes.length > 0) {
+      const totalSip = body.schemes.reduce((sum, s) => {
+        if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+      const totalLumpsum = body.schemes.reduce((sum, s) => {
+        if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+          return sum + (Number(s.investmentAmount) || 0);
+        }
+        return sum;
+      }, 0);
+      body.sipAmount = totalSip;
+      body.investmentAmount = totalLumpsum;
+      body.schemeName = body.schemes.map(s => s.schemeName).filter(Boolean).join(', ');
+      if (body.schemes[0]?.service) body.service = body.schemes[0].service;
+      if (body.schemes[0]?.sipDay) body.sipDay = body.schemes[0].sipDay;
+      body.investmentType = totalSip > 0 && totalLumpsum > 0 ? 'Both' : totalSip > 0 ? 'Monthly SIP' : totalLumpsum > 0 ? 'Lumpsum' : (body.schemes[0]?.investmentType || 'Monthly SIP');
     }
 
     const lead = await Lead.findByIdAndUpdate(id, body, { new: true, runValidators: true });

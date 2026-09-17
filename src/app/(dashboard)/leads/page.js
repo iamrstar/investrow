@@ -208,6 +208,10 @@ export default function LeadsPage() {
   };
 
   const handleConvertLead = (lead) => {
+    if (lead?.response === 'Converted' || lead?.stage === 'Converted') {
+      addToast('This lead is already converted to a client', 'info');
+      return;
+    }
     setConvertLead(lead);
     // Initialize onboarding data based on settings
     if (formSettings?.onboardingFields) {
@@ -384,7 +388,8 @@ export default function LeadsPage() {
         </button>
         <button 
           className="btn btn-ghost btn-sm" 
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             const msg = encodeURIComponent(`Hello ${lead.name}, thank you for contacting Investrow Financial Services.`);
             window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
           }}
@@ -395,16 +400,34 @@ export default function LeadsPage() {
         </button>
         <button 
           className="btn btn-ghost btn-sm" 
-          onClick={() => { setEditingLead(lead); setShowModal(true); }}
+          onClick={(e) => { e.stopPropagation(); viewDetail(lead._id); }}
+          title="View Lead Details"
+          style={{ color: '#475569', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <Eye size={15} />
+        </button>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={(e) => { e.stopPropagation(); setEditingLead(lead); setShowModal(true); }}
           title="Edit Lead"
           style={{ color: '#0EA5E9', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '6px 8px' }}
         >
           <Edit size={15} />
         </button>
-        {lead.response !== 'Converted' && lead.stage !== 'Converted' && (
+        {(lead.response === 'Converted' || lead.stage === 'Converted') ? (
           <button 
             className="btn btn-ghost btn-sm" 
-            onClick={() => setConvertLead(lead)} 
+            disabled
+            onClick={(e) => e.stopPropagation()}
+            title="Lead is already converted to client"
+            style={{ color: '#94A3B8', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px', opacity: 0.45, cursor: 'not-allowed' }}
+          >
+            <UserCheck size={15} />
+          </button>
+        ) : (
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={(e) => { e.stopPropagation(); setConvertLead(lead); }} 
             title="Convert to Client (KYC & Investment Setup)"
             style={{ color: '#8B5CF6', border: '1px solid #DDD6FE', background: '#F5F3FF', borderRadius: 8, padding: '6px 8px' }}
           >
@@ -413,7 +436,7 @@ export default function LeadsPage() {
         )}
         <button 
           className="btn btn-ghost btn-sm" 
-          onClick={() => setActiveMenuLead(lead)} 
+          onClick={(e) => { e.stopPropagation(); setActiveMenuLead(lead); }} 
           title="More Actions"
           style={{ color: '#64748B', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px' }}
         >
@@ -617,7 +640,7 @@ export default function LeadsPage() {
             </thead>
             <tbody>
               {leads.map((lead, index) => {
-                const leadIdStr = `INV-L-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
+                const leadIdStr = lead.leadId || `INV-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
                 const resp = lead.response || 'New';
                 const statusStyle = resp === 'Interested' 
                   ? { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' }
@@ -634,7 +657,15 @@ export default function LeadsPage() {
                   : { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' };
 
                 return (
-                  <tr key={lead._id}>
+                  <tr 
+                    key={lead._id}
+                    onClick={() => viewDetail(lead._id)}
+                    style={{ 
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease'
+                    }}
+                    title="Click to view details"
+                  >
                     <td data-label="ID" style={{ fontWeight: 700, color: '#0EA5E9', fontSize: '0.85rem' }}>
                       {leadIdStr}
                     </td>
@@ -697,7 +728,10 @@ export default function LeadsPage() {
                     <td data-label="Next Follow-up">
                       {(lead.nextCallDate || lead.followUpDate) ? (
                         <button 
-                          onClick={() => setFilterDate((lead.nextCallDate || lead.followUpDate).split('T')[0])}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFilterDate((lead.nextCallDate || lead.followUpDate).split('T')[0]);
+                          }}
                           style={{ 
                             background: '#FFF7ED', 
                             border: '1px solid #FFEDD5',
@@ -713,7 +747,7 @@ export default function LeadsPage() {
                         </button>
                       ) : '—'}
                     </td>
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       <RenderLeadActions lead={lead} />
                     </td>
                     <td data-label="Email" style={{ color: '#64748B', fontSize: '0.82rem' }}>{lead.email || '—'}</td>
@@ -1007,7 +1041,13 @@ export default function LeadsPage() {
               case 'email': setEmailLead(activeMenuLead); setShowEmailModal(true); break;
               case 'edit': setEditingLead(activeMenuLead); setShowModal(true); break;
               case 'assign': setAssignLead(activeMenuLead); setShowAssignModal(true); break;
-              case 'convert': handleConvertLead(activeMenuLead); break;
+              case 'convert': 
+                if (activeMenuLead?.response === 'Converted' || activeMenuLead?.stage === 'Converted') {
+                  addToast('This lead is already converted to a client', 'info');
+                  return;
+                }
+                handleConvertLead(activeMenuLead); 
+                break;
               case 'delete': handleDelete(activeMenuLead._id); break;
               case 'schedule_call': setScheduleLead(activeMenuLead); setShowScheduleCall(true); break;
               case 'schedule_meet': setScheduleLead(activeMenuLead); setShowScheduleMeet(true); break;
@@ -1023,13 +1063,48 @@ export default function LeadsPage() {
         <div className="modal-backdrop" onClick={() => setShowDetail(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="modal-title">Lead Details</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {detailData.lead?.response !== 'Converted' && detailData.lead?.stage !== 'Converted' && (
+                <h3 className="modal-title" style={{ margin: 0 }}>Lead Details</h3>
+                {detailData.lead?.leadId && (
+                  <span style={{ 
+                    fontSize: '0.82rem', 
+                    color: '#0EA5E9', 
+                    fontWeight: 800, 
+                    background: '#F0F9FF', 
+                    padding: '3px 10px', 
+                    borderRadius: 8, 
+                    border: '1px solid #BAE6FD' 
+                  }}>
+                    {detailData.lead.leadId}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {(detailData.lead?.response === 'Converted' || detailData.lead?.stage === 'Converted') ? (
+                  <button 
+                    className="btn btn-sm"
+                    disabled
+                    title="Lead is already converted to client"
+                    style={{ 
+                      background: '#F1F5F9', 
+                      color: '#64748B', 
+                      border: '1px solid #CBD5E1', 
+                      borderRadius: 10,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      opacity: 0.6,
+                      cursor: 'not-allowed'
+                    }}
+                  >
+                    <UserCheck size={16} /> Already Converted
+                  </button>
+                ) : (
                   <button 
                     className="btn btn-sm"
                     style={{ 
-                      background: 'linear-gradient(135deg, #10B981, #059669)', 
+                      background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', 
                       color: 'white', 
                       border: 'none', 
                       borderRadius: 10,
@@ -1052,6 +1127,7 @@ export default function LeadsPage() {
             </div>
             <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '32px' }}>
               <div className="detail-grid">
+                <div className="detail-item"><div className="detail-label">Lead / Client ID</div><div className="detail-value" style={{ fontWeight: 800, color: '#0EA5E9' }}>{detailData.lead?.leadId || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">{getFieldConfig('name').label}</div><div className="detail-value">{detailData.lead?.name}</div></div>
                 <div className="detail-item"><div className="detail-label">{getFieldConfig('phone').label}</div><div className="detail-value">{detailData.lead?.phone}</div></div>
                 <div className="detail-item"><div className="detail-label">{getFieldConfig('email').label}</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
@@ -1097,14 +1173,52 @@ export default function LeadsPage() {
                     </div>
                   </div>
                 )}
-                {(detailData.lead?.sipAmount > 0 || detailData.lead?.investmentAmount > 0) && (
-                  <div className="detail-item" style={{ gridColumn: '1 / -1', background: '#F0FDF4', padding: '14px 18px', borderRadius: 14, border: '1px solid #BBF7D0' }}>
-                    <div className="detail-label" style={{ color: '#166534', fontWeight: 800 }}>Converted Financial Mandate</div>
-                    <div className="detail-value" style={{ color: '#14532D', fontWeight: 700 }}>
-                      {detailData.lead.schemeName && `${detailData.lead.schemeName} | `}
-                      {detailData.lead.sipAmount > 0 && `Monthly SIP: ₹${detailData.lead.sipAmount.toLocaleString('en-IN')} (Debit Day: ${detailData.lead.sipDay || 10}th of month) `}
-                      {detailData.lead.investmentAmount > 0 && `| Lumpsum: ₹${detailData.lead.investmentAmount.toLocaleString('en-IN')}`}
+                {((detailData.lead?.schemes && detailData.lead.schemes.length > 0) || detailData.lead?.sipAmount > 0 || detailData.lead?.investmentAmount > 0) && (
+                  <div className="detail-item" style={{ gridColumn: '1 / -1', background: '#F0FDF4', padding: '16px 20px', borderRadius: 16, border: '1.5px solid #86EFAC' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                      <div className="detail-label" style={{ color: '#166534', fontWeight: 800, fontSize: '0.9rem', margin: 0 }}>
+                        Converted Financial Product Mandates
+                      </div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#15803D' }}>
+                        Total SIP: ₹{(detailData.lead?.sipAmount || 0).toLocaleString('en-IN')}/mo • Lumpsum: ₹{(detailData.lead?.investmentAmount || 0).toLocaleString('en-IN')}
+                      </div>
                     </div>
+
+                    {detailData.lead?.schemes && detailData.lead.schemes.length > 0 ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                        {detailData.lead.schemes.map((s, idx) => (
+                          <div key={idx} style={{ background: 'white', border: '1.5px solid #BBF7D0', borderRadius: 12, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 800, background: '#E0F2FE', padding: '2px 6px', borderRadius: 4 }}>
+                                #{idx + 1} {s.service}
+                              </span>
+                              <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
+                                {s.investmentType}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
+                              {s.schemeName || 'Standard Plan / Policy'}
+                            </div>
+                            {s.sipAmount > 0 && (
+                              <div style={{ fontSize: '0.84rem', color: '#0369A1', fontWeight: 700, marginTop: 4 }}>
+                                SIP: ₹{s.sipAmount.toLocaleString('en-IN')}/mo <span style={{ fontSize: '0.74rem', color: '#64748B' }}>({s.sipDay || 10}th of month)</span>
+                              </div>
+                            )}
+                            {s.investmentAmount > 0 && (
+                              <div style={{ fontSize: '0.84rem', color: '#D97706', fontWeight: 700, marginTop: 2 }}>
+                                Lumpsum: ₹{s.investmentAmount.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="detail-value" style={{ color: '#14532D', fontWeight: 700 }}>
+                        {detailData.lead.schemeName && `${detailData.lead.schemeName} | `}
+                        {detailData.lead.sipAmount > 0 && `Monthly SIP: ₹${detailData.lead.sipAmount.toLocaleString('en-IN')} (Debit Day: ${detailData.lead.sipDay || 10}th of month) `}
+                        {detailData.lead.investmentAmount > 0 && `| Lumpsum: ₹${detailData.lead.investmentAmount.toLocaleString('en-IN')}`}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}><div className="detail-label">{getFieldConfig('location').label}</div><div className="detail-value">{detailData.lead?.location || '—'}</div></div>
@@ -2426,9 +2540,19 @@ function ActionMenu({ lead, onClose, onAction, canAssign, canDelete }) {
               <UserPlus size={20} /> Assign Lead
             </button>
           )}
-          <button className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)' }} onClick={() => onAction('convert')}>
-            <UserPlus size={20} /> Convert to Customer
-          </button>
+          {(lead.response === 'Converted' || lead.stage === 'Converted') ? (
+            <div 
+              className="bottom-sheet-item" 
+              style={{ color: '#94A3B8', opacity: 0.45, cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+              title="Already converted to client"
+            >
+              <UserCheck size={20} /> Already Converted
+            </div>
+          ) : (
+            <button className="bottom-sheet-item" style={{ color: 'var(--success, #10b981)' }} onClick={() => onAction('convert')}>
+              <UserPlus size={20} /> Convert to Customer
+            </button>
+          )}
           {canDelete && (
             <button className="bottom-sheet-item danger" onClick={() => onAction('delete')}>
               <Trash2 size={20} /> Delete Lead
