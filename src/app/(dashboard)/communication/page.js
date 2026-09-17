@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import {
   MessageSquare, Send, Phone, Mail, User, CheckCircle2,
-  Clock, Sparkles, Copy, ExternalLink, Calendar
+  Clock, Sparkles, Copy, ExternalLink, Calendar, Bell, ArrowRight, IndianRupee
 } from 'lucide-react';
 
 const TEMPLATES = [
@@ -43,11 +43,62 @@ export default function CommunicationPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
 
+  const [upcomingSips, setUpcomingSips] = useState([]);
+  const [loadingSips, setLoadingSips] = useState(true);
+
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [customMessage, setCustomMessage] = useState(TEMPLATES[0].text);
   const [channelFilter, setChannelFilter] = useState('All');
+
+  useEffect(() => {
+    fetch('/api/dashboard')
+      .then(res => res.json())
+      .then(data => {
+        if (data.stats?.upcomingSipAlerts) {
+          setUpcomingSips(data.stats.upcomingSipAlerts);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingSips(false));
+  }, []);
+
+  const handleSelectClientForReminder = (sip) => {
+    const targetPhone = sip.whatsappNumber || sip.phone || '';
+    setRecipientName(sip.name);
+    setRecipientPhone(targetPhone);
+    const msg = `Dear ${sip.name}, this is a gentle reminder from Investrow that your monthly SIP of ${sip.formattedAmount} for ${sip.schemeName || sip.service} is scheduled for debit on the ${sip.sipDay}th (${sip.dueStatus}). Kindly ensure sufficient balance in your linked bank account for seamless investment. Happy Investing! - Investrow`;
+    setCustomMessage(msg);
+    addToast(`Loaded ${sip.name}'s reminder into composer!`, 'info');
+  };
+
+  const handleDirectWhatsAppSip = (sip) => {
+    const raw = sip.whatsappNumber || sip.phone || '';
+    const clean = raw.replace(/[^0-9]/g, '');
+    let finalPhone = clean;
+    if (finalPhone.length === 10) finalPhone = '91' + finalPhone;
+    if (!finalPhone) {
+      return addToast('Client has no phone number on record', 'error');
+    }
+    const msg = `Dear ${sip.name}, this is a gentle reminder from Investrow that your monthly SIP of ${sip.formattedAmount} for ${sip.schemeName || sip.service} is scheduled for debit on the ${sip.sipDay}th (${sip.dueStatus}). Kindly ensure sufficient balance in your linked bank account for seamless investment. Happy Investing! - Investrow`;
+    const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+
+    setHistory(prev => [
+      {
+        id: Date.now(),
+        name: sip.name,
+        phone: raw,
+        action: 'WhatsApp sent',
+        detail: `Sent 5-day prior SIP balance reminder for ${sip.schemeName || 'Mutual Fund'} (${sip.formattedAmount}).`,
+        time: 'Just now',
+        channel: 'WhatsApp'
+      },
+      ...prev
+    ]);
+    addToast(`Opened WhatsApp reminder for ${sip.name}!`, 'success');
+  };
   const [history, setHistory] = useState([
     { id: 1, name: 'Amit Kumar', phone: '9876541234', action: 'Call completed', detail: 'Discussed SIP options and fund allocation.', time: '09 Sep 10:00 AM', channel: 'Calls' },
     { id: 2, name: 'Priya Sinha', phone: '9812345678', action: 'WhatsApp sent', detail: 'Sent scheme brochure and performance fact sheet.', time: '08 Sep 04:30 PM', channel: 'WhatsApp' },
@@ -106,6 +157,149 @@ export default function CommunicationPage() {
         <p style={{ fontSize: '0.9rem', color: '#64748B', margin: 0 }}>
           Compose and dispatch personalized WhatsApp and email reminders to clients
         </p>
+      </div>
+
+      {/* 5-Day Prior Upcoming SIP Reminder List */}
+      <div style={{
+        background: 'white',
+        borderRadius: 20,
+        padding: '20px 24px',
+        border: '1px solid #E2E8F0',
+        marginBottom: 24,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: '#ECFDF5', color: '#059669', padding: '6px 10px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Bell size={16} />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800 }}>5-DAY PRIOR ALERT</span>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
+                Upcoming SIP Debits (Next 5 Days)
+              </h3>
+              <span style={{ background: '#0EA5E9', color: 'white', borderRadius: 12, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 800 }}>
+                {upcomingSips.length} Clients
+              </span>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B' }}>
+              These clients have monthly SIP deductions in the next 5 days. Send a 1-click WhatsApp balance reminder to ensure sufficient bank funds.
+            </p>
+          </div>
+        </div>
+
+        {loadingSips ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+            Checking upcoming SIP deductions...
+          </div>
+        ) : upcomingSips.length === 0 ? (
+          <div style={{
+            background: '#F8FAFC',
+            padding: '16px 20px',
+            borderRadius: 14,
+            border: '1px dashed #CBD5E1',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: '#64748B',
+            fontSize: '0.85rem'
+          }}>
+            <CheckCircle2 size={18} color="#10B981" />
+            <span>No client SIP deductions scheduled in the next 5 days. All monthly mandates are current.</span>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+            {upcomingSips.map(sip => (
+              <div 
+                key={sip._id}
+                style={{
+                  background: '#F8FAFC',
+                  borderRadius: 16,
+                  padding: '16px 18px',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.95rem' }}>
+                      {sip.name}
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      background: sip.dueStatus === 'Today' ? '#FEF2F2' : sip.dueStatus === 'Tomorrow' ? '#FFF7ED' : '#EFF6FF',
+                      color: sip.dueStatus === 'Today' ? '#DC2626' : sip.dueStatus === 'Tomorrow' ? '#EA580C' : '#2563EB',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      border: `1px solid ${sip.dueStatus === 'Today' ? '#FECACA' : sip.dueStatus === 'Tomorrow' ? '#FFEDD5' : '#DBEAFE'}`
+                    }}>
+                      {sip.dueStatus} (Day {sip.sipDay})
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: 8 }}>
+                    {sip.schemeName || sip.service || 'Mutual Funds SIP'}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem' }}>
+                    <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.95rem' }}>
+                      {sip.formattedAmount} / mo
+                    </span>
+                    <span style={{ color: '#94A3B8' }}>•</span>
+                    <span style={{ color: '#64748B', fontWeight: 600 }}>{sip.phone}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={() => handleSelectClientForReminder(sip)}
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      flex: 1,
+                      border: '1px solid #CBD5E1',
+                      background: '#FFFFFF',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#475569',
+                      borderRadius: 8,
+                      padding: '6px 10px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    Load in Composer
+                  </button>
+                  <button
+                    onClick={() => handleDirectWhatsAppSip(sip)}
+                    className="btn btn-sm"
+                    style={{
+                      flex: 1.2,
+                      background: '#16A34A',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <Send size={13} />
+                    <span>WhatsApp Send</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>

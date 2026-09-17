@@ -56,12 +56,11 @@ export async function GET(request) {
     });
   }
 
-  // Role-based filtering: Admins see all leads; staff users see assigned leads, unassigned leads, or leads they created
+  // Role-based filtering: Admins see all leads; staff users see strictly assigned leads or leads they created
   if (authUser.role === 'user') {
     criteria.push({
       $or: [
         { assignedTo: authUser._id },
-        { assignedTo: null },
         { createdBy: authUser._id }
       ]
     });
@@ -136,7 +135,6 @@ export async function GET(request) {
   const baseRoleFilter = authUser.role === 'user' ? {
     $or: [
       { assignedTo: authUser._id },
-      { assignedTo: null },
       { createdBy: authUser._id }
     ]
   } : {};
@@ -297,8 +295,45 @@ export async function POST(request) {
       body.assignedTo = authUser._id;
     }
 
+    // Sequential Lead ID generation: take the highest existing lead number and increment
+    const highestLead = await Lead.findOne({ leadNumber: { $exists: true, $ne: null } })
+      .sort({ leadNumber: -1 })
+      .select('leadNumber')
+      .lean();
+    
+    const nextLeadNumber = (highestLead && typeof highestLead.leadNumber === 'number') 
+      ? highestLead.leadNumber + 1 
+      : 1001;
+    const nextLeadId = `INV-${nextLeadNumber}`;
+
+    // Aggregate schemes totals if schemes array is provided
+    if (body.schemes && Array.isArray(body.schemes) && body.schemes.length > 0) {
+      const totalSip = body.schemes.reduce((sum, s) => {
+        if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+      const totalLumpsum = body.schemes.reduce((sum, s) => {
+        if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+          return sum + (Number(s.investmentAmount) || 0);
+        }
+        return sum;
+      }, 0);
+      if (!body.sipAmount && totalSip > 0) body.sipAmount = totalSip;
+      if (!body.investmentAmount && totalLumpsum > 0) body.investmentAmount = totalLumpsum;
+      if (!body.schemeName) {
+        body.schemeName = body.schemes.map(s => s.schemeName).filter(Boolean).join(', ');
+      }
+      if (!body.sipDay && body.schemes[0]?.sipDay) {
+        body.sipDay = body.schemes[0].sipDay;
+      }
+    }
+
     const lead = await Lead.create({
       ...body,
+      leadNumber: nextLeadNumber,
+      leadId: nextLeadId,
       createdBy: authUser._id,
     });
 

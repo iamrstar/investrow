@@ -266,22 +266,64 @@ export default function ClientsPage() {
   };
 
   const RenderClientActions = ({ client }) => (
-    <div className="table-actions">
+    <div className="table-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <button 
         className="btn btn-ghost btn-sm" 
-        onClick={() => { window.location.href = `tel:${client.phone}`; }}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          window.location.href = `tel:${client.phone}`; 
+        }}
         title="Call Now"
-        style={{ color: 'var(--secondary)', border: '1px solid var(--secondary-100)', background: 'var(--secondary-50)' }}
+        style={{ color: '#059669', border: '1px solid #A7F3D0', background: '#ECFDF5', borderRadius: 8, padding: '6px 8px' }}
       >
-        <Phone size={16} />
+        <Phone size={15} />
       </button>
       <button 
         className="btn btn-ghost btn-sm" 
-        onClick={() => setActiveMenuClient(client)} 
-        title="More Actions"
-        style={{ background: 'var(--border-light)' }}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          const cleanPhone = (client.phone || '').replace(/[^0-9]/g, '');
+          const msg = encodeURIComponent(`Hello ${client.name}, this is from Investrow Financial Services.`);
+          window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+        }}
+        title="Chat on WhatsApp"
+        style={{ color: '#16A34A', border: '1px solid #BBF7D0', background: '#F0FDF4', borderRadius: 8, padding: '6px 8px' }}
       >
-        <MoreVertical size={16} />
+        <Send size={15} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          viewDetail(client._id); 
+        }}
+        title="View Client Profile"
+        style={{ color: '#475569', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px' }}
+      >
+        <Eye size={15} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          setEditingClient(client); 
+          setShowModal(true); 
+        }}
+        title="Edit Client Details"
+        style={{ color: '#0EA5E9', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '6px 8px' }}
+      >
+        <Edit size={15} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          setActiveMenuClient(client); 
+        }} 
+        title="More Actions"
+        style={{ color: '#64748B', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 8, padding: '6px 8px' }}
+      >
+        <MoreVertical size={15} />
       </button>
     </div>
   );
@@ -438,7 +480,7 @@ export default function ClientsPage() {
           <table className="sheet-table">
             <thead>
               <tr>
-                <th>Sr. No.</th>
+                <th>ID</th>
                 <th>Name</th>
                 <th>Phone / Mobile</th>
                 <th>Email</th>
@@ -455,53 +497,71 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client, index) => (
-                <tr key={client._id}>
-                  <td data-label="Sr. No.">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                  <td className="lead-name" data-label="Name">{client.name}</td>
-                  <td data-label="Phone / Mobile">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-                      {client.phone}
-                    </div>
-                  </td>
-                  <td data-label="Email">{client.email || '—'}</td>
-                  <td data-label="Address">{client.address || '—'}</td>
-                  <td data-label="City">{client.city || '—'}</td>
-                  <td data-label="Pan Number">{client.panNumber || '—'}</td>
-                  <td data-label="Pincode">{client.pincode || '—'}</td>
-                  <td data-label="Date Of Birth">{client.dateOfBirth || '—'}</td>
-                  <td data-label="Service"><span className="badge badge-blue">{client.service || '—'}</span></td>
-                  <td data-label="Call Status">
-                    <span className={`badge ${client.callStatus === 'Received' ? 'badge-green' : client.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
-                      {client.callStatus}
-                    </span>
-                  </td>
-                  <td data-label="Assigned To">{client.assignedTo?.name || '—'}</td>
-                  <td data-label="Follow-up">
-                    {client.followUpDate ? (
-                      <button 
-                        onClick={() => setFilterDate(client.followUpDate.split('T')[0])}
-                        style={{ 
-                          background: 'none', 
-                          border: 'none',
-                          color: 'var(--secondary-dark)',
-                          fontSize: '0.8125rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          padding: 0,
-                          textDecoration: 'underline'
-                        }}
-                      >
-                        {new Date(client.followUpDate).toLocaleDateString()}
-                      </button>
-                    ) : '—'}
-                  </td>
-                  <td data-label="Actions">
-                    <RenderClientActions client={client} />
-                  </td>
-                </tr>
-              ))}
+              {clients.map((client, index) => {
+                const clientIdStr = client.leadId || `INV-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
+                return (
+                  <tr 
+                    key={client._id}
+                    onClick={() => viewDetail(client._id)}
+                    style={{ 
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease'
+                    }}
+                    title="Click to view client profile"
+                  >
+                    <td data-label="ID" style={{ fontWeight: 700, color: '#0EA5E9', fontSize: '0.85rem' }}>
+                      {clientIdStr}
+                    </td>
+                    <td className="lead-name" data-label="Name" style={{ fontWeight: 700, color: '#0F172A' }}>
+                      {client.name}
+                    </td>
+                    <td data-label="Phone / Mobile">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Phone size={12} style={{ color: '#0EA5E9' }} />
+                        <span style={{ fontWeight: 600 }}>{client.phone}</span>
+                      </div>
+                    </td>
+                    <td data-label="Email">{client.email || '—'}</td>
+                    <td data-label="Address">{client.address || '—'}</td>
+                    <td data-label="City">{client.city || '—'}</td>
+                    <td data-label="Pan Number" style={{ fontWeight: 600 }}>{client.panNumber || '—'}</td>
+                    <td data-label="Pincode">{client.pincode || '—'}</td>
+                    <td data-label="Date Of Birth">{client.dateOfBirth || '—'}</td>
+                    <td data-label="Service"><span className="badge badge-blue">{client.service || '—'}</span></td>
+                    <td data-label="Call Status">
+                      <span className={`badge ${client.callStatus === 'Received' ? 'badge-green' : client.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
+                        {client.callStatus || 'Received'}
+                      </span>
+                    </td>
+                    <td data-label="Assigned To">{client.assignedTo?.name || '—'}</td>
+                    <td data-label="Follow-up">
+                      {client.followUpDate ? (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFilterDate(client.followUpDate.split('T')[0]);
+                          }}
+                          style={{ 
+                            background: '#FFF7ED', 
+                            border: '1px solid #FED7AA',
+                            color: '#EA580C',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '3px 8px',
+                            borderRadius: 6
+                          }}
+                        >
+                          {new Date(client.followUpDate).toLocaleDateString()}
+                        </button>
+                      ) : '—'}
+                    </td>
+                    <td data-label="Actions" onClick={e => e.stopPropagation()}>
+                      <RenderClientActions client={client} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -819,7 +879,7 @@ export default function ClientsPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, fontSize: '0.85rem', color: '#64748B', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 700, color: '#0EA5E9' }}>
-                        INV-C-1001
+                        {detailData.lead?.leadId || 'INV-1001'}
                       </span>
                       <span>•</span>
                       <span>{detailData.lead?.phone || '98XXXX1234'}</span>
@@ -998,6 +1058,56 @@ export default function ClientsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* All Configured Investment Schemes & Policies */}
+                    {detailData.lead?.schemes && detailData.lead.schemes.length > 0 && (
+                      <div style={{ 
+                        marginTop: 20, 
+                        background: '#F0FDF4', 
+                        border: '1.5px solid #86EFAC', 
+                        borderRadius: 16, 
+                        padding: '20px 24px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                          <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803D', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <IndianRupee size={18} />
+                            Configured Investment Schemes & Policies ({detailData.lead.schemes.length})
+                          </h4>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#166534', background: '#DCFCE7', padding: '4px 10px', borderRadius: 8 }}>
+                            Total SIP: ₹{(detailData.lead?.sipAmount || 0).toLocaleString('en-IN')}/mo • Lumpsum: ₹{(detailData.lead?.investmentAmount || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                          {detailData.lead.schemes.map((s, idx) => (
+                            <div key={idx} style={{ background: 'white', border: '1.5px solid #BBF7D0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 800, background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>
+                                  Scheme #{idx + 1} • {s.service}
+                                </span>
+                                <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
+                                  {s.investmentType}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                                {s.schemeName || 'Standard Policy / Plan'}
+                              </div>
+                              {s.sipAmount > 0 && (
+                                <div style={{ fontSize: '0.86rem', color: '#0369A1', fontWeight: 700, marginTop: 6 }}>
+                                  SIP: ₹{Number(s.sipAmount).toLocaleString('en-IN')}/mo <span style={{ fontSize: '0.75rem', color: '#64748B' }}>({s.sipDay || 10}th of each month)</span>
+                                </div>
+                              )}
+                              {s.investmentAmount > 0 && (
+                                <div style={{ fontSize: '0.86rem', color: '#D97706', fontWeight: 700, marginTop: 4 }}>
+                                  Lumpsum: ₹{Number(s.investmentAmount).toLocaleString('en-IN')}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Additional Custom Fields if any */}
                     {detailData.lead?.customFields?.length > 0 && (
@@ -1214,20 +1324,39 @@ export default function ClientsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {[
-                            { folio: '123456/78', scheme: 'SBI Bluechip Fund', type: 'Equity Large Cap', inv: '₹ 2,00,000', curr: '₹ 2,65,000', gain: '+32.5%' },
-                            { folio: '876543/21', scheme: 'HDFC Flexi Cap Fund', type: 'Equity Flexi Cap', inv: '₹ 1,50,000', curr: '₹ 1,80,000', gain: '+20.0%' },
-                            { folio: '987654/32', scheme: 'Axis Midcap Fund', type: 'Equity Mid Cap', inv: '₹ 1,00,000', curr: '₹ 1,45,000', gain: '+45.0%' },
-                          ].map((item, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                              <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{item.folio}</td>
-                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.scheme}</td>
-                              <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.type}</span></td>
-                              <td style={{ padding: '14px 18px', fontWeight: 600 }}>{item.inv}</td>
-                              <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>{item.curr}</td>
-                              <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>{item.gain}</td>
-                            </tr>
-                          ))}
+                          {(detailData.lead?.schemes && detailData.lead.schemes.length > 0) ? (
+                            detailData.lead.schemes.map((item, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{`SCH-${String(idx + 1).padStart(3, '0')}`}</td>
+                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.schemeName || item.service}</td>
+                                <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.service} ({item.investmentType})</span></td>
+                                <td style={{ padding: '14px 18px', fontWeight: 600 }}>
+                                  {item.sipAmount > 0 ? `SIP ₹ ${Number(item.sipAmount).toLocaleString('en-IN')}/mo (Day ${item.sipDay || 10})` : `Lumpsum ₹ ${Number(item.investmentAmount || 0).toLocaleString('en-IN')}`}
+                                </td>
+                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>
+                                  {item.investmentAmount > 0 ? `₹ ${Number(item.investmentAmount).toLocaleString('en-IN')}` : `₹ ${(Number(item.sipAmount || 0) * 12).toLocaleString('en-IN')}/yr`}
+                                </td>
+                                <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>
+                                  Active Mandate
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            [
+                              { folio: '123456/78', scheme: 'SBI Bluechip Fund', type: 'Equity Large Cap', inv: '₹ 2,00,000', curr: '₹ 2,65,000', gain: '+32.5%' },
+                              { folio: '876543/21', scheme: 'HDFC Flexi Cap Fund', type: 'Equity Flexi Cap', inv: '₹ 1,50,000', curr: '₹ 1,80,000', gain: '+20.0%' },
+                              { folio: '987654/32', scheme: 'Axis Midcap Fund', type: 'Equity Mid Cap', inv: '₹ 1,00,000', curr: '₹ 1,45,000', gain: '+45.0%' },
+                            ].map((item, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>{item.folio}</td>
+                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>{item.scheme}</td>
+                                <td style={{ padding: '14px 18px' }}><span className="badge badge-blue">{item.type}</span></td>
+                                <td style={{ padding: '14px 18px', fontWeight: 600 }}>{item.inv}</td>
+                                <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0EA5E9' }}>{item.curr}</td>
+                                <td style={{ padding: '14px 18px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>{item.gain}</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>

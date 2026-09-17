@@ -18,7 +18,17 @@ export async function POST(request) {
 
     const { leads, isCustomer } = body;
 
+    // Sequential ID generation for bulk import
+    const highestLead = await Lead.findOne({ leadNumber: { $exists: true, $ne: null } })
+      .sort({ leadNumber: -1 })
+      .select('leadNumber')
+      .lean();
+    let nextNum = (highestLead && typeof highestLead.leadNumber === 'number') ? highestLead.leadNumber + 1 : 1001;
+
     const leadsToInsert = leads.map(leadData => {
+      const currentNumber = nextNum++;
+      const currentId = `INV-${currentNumber}`;
+
       // Basic formatting and mapping based on what came from the frontend
       const newLead = {
         name: leadData.Name || '',
@@ -32,6 +42,8 @@ export async function POST(request) {
         response: isCustomer ? 'Converted' : 'Pending',
         createdBy: authUser._id,
         assignedTo: authUser.role === 'user' ? authUser._id : null,
+        leadNumber: currentNumber,
+        leadId: currentId,
       };
 
       // Since bulk upload doesn't strictly enforce 'service' as per requirements,

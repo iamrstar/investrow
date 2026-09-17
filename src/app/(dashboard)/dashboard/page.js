@@ -43,19 +43,27 @@ export default function DashboardPage() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [callNumber, setCallNumber] = useState('');
 
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState('all');
+
   useEffect(() => {
     if (user?.role === 'user') {
       setDashboardMode('employee');
+    } else if (user?.role === 'admin') {
+      fetch('/api/users')
+        .then(r => r.json())
+        .then(d => {
+          if (d.users) setStaffMembers(d.users.filter(u => u.role === 'user' || u.role === 'admin'));
+        })
+        .catch(console.error);
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (staffId = selectedStaff) => {
     try {
-      const res = await fetch('/api/dashboard');
+      setLoading(true);
+      const url = staffId && staffId !== 'all' ? `/api/dashboard?assignedTo=${staffId}` : '/api/dashboard';
+      const res = await fetch(url);
       const data = await res.json();
       setStats(data.stats);
     } catch (err) {
@@ -64,6 +72,10 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardStats(selectedStaff);
+  }, [selectedStaff]);
 
   const handleCreateLead = async (e) => {
     e.preventDefault();
@@ -361,6 +373,38 @@ export default function DashboardPage() {
 
           {/* View Switcher Pill */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {user?.role === 'admin' && staffMembers.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#FFFFFF',
+                padding: '5px 12px',
+                borderRadius: 10,
+                border: '1px solid #CBD5E1',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+              }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>Filter Staff:</span>
+                <select
+                  value={selectedStaff}
+                  onChange={(e) => setSelectedStaff(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: selectedStaff !== 'all' ? '#0EA5E9' : '#0F172A',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">All Staff Members</option>
+                  {staffMembers.map(st => (
+                    <option key={st._id} value={st._id}>{st.name} ({st.role === 'admin' ? 'Admin' : 'Staff'})</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div style={{
               display: 'flex',
               background: '#FFFFFF',

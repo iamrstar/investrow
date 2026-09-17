@@ -98,6 +98,8 @@ export async function POST(request, { params }) {
     const followup = await FollowUp.create({
       leadId: id,
       userId: authUser._id,
+      medium: body.medium || 'Phone Call',
+      interactionDate: pastInteractionDate,
       callStatus: callStatus || 'Received',
       response: resolvedResponse,
       stage: resolvedStage,

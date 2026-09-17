@@ -11,6 +11,15 @@ const FollowUpSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  medium: {
+    type: String,
+    enum: ['Phone Call', 'WhatsApp', 'In-Person Meeting', 'Email', 'Office Visit', 'Other'],
+    default: 'Phone Call',
+  },
+  interactionDate: {
+    type: Date,
+    default: Date.now,
+  },
   callStatus: {
     type: String,
     trim: true,

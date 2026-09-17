@@ -5,6 +5,7 @@ import { X, Phone, Clock } from 'lucide-react';
 
 export default function LogFollowUpModal({ lead, onClose, onSave }) {
   const [form, setForm] = useState({
+    medium: lead.medium || 'Phone Call',
     response: lead.response || 'Pending',
     callStatus: lead.callStatus || 'Pending',
     interestedInService: lead.interestedInService || 'Pending',
@@ -102,7 +103,23 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
         
         <form onSubmit={handleSubmit} style={{ maxHeight: '82vh', overflowY: 'auto' }}>
           <div className="modal-body" style={{ background: '#f8fafc' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ color: '#0EA5E9', fontWeight: 700 }}>Communication Medium *</label>
+                <select 
+                  className="form-select" 
+                  value={form.medium} 
+                  onChange={e => setForm({ ...form, medium: e.target.value })}
+                  style={{ height: 46, borderRadius: 12, border: '2px solid #BAE6FD', background: '#F0F9FF', fontWeight: 700 }}
+                >
+                  <option value="Phone Call">📞 Phone Call</option>
+                  <option value="WhatsApp">💬 WhatsApp</option>
+                  <option value="In-Person Meeting">🤝 In-Person Meeting</option>
+                  <option value="Email">✉️ Email</option>
+                  <option value="Office Visit">🏢 Office Visit</option>
+                  <option value="Other">🌐 Other</option>
+                </select>
+              </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label" style={{ color: '#0F172A', fontWeight: 700 }}>Response Outcome / Stage *</label>
                 <select 
