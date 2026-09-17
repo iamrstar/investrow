@@ -1,10 +1,10 @@
 import dbConnect from '@/lib/db';
 import Lead from '@/models/Lead';
 import User from '@/models/User';
+import Task from '@/models/Task';
 import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middleware';
 import ActivityLog from '@/models/ActivityLog';
 import FormControl from '@/models/FormControl';
-
 import FollowUp from '@/models/FollowUp';
 
 async function canAccessLead(authUser, lead) {
@@ -50,7 +50,13 @@ export async function GET(request, { params }) {
     .limit(20)
     .lean();
 
-  return Response.json({ lead, activities, followups });
+  // Get tasks for this lead
+  const tasks = await Task.find({ leadId: id })
+    .populate('assignedTo', 'name email')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return Response.json({ lead, activities, followups, tasks });
 }
 
 export async function PUT(request, { params }) {

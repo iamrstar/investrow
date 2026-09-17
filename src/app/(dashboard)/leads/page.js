@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import LogFollowUpModal from '@/components/LogFollowUpModal';
@@ -22,16 +23,32 @@ const STATUS_TABS = [
   'All', 'New', 'Contacted', 'Interested', 'Meeting', 'Documents', 'Converted', 'Lost'
 ];
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const searchParams = useSearchParams();
+  const urlStatus = searchParams?.get('status') || searchParams?.get('response') || searchParams?.get('stage') || '';
+  const initialFilter = (urlStatus && urlStatus !== 'All') ? urlStatus : '';
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [counts, setCounts] = useState({});
   const [search, setSearch] = useState('');
   const [filterService, setFilterService] = useState('');
-  const [filterResponse, setFilterResponse] = useState('');
+  const [filterResponse, setFilterResponse] = useState(initialFilter);
+
+  // Sync state if URL query params change dynamically
+  useEffect(() => {
+    const s = searchParams?.get('status') || searchParams?.get('response') || searchParams?.get('stage');
+    if (s !== null && s !== undefined) {
+      if (s === 'All' || s === '') {
+        setFilterResponse('');
+      } else {
+        setFilterResponse(s);
+      }
+    }
+  }, [searchParams]);
   const [filterCallStatus, setFilterCallStatus] = useState('');
   const [filterUser, setFilterUser] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -79,7 +96,10 @@ export default function LeadsPage() {
       const params = new URLSearchParams({ page, limit: 15 });
       if (search) params.set('search', search);
       if (filterService) params.set('service', filterService);
-      if (filterResponse) params.set('response', filterResponse);
+      if (filterResponse && filterResponse !== 'All') {
+        params.set('response', filterResponse);
+        params.set('status', filterResponse);
+      }
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
       if (filterUser) params.set('assignedTo', filterUser);
       if (filterDate) params.set('followUpDate', filterDate);
@@ -497,7 +517,25 @@ export default function LeadsPage() {
             <option value="">All Services</option>
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select className="form-select" value={filterResponse} onChange={e => setFilterResponse(e.target.value)}>
+          <select 
+            className="form-select" 
+            value={filterResponse} 
+            onChange={e => {
+              const val = e.target.value;
+              setFilterResponse(val);
+              try {
+                const url = new URL(window.location.href);
+                if (val && val !== 'All') {
+                  url.searchParams.set('status', val);
+                } else {
+                  url.searchParams.delete('status');
+                  url.searchParams.delete('response');
+                  url.searchParams.delete('stage');
+                }
+                window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+              } catch (err) {}
+            }}
+          >
             <option value="">All Statuses</option>
             <option value="New">New</option>
             <option value="Contacted">Contacted</option>
@@ -577,8 +615,19 @@ export default function LeadsPage() {
               key={tab}
               type="button"
               onClick={() => {
-                if (tab === 'All') setFilterResponse('');
-                else setFilterResponse(tab);
+                const nextStatus = tab === 'All' ? '' : tab;
+                setFilterResponse(nextStatus);
+                try {
+                  const url = new URL(window.location.href);
+                  if (nextStatus) {
+                    url.searchParams.set('status', nextStatus);
+                  } else {
+                    url.searchParams.delete('status');
+                    url.searchParams.delete('response');
+                    url.searchParams.delete('stage');
+                  }
+                  window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+                } catch (err) {}
               }}
               style={{
                 padding: '8px 18px',
@@ -2664,3 +2713,12 @@ function LogoLoader({ message }) {
     </div>
   );
 }
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Loading leads...</div>}>
+      <LeadsPageContent />
+    </Suspense>
+  );
+}
+
