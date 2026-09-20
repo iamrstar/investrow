@@ -269,6 +269,18 @@ LeadSchema.index({ service: 1 });
 LeadSchema.index({ response: 1 });
 LeadSchema.index({ callStatus: 1 });
 
+LeadSchema.pre('save', async function () {
+  if (!this.leadNumber || !this.leadId) {
+    const highestLead = await mongoose.model('Lead').findOne({ leadNumber: { $exists: true, $ne: null } })
+      .sort({ leadNumber: -1 })
+      .select('leadNumber')
+      .lean();
+    const nextNum = (highestLead && typeof highestLead.leadNumber === 'number') ? highestLead.leadNumber + 1 : 1001;
+    if (!this.leadNumber) this.leadNumber = nextNum;
+    if (!this.leadId) this.leadId = `INV-${nextNum}`;
+  }
+});
+
 export { SERVICES };
 if (mongoose.models.Lead) {
   delete mongoose.models.Lead;

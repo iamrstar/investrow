@@ -69,9 +69,16 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
     setSaving(false);
   };
 
-  const showFinancials = ['Converted', 'Interested', 'Meeting'].includes(form.response);
+  const showFinancials = ['Converted', 'Interested', 'Meeting', 'Contacted'].includes(form.response);
   const isMandatoryConversion = form.response === 'Converted';
   const sipPills = [1, 5, 10, 15, 20, 25];
+
+  const setQuickFollowUp = (daysAhead) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    const dateStr = d.toISOString().split('T')[0];
+    setForm(prev => ({ ...prev, nextCallDate: dateStr, followUpDate: dateStr }));
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -344,26 +351,54 @@ export default function LogFollowUpModal({ lead, onClose, onSave }) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#0284C7', fontWeight: 700 }}>Next Call / Follow-up Date</label>
-                <input 
-                  className="form-input" 
-                  type="date" 
-                  value={form.nextCallDate || form.followUpDate} 
-                  onChange={e => setForm({ ...form, nextCallDate: e.target.value, followUpDate: e.target.value })} 
-                  style={{ height: 44, borderRadius: 12, border: '2px solid #0EA5E9', fontWeight: 600, background: '#F0F9FF' }}
-                />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: '#64748b' }}>Interaction Date</label>
-                <input 
-                  className="form-input" 
-                  type="date" 
-                  value={form.interactionDate} 
-                  onChange={e => setForm({ ...form, interactionDate: e.target.value })} 
-                  style={{ height: 44, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
-                />
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#0284C7', fontWeight: 700 }}>Next Follow-up Requested Date</label>
+                  <input 
+                    className="form-input" 
+                    type="date" 
+                    value={form.nextCallDate || form.followUpDate} 
+                    onChange={e => setForm({ ...form, nextCallDate: e.target.value, followUpDate: e.target.value })} 
+                    style={{ height: 44, borderRadius: 12, border: '2px solid #0EA5E9', fontWeight: 600, background: '#F0F9FF' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                    {[
+                      { label: 'Tomorrow', days: 1 },
+                      { label: '+3 Days', days: 3 },
+                      { label: '+1 Week', days: 7 },
+                      { label: '+2 Weeks', days: 14 },
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setQuickFollowUp(p.days)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          border: '1px solid #BAE6FD',
+                          background: '#F0F9FF',
+                          color: '#0284C7',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ color: '#64748b' }}>When Did You Call? (Interaction Date)</label>
+                  <input 
+                    className="form-input" 
+                    type="date" 
+                    value={form.interactionDate} 
+                    onChange={e => setForm({ ...form, interactionDate: e.target.value })} 
+                    style={{ height: 44, borderRadius: 12, border: '2px solid #e2e8f0', fontWeight: 600 }}
+                  />
+                </div>
               </div>
             </div>
           </div>

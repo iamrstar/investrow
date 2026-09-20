@@ -331,6 +331,32 @@ export async function GET(request) {
     };
   });
 
+  // Today's Client Birthdays
+  const nowDate = new Date();
+  const currentMonth = nowDate.getMonth() + 1;
+  const currentDay = nowDate.getDate();
+  const allConvertedForBirthdays = await Lead.find({
+    response: 'Converted',
+    dateOfBirth: { $exists: true, $ne: '' }
+  }).select('name phone whatsappNumber dateOfBirth service assignedTo').lean();
+
+  const todayBirthdays = allConvertedForBirthdays.filter(c => {
+    if (!c.dateOfBirth) return false;
+    const s = String(c.dateOfBirth).trim();
+    const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymd) return parseInt(ymd[2], 10) === currentMonth && parseInt(ymd[3], 10) === currentDay;
+    const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmy) return parseInt(dmy[2], 10) === currentMonth && parseInt(dmy[1], 10) === currentDay;
+    return false;
+  }).map(c => ({
+    _id: c._id,
+    name: c.name || 'Client',
+    phone: c.phone || '',
+    whatsappNumber: c.whatsappNumber || c.phone || '',
+    service: c.service || 'Mutual Funds',
+    dateOfBirth: c.dateOfBirth
+  }));
+
   // Conversion rate (Total Converted Clients / Total Leads captured in CRM)
   const conversionRate = totalLeadsAll > 0 ? `${((totalClients / totalLeadsAll) * 100).toFixed(1)}%` : '0.0%';
 
@@ -583,6 +609,7 @@ export async function GET(request) {
       activeSipsCount,
       activeLumpsumCount,
       upcomingSipAlerts,
+      todayBirthdays,
       insurancePolicies,
       insurancePremium,
       pendingTasks,
@@ -615,6 +642,7 @@ export async function GET(request) {
         activeSipsCount,
         activeLumpsumCount,
         upcomingSipAlerts,
+        todayBirthdays,
         myPendingTasks: pendingTasks,
         myOverdueTasks: overdueTasks,
         followUpsList: employeeFollowUpsList,

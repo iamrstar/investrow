@@ -8,7 +8,7 @@ import {
   TrendingUp, BarChart2, Shield, CheckCircle2,
   Phone, MessageSquare, Plus, Upload, FileText,
   AlertTriangle, ArrowUpRight, Check, X, Send,
-  Briefcase, IndianRupee, Sparkles, Target
+  Briefcase, IndianRupee, Sparkles, Target, Cake, PartyPopper, ArrowRight
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -666,6 +667,121 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Admin Today's Client Birthdays Alert Banner */}
+      {stats.todayBirthdays?.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+          border: '1.5px solid #F59E0B',
+          borderRadius: 18,
+          padding: '16px 20px',
+          marginBottom: 20,
+          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.1)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: '#EA580C',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)'
+              }}>
+                <Cake size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#78350F', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Client Birthdays Today! 🎉
+                  <span style={{ fontSize: '0.72rem', background: '#EA580C', color: 'white', fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
+                    {stats.todayBirthdays.length} Celebrating
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#92400E', marginTop: 1 }}>
+                  Wish your clients a Happy Birthday on WhatsApp to build strong lasting relationships.
+                </div>
+              </div>
+            </div>
+
+            <Link
+              href="/communication"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                color: '#9A3412',
+                background: '#FFFFFF',
+                border: '1px solid #FCD34D',
+                padding: '6px 12px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              Open Greetings Hub <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+            {stats.todayBirthdays.map(client => {
+              const cleanPhone = (client.whatsappNumber || client.phone || '').replace(/[^0-9]/g, '');
+              const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+              const bdayMsg = `Dear ${client.name}, 🎂 Team Investrow Financial Services wishes you a very Happy Birthday! May this year bring you great health, joy, and continued prosperity. Best wishes!`;
+              const waUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(bdayMsg)}`;
+
+              return (
+                <div
+                  key={client._id}
+                  style={{
+                    background: '#FFFFFF',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    border: '1px solid #FDE68A',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 10
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>
+                      {client.name}
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#64748B', marginTop: 2 }}>
+                      {client.phone || 'No phone'} • {client.service || 'Client'}
+                    </div>
+                  </div>
+
+                  <a
+                    href={waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: '#10B981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontWeight: 800,
+                      fontSize: '0.76rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '6px 10px',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <Send size={12} /> Wish on WhatsApp
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Admin Upcoming SIP Debits Alert Banner */}
       {stats.upcomingSipAlerts?.length > 0 && (
@@ -1349,6 +1465,121 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Staff Today's Client Birthdays Alert Banner */}
+          {empStats.todayBirthdays?.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+              border: '1.5px solid #F59E0B',
+              borderRadius: 18,
+              padding: '16px 20px',
+              marginBottom: 20,
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.1)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#EA580C',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)'
+                  }}>
+                    <Cake size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#78350F', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      My Client Birthdays Today! 🎉
+                      <span style={{ fontSize: '0.72rem', background: '#EA580C', color: 'white', fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
+                        {empStats.todayBirthdays.length}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#92400E', marginTop: 1 }}>
+                      Send a personalized 1-click birthday greeting to your clients.
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/communication"
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: '#9A3412',
+                    background: '#FFFFFF',
+                    border: '1px solid #FCD34D',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  Open Greetings Hub <ArrowRight size={13} />
+                </Link>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+                {empStats.todayBirthdays.map(client => {
+                  const cleanPhone = (client.whatsappNumber || client.phone || '').replace(/[^0-9]/g, '');
+                  const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                  const bdayMsg = `Dear ${client.name}, 🎂 Team Investrow Financial Services wishes you a very Happy Birthday! May this year bring you great health, joy, and continued prosperity. Best wishes!`;
+                  const waUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(bdayMsg)}`;
+
+                  return (
+                    <div
+                      key={client._id}
+                      style={{
+                        background: '#FFFFFF',
+                        borderRadius: 12,
+                        padding: '12px 14px',
+                        border: '1px solid #FDE68A',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 10
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>
+                          {client.name}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: '#64748B', marginTop: 2 }}>
+                          {client.phone || 'No phone'} • {client.service || 'Client'}
+                        </div>
+                      </div>
+
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          background: '#10B981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontWeight: 800,
+                          fontSize: '0.76rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '6px 10px',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <Send size={12} /> Wish on WhatsApp
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Staff Upcoming SIP Debits Alert Banner */}
           {empStats.upcomingSipAlerts?.length > 0 && (

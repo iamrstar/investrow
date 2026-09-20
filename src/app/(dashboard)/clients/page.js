@@ -528,7 +528,7 @@ export default function ClientsPage() {
             </thead>
             <tbody>
               {clients.map((client, index) => {
-                const clientIdStr = client.leadId || `INV-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
+                const clientIdStr = client.leadId || (client.leadNumber ? `INV-${client.leadNumber}` : 'INV-—');
                 return (
                   <tr 
                     key={client._id}
@@ -1046,9 +1046,48 @@ export default function ClientsPage() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: '0.86rem', flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
                               <span style={{ color: '#64748B', fontWeight: 600 }}>DOB</span>
-                              <span style={{ color: '#0F172A', fontWeight: 700 }}>
-                                {detailData.lead?.dateOfBirth ? (detailData.lead.dateOfBirth.includes('T') ? detailData.lead.dateOfBirth.split('T')[0] : detailData.lead.dateOfBirth) : '—'}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                  {detailData.lead?.dateOfBirth ? (detailData.lead.dateOfBirth.includes('T') ? detailData.lead.dateOfBirth.split('T')[0] : detailData.lead.dateOfBirth) : '—'}
+                                </span>
+                                {(() => {
+                                  if (!detailData.lead?.dateOfBirth) return null;
+                                  const s = String(detailData.lead.dateOfBirth).trim();
+                                  const now = new Date();
+                                  const m = now.getMonth() + 1;
+                                  const d = now.getDate();
+                                  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+                                  const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+                                  const isToday = (ymd && parseInt(ymd[2], 10) === m && parseInt(ymd[3], 10) === d) ||
+                                                  (dmy && parseInt(dmy[2], 10) === m && parseInt(dmy[1], 10) === d);
+                                  if (!isToday) return null;
+                                  const phone = (detailData.lead.whatsappNumber || detailData.lead.phone || '').replace(/[^0-9]/g, '');
+                                  const finalPhone = phone.length === 10 ? '91' + phone : phone;
+                                  const bdayMsg = `Dear ${detailData.lead.name}, 🎂 Happy Birthday from Team Investrow Financial Services! May this year bring you great health, joy, and success!`;
+                                  return (
+                                    <a
+                                      href={`https://wa.me/${finalPhone}?text=${encodeURIComponent(bdayMsg)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        background: '#FEF3C7',
+                                        color: '#B45309',
+                                        border: '1px solid #FDE68A',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontWeight: 800,
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 2
+                                      }}
+                                    >
+                                      🎂 Birthday Today!
+                                    </a>
+                                  );
+                                })()}
+                              </div>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>

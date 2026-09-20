@@ -94,7 +94,7 @@ export async function POST(request, { params }) {
     const finalInvestmentAmount = investmentAmount !== undefined ? (Number(investmentAmount) || 0) : (currentLead.investmentAmount || 0);
     const finalSchemeName = schemeName !== undefined ? schemeName : (currentLead.schemeName || '');
 
-    // 1. Create the FollowUp record
+    // 1. Create the FollowUp record with complete interaction & interest details
     const followup = await FollowUp.create({
       leadId: id,
       userId: authUser._id,
@@ -103,8 +103,8 @@ export async function POST(request, { params }) {
       callStatus: callStatus || 'Received',
       response: resolvedResponse,
       stage: resolvedStage,
-      interestedInService: interestedInService || 'Pending',
-      serviceTaken: serviceTaken || 'Pending',
+      interestedInService: interestedInService || (['Interested', 'Meeting', 'Converted'].includes(resolvedStage) ? 'Yes' : (resolvedStage === 'Lost' ? 'No' : 'Pending')),
+      serviceTaken: serviceTaken || (resolvedStage === 'Converted' ? 'Yes' : 'Pending'),
       service: finalService,
       investmentType: finalInvestmentType,
       sipAmount: finalSipAmount,
@@ -112,19 +112,19 @@ export async function POST(request, { params }) {
       investmentAmount: finalInvestmentAmount,
       schemeName: finalSchemeName,
       nextCallDate: scheduledNext,
-      followUpDate: pastInteractionDate,
-      remarks,
+      followUpDate: scheduledNext,
+      remarks: remarks || '',
     });
 
-    // 2. Update the Lead with the upgraded stage and synchronized dates & financials
+    // 2. Update the Lead with the upgraded stage, synchronized dates & financials
     const updatedLead = await Lead.findByIdAndUpdate(
       id,
       {
         stage: resolvedStage,
         response: resolvedResponse,
         callStatus: callStatus || currentLead.callStatus,
-        interestedInService: interestedInService || currentLead.interestedInService,
-        serviceTaken: serviceTaken || currentLead.serviceTaken,
+        interestedInService: interestedInService || (['Interested', 'Meeting', 'Converted'].includes(resolvedStage) ? 'Yes' : (resolvedStage === 'Lost' ? 'No' : currentLead.interestedInService)),
+        serviceTaken: serviceTaken || (resolvedStage === 'Converted' ? 'Yes' : currentLead.serviceTaken),
         service: finalService,
         investmentType: finalInvestmentType,
         sipAmount: finalSipAmount,
@@ -138,18 +138,32 @@ export async function POST(request, { params }) {
       { new: true }
     );
 
-    // 3. Create high-level ActivityLog entry
+    // 3. Create comprehensive ActivityLog entry for the follow-up history
+    const callStatusDisplay = callStatus || 'Connected';
+    const mediumDisplay = body.medium || 'Phone Call';
     await ActivityLog.create({
       userId: authUser._id,
-      action: `Logged Follow-up: ${callStatus || 'Call'} • Upgraded to ${resolvedStage}`,
+      action: `Follow-up Call with ${currentLead.name}: ${callStatusDisplay} (${resolvedResponse})`,
       entityType: 'Lead',
       entityId: id,
       details: { 
+        type: 'followup',
         followupId: followup._id,
-        callStatus,
+        leadName: currentLead.name,
+        callerName: authUser.name,
+        medium: mediumDisplay,
+        interactionDate: pastInteractionDate,
+        callStatus: callStatusDisplay,
         response: resolvedResponse,
         stage: resolvedStage,
-        nextCallDate: scheduledNext 
+        remarks: remarks || '',
+        service: finalService,
+        schemeName: finalSchemeName,
+        investmentType: finalInvestmentType,
+        sipAmount: finalSipAmount,
+        sipDay: finalSipDay,
+        investmentAmount: finalInvestmentAmount,
+        nextFollowUpDate: scheduledNext 
       },
     });
 

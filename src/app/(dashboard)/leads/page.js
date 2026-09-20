@@ -11,7 +11,8 @@ import ConvertToClientModal from '@/components/ConvertToClientModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
-  MoreVertical, Clock, CheckCircle, Video, Calendar, IndianRupee, UserCheck
+  MoreVertical, Clock, CheckCircle, Video, Calendar, IndianRupee, UserCheck,
+  MessageSquare, TrendingUp
 } from 'lucide-react';
 
 const SERVICES = [
@@ -689,7 +690,7 @@ function LeadsPageContent() {
             </thead>
             <tbody>
               {leads.map((lead, index) => {
-                const leadIdStr = lead.leadId || `INV-${1000 + (pagination.page - 1) * pagination.limit + index + 1}`;
+                const leadIdStr = lead.leadId || (lead.leadNumber ? `INV-${lead.leadNumber}` : 'INV-—');
                 const resp = lead.response || 'New';
                 const statusStyle = resp === 'Interested' 
                   ? { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' }
@@ -1182,11 +1183,31 @@ function LeadsPageContent() {
                 <div className="detail-item"><div className="detail-label">{getFieldConfig('email').label}</div><div className="detail-value">{detailData.lead?.email || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">{getFieldConfig('service').label}</div><div className="detail-value"><span className="badge badge-blue">{detailData.lead?.service}</span></div></div>
                 <div className="detail-item"><div className="detail-label">Response</div><div className="detail-value"><span className={`badge badge-${detailData.lead?.response?.toLowerCase() === 'positive' ? 'positive' : detailData.lead?.response?.toLowerCase() === 'negative' ? 'negative' : detailData.lead?.response?.toLowerCase() === 'converted' ? 'converted' : 'pending'}`}>{detailData.lead?.response}</span></div></div>
-                <div className="detail-item"><div className="detail-label">Call Status</div><div className="detail-value">{detailData.lead?.callStatus}</div></div>
-                <div className="detail-item"><div className="detail-label">Interested</div><div className="detail-value">{detailData.lead?.interestedInService}</div></div>
-                <div className="detail-item"><div className="detail-label">Service Taken</div><div className="detail-value">{detailData.lead?.serviceTaken}</div></div>
-                <div className="detail-item"><div className="detail-label">Next Call</div><div className="detail-value">{detailData.lead?.nextCallDate ? new Date(detailData.lead?.nextCallDate).toLocaleDateString() : '—'}</div></div>
-                <div className="detail-item"><div className="detail-label">Follow-up</div><div className="detail-value">{detailData.lead?.followUpDate ? new Date(detailData.lead?.followUpDate).toLocaleDateString() : '—'}</div></div>
+                <div className="detail-item"><div className="detail-label">Call Status</div><div className="detail-value">{detailData.lead?.callStatus || 'Pending'}</div></div>
+                <div className="detail-item">
+                  <div className="detail-label">Target Scheme / Plan</div>
+                  <div className="detail-value" style={{ fontWeight: 700, color: '#0F172A' }}>
+                    {detailData.lead?.schemeName || 'General / Undecided'}
+                  </div>
+                </div>
+                <div className="detail-item">
+                  <div className="detail-label">Next Follow-up</div>
+                  <div className="detail-value">
+                    {(detailData.lead?.nextCallDate || detailData.lead?.followUpDate) ? (
+                      <span style={{ 
+                        background: '#EFF6FF', 
+                        color: '#1D4ED8', 
+                        border: '1px solid #BFDBFE', 
+                        padding: '3px 8px', 
+                        borderRadius: 6, 
+                        fontWeight: 700,
+                        fontSize: '0.85rem'
+                      }}>
+                        📅 {new Date(detailData.lead?.nextCallDate || detailData.lead?.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    ) : '—'}
+                  </div>
+                </div>
                 <div className="detail-item"><div className="detail-label">Assigned To</div><div className="detail-value">{detailData.lead?.assignedTo?.name || '—'}</div></div>
                 <div className="detail-item"><div className="detail-label">Created By</div><div className="detail-value">{detailData.lead?.createdBy?.name || '—'}</div></div>
                 <div className="detail-item" style={{ gridColumn: '1 / -1' }}>
@@ -1374,150 +1395,207 @@ function LeadsPageContent() {
                           paddingBottom: 20,
                           position: 'relative'
                         }}>
-                          {items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(fu => (
-                            <div 
-                              key={fu._id} 
-                              className="follow-up-card-container"
-                              style={{ position: 'relative' }}
-                            >
-                              <div style={{ 
-                                position: 'absolute',
-                                left: -33,
-                                top: 24,
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                background: fu.response === 'Positive' ? '#22c55e' : fu.response === 'Negative' ? '#ef4444' : 'var(--secondary)',
-                                border: '4px solid white',
-                                boxShadow: '0 0 0 2px var(--secondary-50)'
-                              }}></div>
+                          {items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(fu => {
+                            const nextDate = fu.nextCallDate || fu.followUpDate;
+                            const isTodayNext = nextDate && new Date(nextDate).toDateString() === new Date().toDateString();
+                            const isPastNext = nextDate && new Date(nextDate) < new Date().setHours(0, 0, 0, 0);
 
+                            return (
                               <div 
-                                className="follow-up-card"
-                                style={{ 
-                                  background: expandedActivities[fu._id] ? 'white' : 'var(--bg-card)',
-                                  borderRadius: 20,
-                                  border: expandedActivities[fu._id] ? '2px solid var(--secondary-100)' : '1px solid var(--border-light)',
-                                  boxShadow: expandedActivities[fu._id] ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                }}
+                                key={fu._id} 
+                                className="follow-up-card-container"
+                                style={{ position: 'relative' }}
                               >
-                                <div style={{ padding: '20px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                      <div style={{ 
-                                        width: 40, 
-                                        height: 40, 
-                                        borderRadius: 12, 
-                                        background: 'var(--secondary-100)', 
-                                        color: 'var(--secondary-dark)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.9rem',
-                                        fontWeight: 800
-                                      }}>
-                                        {(fu.userId?.name || 'S').charAt(0)}
-                                      </div>
-                                      <div>
-                                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                                          {fu.userId?.name || 'System User'}
-                                        </div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                          <Clock size={12} />
-                                          {new Date(fu.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      {fu.medium && (
-                                        <span style={{ 
-                                          background: '#F1F5F9', 
-                                          color: '#475569', 
-                                          border: '1px solid #E2E8F0',
-                                          borderRadius: 8, 
-                                          padding: '3px 8px', 
-                                          fontSize: '0.72rem', 
-                                          fontWeight: 700 
-                                        }}>
-                                          {fu.medium}
-                                        </span>
-                                      )}
-                                      <span className={`badge badge-${fu.response === 'Positive' ? 'positive' : fu.response === 'Negative' ? 'negative' : 'blue'}`} style={{ borderRadius: 10, padding: '4px 12px' }}>
-                                        {fu.response}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  <div style={{ 
-                                    fontSize: '0.95rem', 
-                                    color: 'var(--text-secondary)', 
-                                    lineHeight: 1.6,
-                                    marginBottom: 16
-                                  }}>
-                                    {expandedActivities[fu._id] ? fu.remarks : (fu.remarks?.substring(0, 80) + (fu.remarks?.length > 80 ? '...' : '')) || 'No notes provided.'}
-                                  </div>
+                                <div style={{ 
+                                  position: 'absolute',
+                                  left: -33,
+                                  top: 24,
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: '50%',
+                                  background: ['Positive', 'Interested', 'Meeting', 'Converted'].includes(fu.response) ? '#10b981' : ['Negative', 'Lost'].includes(fu.response) ? '#ef4444' : 'var(--secondary)',
+                                  border: '4px solid white',
+                                  boxShadow: '0 0 0 2px var(--secondary-50)'
+                                }}></div>
 
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
-                                    <button 
-                                      className="btn btn-ghost btn-sm"
-                                      onClick={() => toggleActivity(fu._id)}
-                                      style={{ color: 'var(--secondary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
-                                    >
-                                      {expandedActivities[fu._id] ? 'Hide Details' : 'View Details'}
-                                      <ChevronRight size={16} style={{ transform: expandedActivities[fu._id] ? 'rotate(-90deg)' : 'rotate(90deg)', transition: '0.2s' }} />
-                                    </button>
-                                  </div>
-                                  
-                                  {expandedActivities[fu._id] && (
-                                    <div style={{ 
-                                      marginTop: 16, 
-                                      padding: 16, 
-                                      background: 'var(--bg-body)', 
-                                      borderRadius: 16, 
-                                      display: 'grid', 
-                                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
-                                      gap: 16 
-                                    }}>
-                                      {fu.interactionDate && (
-                                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                          <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><Calendar size={14} /></div>
-                                          <div>
-                                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Interaction Date</div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{new Date(fu.interactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                                <div 
+                                  className="follow-up-card"
+                                  style={{ 
+                                    background: 'white',
+                                    borderRadius: 20,
+                                    border: '1px solid #E2E8F0',
+                                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                                    overflow: 'hidden',
+                                    transition: 'all 0.2s ease',
+                                  }}
+                                >
+                                  <div style={{ padding: '20px' }}>
+                                    {/* 1. Header: Caller, Time, Medium, Status, Outcome */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ 
+                                          width: 42, 
+                                          height: 42, 
+                                          borderRadius: 12, 
+                                          background: 'linear-gradient(135deg, #0284C7, #0EA5E9)', 
+                                          color: 'white',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          fontSize: '0.95rem',
+                                          fontWeight: 800
+                                        }}>
+                                          {(fu.userId?.name || 'A').charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>
+                                            {fu.userId?.name || 'Advisor / Staff'}
+                                          </div>
+                                          <div style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                            <Calendar size={13} style={{ color: '#0EA5E9' }} />
+                                            <span>
+                                              Called on <strong>{new Date(fu.interactionDate || fu.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>
+                                            </span>
+                                            <span>•</span>
+                                            <Clock size={13} style={{ color: '#64748B' }} />
+                                            <span>
+                                              {new Date(fu.interactionDate || fu.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                           </div>
                                         </div>
-                                      )}
-                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><Phone size={14} /></div>
-                                        <div>
-                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Call Status</div>
-                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.callStatus}</div>
-                                        </div>
                                       </div>
-                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                        <div style={{ padding: 6, background: 'white', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}><CheckCircle size={14} /></div>
-                                        <div>
-                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Interested</div>
-                                          <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{fu.interestedInService}</div>
-                                        </div>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                        {fu.medium && (
+                                          <span style={{ 
+                                            background: '#F1F5F9', 
+                                            color: '#334155', 
+                                            border: '1px solid #CBD5E1',
+                                            borderRadius: 8, 
+                                            padding: '4px 10px', 
+                                            fontSize: '0.75rem', 
+                                            fontWeight: 700 
+                                          }}>
+                                            {fu.medium}
+                                          </span>
+                                        )}
+                                        <span style={{ 
+                                          background: fu.callStatus === 'Received' || fu.callStatus === 'Connected' ? '#DCFCE7' : '#FEF3C7',
+                                          color: fu.callStatus === 'Received' || fu.callStatus === 'Connected' ? '#15803D' : '#B45309',
+                                          borderRadius: 8, 
+                                          padding: '4px 10px', 
+                                          fontSize: '0.75rem', 
+                                          fontWeight: 700,
+                                          border: fu.callStatus === 'Received' || fu.callStatus === 'Connected' ? '1px solid #BBF7D0' : '1px solid #FDE68A'
+                                        }}>
+                                          📞 {fu.callStatus === 'Received' ? 'Connected' : fu.callStatus || 'Call Logged'}
+                                        </span>
+                                        <span className={`badge badge-${['Positive', 'Interested', 'Converted'].includes(fu.response) ? 'positive' : ['Negative', 'Lost'].includes(fu.response) ? 'negative' : 'blue'}`} style={{ borderRadius: 8, padding: '4px 10px', fontWeight: 700 }}>
+                                          Outcome: {fu.response}
+                                        </span>
                                       </div>
-                                      {fu.nextCallDate && (
-                                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', gridColumn: '1 / -1', background: 'var(--secondary-50)', padding: '12px', borderRadius: 12 }}>
-                                          <Clock size={14} style={{ color: 'var(--secondary)' }} />
-                                          <div>
-                                            <div style={{ fontSize: '0.65rem', color: 'var(--secondary-dark)', textTransform: 'uppercase', fontWeight: 800 }}>Next Call Scheduled</div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>{new Date(fu.nextCallDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
-                                          </div>
-                                        </div>
-                                      )}
                                     </div>
-                                  )}
+                                    
+                                    {/* 2. What they responded & what was discussed */}
+                                    <div style={{ 
+                                      background: '#F8FAFC', 
+                                      borderLeft: '4px solid #0EA5E9', 
+                                      borderRadius: '0 12px 12px 0',
+                                      padding: '12px 16px',
+                                      margin: '12px 0 14px 0',
+                                      fontSize: '0.92rem', 
+                                      color: '#1E293B', 
+                                      lineHeight: 1.55 
+                                    }}>
+                                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <MessageSquare size={13} style={{ color: '#0EA5E9' }} />
+                                        Discussion & Client Response:
+                                      </div>
+                                      <div style={{ whiteSpace: 'pre-wrap' }}>
+                                        {fu.remarks || 'No specific conversation notes provided.'}
+                                      </div>
+                                    </div>
+
+                                    {/* 3. Interested in What (Service, Scheme & Expected Amount) */}
+                                    {(fu.service || fu.schemeName || (fu.sipAmount && fu.sipAmount > 0) || (fu.investmentAmount && fu.investmentAmount > 0)) && (
+                                      <div style={{ 
+                                        background: '#F0FDF4', 
+                                        border: '1px solid #BBF7D0', 
+                                        borderRadius: 12, 
+                                        padding: '10px 14px', 
+                                        marginBottom: 12,
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: 12, 
+                                        flexWrap: 'wrap',
+                                        fontSize: '0.82rem'
+                                      }}>
+                                        <div style={{ fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <TrendingUp size={15} /> Interested In:
+                                        </div>
+                                        {fu.service && (
+                                          <span style={{ background: '#DCFCE7', color: '#15803D', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                                            🏷️ {fu.service}
+                                          </span>
+                                        )}
+                                        {fu.schemeName && (
+                                          <span style={{ color: '#166534', fontWeight: 700 }}>
+                                            📈 {fu.schemeName}
+                                          </span>
+                                        )}
+                                        {fu.sipAmount > 0 && (
+                                          <span style={{ color: '#15803D', fontWeight: 700, background: '#FFFFFF', padding: '2px 8px', borderRadius: 6, border: '1px solid #86EFAC' }}>
+                                            💰 ₹{Number(fu.sipAmount).toLocaleString('en-IN')}/mo SIP {fu.sipDay ? `(Debit: ${fu.sipDay}th)` : ''}
+                                          </span>
+                                        )}
+                                        {fu.investmentAmount > 0 && (
+                                          <span style={{ color: '#15803D', fontWeight: 700, background: '#FFFFFF', padding: '2px 8px', borderRadius: 6, border: '1px solid #86EFAC' }}>
+                                            💼 ₹{Number(fu.investmentAmount).toLocaleString('en-IN')} Lumpsum
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* 4. When they asked for Next Follow-up */}
+                                    {nextDate && (
+                                      <div style={{ 
+                                        background: isPastNext ? '#FEF2F2' : (isTodayNext ? '#F0FDF4' : '#EFF6FF'), 
+                                        border: isPastNext ? '1px solid #FECACA' : (isTodayNext ? '1px solid #BBF7D0' : '1px solid #BFDBFE'),
+                                        borderRadius: 12, 
+                                        padding: '10px 14px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'space-between',
+                                        flexWrap: 'wrap',
+                                        gap: 8,
+                                        fontSize: '0.84rem'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <Calendar size={16} style={{ color: isPastNext ? '#DC2626' : (isTodayNext ? '#16A34A' : '#2563EB') }} />
+                                          <span style={{ color: isPastNext ? '#991B1B' : (isTodayNext ? '#166534' : '#1E40AF'), fontWeight: 700 }}>
+                                            Next Follow-up Requested:
+                                          </span>
+                                          <strong style={{ color: isPastNext ? '#B91C1C' : (isTodayNext ? '#15803D' : '#1D4ED8') }}>
+                                            {new Date(nextDate).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                          </strong>
+                                        </div>
+                                        <span style={{ 
+                                          fontSize: '0.72rem', 
+                                          fontWeight: 800, 
+                                          padding: '2px 8px', 
+                                          borderRadius: 6,
+                                          background: isPastNext ? '#FEE2E2' : (isTodayNext ? '#DCFCE7' : '#DBEAFE'),
+                                          color: isPastNext ? '#991B1B' : (isTodayNext ? '#15803D' : '#1D4ED8')
+                                        }}>
+                                          {isPastNext ? 'Past Scheduled Date' : (isTodayNext ? 'Due Today' : 'Upcoming Follow-up')}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -2341,54 +2419,121 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                     </select>
                   </div>
                 </div>
-                <div className="form-row">
-                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'interestedInService')) && (
-                    <div className="form-group">
-                      <label className="form-label">{getFieldConfig('interestedInService')?.label || 'Interested in Service'}</label>
-                      <select className="form-select" value={form.interestedInService} onChange={e => setForm({ ...form, interestedInService: e.target.value })}>
-                        <option value="Pending">Pending</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
+                {/* Unified Next Follow-up Date with Quick Presets */}
+                <div style={{ background: '#F0F9FF', border: '1.5px solid #BAE6FD', borderRadius: 14, padding: '14px 16px', margin: '14px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                    <label className="form-label" style={{ margin: 0, color: '#0369A1', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Calendar size={15} style={{ color: '#0284C7' }} /> Next Follow-up Requested Date
+                    </label>
+                    <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 600 }}>
+                      When did the lead ask you to call back?
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, alignItems: 'center' }}>
+                    <input 
+                      className="form-input" 
+                      type="date" 
+                      value={form.nextCallDate || form.followUpDate || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setForm({ ...form, nextCallDate: val, followUpDate: val });
+                      }}
+                      style={{ height: 42, borderRadius: 10, border: '1.5px solid #38BDF8', background: 'white', fontWeight: 700, color: '#0F172A' }}
+                    />
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Tomorrow', days: 1 },
+                        { label: '+3 Days', days: 3 },
+                        { label: '+1 Week', days: 7 },
+                        { label: '+2 Weeks', days: 14 },
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + p.days);
+                            const ds = d.toISOString().split('T')[0];
+                            setForm({ ...form, nextCallDate: ds, followUpDate: ds });
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: 8,
+                            border: '1px solid #BAE6FD',
+                            background: 'white',
+                            color: '#0284C7',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                      {(form.nextCallDate || form.followUpDate) && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, nextCallDate: '', followUpDate: '' })}
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: 8,
+                            border: '1px solid #FECACA',
+                            background: '#FEF2F2',
+                            color: '#DC2626',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
-                  )}
-                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'serviceTaken')) && (
-                    <div className="form-group">
-                      <label className="form-label">{getFieldConfig('serviceTaken')?.label || 'Service Taken'}</label>
-                      <select className="form-select" value={form.serviceTaken} onChange={e => setForm({ ...form, serviceTaken: e.target.value })}>
-                        <option value="Pending">Pending</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-                <div className="form-row">
-                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'nextCallDate')) && (
-                    <div className="form-group">
-                      <label className="form-label">{getFieldConfig('nextCallDate')?.label || 'Next Call Date'}</label>
-                      <input className="form-input" type="date" value={form.nextCallDate} onChange={e => setForm({ ...form, nextCallDate: e.target.value })} />
-                    </div>
-                  )}
-                  {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'followUpDate')) && (
-                    <div className="form-group">
-                      <label className="form-label">{getFieldConfig('followUpDate')?.label || 'Follow-up Date'}</label>
-                      <input className="form-input" type="date" value={form.followUpDate} onChange={e => setForm({ ...form, followUpDate: e.target.value })} />
-                    </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Financial Portfolio Section */}
+                {/* Interested in What & Financial Portfolio Section */}
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '16px 18px', marginTop: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <IndianRupee size={16} /> Investment & Financial Portfolio
+                      <TrendingUp size={16} /> Interested in What & Financial Portfolio
                     </div>
                     {form.stage === 'Converted' && (
                       <span style={{ fontSize: '0.72rem', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
                         Required for Converted Client
                       </span>
                     )}
+                  </div>
+
+                  {/* Primary Service Category */}
+                  <div className="form-group" style={{ marginBottom: 12 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: 4 }}>
+                      Interested Service Category *
+                    </label>
+                    <select 
+                      className="form-select" 
+                      value={form.service || 'Mutual Funds'} 
+                      onChange={e => setForm({ ...form, service: e.target.value })}
+                      style={{ height: 40, borderRadius: 8, border: '1px solid #86EFAC', background: 'white', fontWeight: 700 }}
+                    >
+                      {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Target Scheme / Product Name */}
+                  <div className="form-group" style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: 4 }}>
+                      Target Scheme / Product Name (Optional)
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Parag Parikh Flexi Cap Fund / Star Health Optima / HDFC Balanced"
+                      value={form.schemeName || ''} 
+                      onChange={e => setForm({ ...form, schemeName: e.target.value })}
+                      style={{ height: 40, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
+                    />
                   </div>
 
                   {/* Mode Selector */}
@@ -2507,21 +2652,6 @@ function LeadFormModal({ lead, users, canAssign, formSettings, onClose, onSave }
                       </div>
                     </div>
                   )}
-
-                  {/* Scheme Name */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 700 }}>
-                      Scheme / Fund Name (Optional)
-                    </label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="e.g. Mirae Asset Large & Midcap Fund / HDFC Balanced"
-                      value={form.schemeName || ''} 
-                      onChange={e => setForm({ ...form, schemeName: e.target.value })}
-                      style={{ height: 38, borderRadius: 8, border: '1px solid #86EFAC', background: 'white' }}
-                    />
-                  </div>
                 </div>
                 {(!formSettings?.defaultFields || formSettings.defaultFields.some(f => f.name === 'remarks')) && (
                   <div className="form-group" style={{ marginTop: 16 }}>
