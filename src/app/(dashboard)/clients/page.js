@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
@@ -21,13 +22,23 @@ const SERVICES = [
 const SIP_DAYS = [1, 5, 7, 10, 15, 20, 25, 28];
 const TENURE_OPTIONS = [1, 3, 5, 7, 10, 15, 20];
 
-export default function ClientsPage() {
+function ClientsPageContent() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams?.get('search') || '';
+
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(urlSearch);
+
+  useEffect(() => {
+    const q = searchParams?.get('search');
+    if (q !== null && q !== undefined) {
+      setSearch(q);
+    }
+  }, [searchParams]);
   const [filterService, setFilterService] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('');
   const [filterUser, setFilterUser] = useState('');
@@ -379,9 +390,44 @@ export default function ClientsPage() {
 
       {/* Filters */}
       <div className="filters-container">
-        <div className="search-input-wrapper">
+        <div className="search-input-wrapper" style={{ position: 'relative' }}>
           <Search />
-          <input className="form-input" placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Search clients by name, phone, ID, PAN, scheme..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingRight: search ? 36 : 14 }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('search');
+                  window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+                } catch (e) {}
+              }}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#94a3b8',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Clear search"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
         <div className="filters-scroll-row">
           <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>
@@ -3811,5 +3857,13 @@ function LogoLoader({ message }) {
         <div className="logo-loader-subtitle">Please wait while we process your request</div>
       </div>
     </div>
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Loading clients...</div>}>
+      <ClientsPageContent />
+    </Suspense>
   );
 }

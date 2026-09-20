@@ -30,12 +30,13 @@ function LeadsPageContent() {
   const searchParams = useSearchParams();
   const urlStatus = searchParams?.get('status') || searchParams?.get('response') || searchParams?.get('stage') || '';
   const initialFilter = (urlStatus && urlStatus !== 'All') ? urlStatus : '';
+  const urlSearch = searchParams?.get('search') || '';
 
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [counts, setCounts] = useState({});
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(urlSearch);
   const [filterService, setFilterService] = useState('');
   const [filterResponse, setFilterResponse] = useState(initialFilter);
 
@@ -48,6 +49,10 @@ function LeadsPageContent() {
       } else {
         setFilterResponse(s);
       }
+    }
+    const q = searchParams?.get('search');
+    if (q !== null && q !== undefined) {
+      setSearch(q);
     }
   }, [searchParams]);
   const [filterCallStatus, setFilterCallStatus] = useState('');
@@ -95,7 +100,12 @@ function LeadsPageContent() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit: 15 });
-      if (search) params.set('search', search);
+      if (search) {
+        params.set('search', search);
+        if (!filterResponse || filterResponse === 'All') {
+          params.set('includeConverted', 'true');
+        }
+      }
       if (filterService) params.set('service', filterService);
       if (filterResponse && filterResponse !== 'All') {
         params.set('response', filterResponse);
@@ -509,9 +519,44 @@ function LeadsPageContent() {
 
       {/* Filters */}
       <div className="filters-container">
-        <div className="search-input-wrapper">
+        <div className="search-input-wrapper" style={{ position: 'relative' }}>
           <Search />
-          <input className="form-input" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Search leads by name, phone, ID, PAN, scheme..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingRight: search ? 36 : 14 }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('search');
+                  window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+                } catch (e) {}
+              }}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#94a3b8',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Clear search"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
         <div className="filters-scroll-row">
           <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>

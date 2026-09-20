@@ -13,6 +13,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search');
+  const includeConverted = searchParams.get('includeConverted');
   const service = searchParams.get('service');
   const response = searchParams.get('response');
   const callStatus = searchParams.get('callStatus');
@@ -39,20 +40,34 @@ export async function GET(request) {
   }
 
   if (search) {
-    criteria.push({
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ]
-    });
+    const trimmed = search.trim();
+    const isNum = !isNaN(Number(trimmed)) && trimmed !== '';
+    const searchRegex = { $regex: trimmed, $options: 'i' };
+    const searchConditions = [
+      { name: searchRegex },
+      { phone: searchRegex },
+      { email: searchRegex },
+      { leadId: searchRegex },
+      { panNumber: searchRegex },
+      { aadhaarNumber: searchRegex },
+      { schemeName: searchRegex },
+      { 'schemes.schemeName': searchRegex },
+      { location: searchRegex },
+      { city: searchRegex },
+      { bankName: searchRegex },
+      { bankAccountNumber: searchRegex },
+    ];
+    if (isNum) {
+      searchConditions.push({ leadNumber: Number(trimmed) });
+    }
+    criteria.push({ $or: searchConditions });
   }
 
   if (service) criteria.push({ service });
-  if (response) {
+  if (response && response !== 'All') {
     criteria.push({ response });
-  } else {
-    // Default: exclude converted leads from lead management
+  } else if (!response && !search && includeConverted !== 'true') {
+    // Default: exclude converted leads from lead management ONLY when no explicit search/filter is requested
     criteria.push({ response: { $ne: 'Converted' } });
   }
   if (callStatus) criteria.push({ callStatus });
