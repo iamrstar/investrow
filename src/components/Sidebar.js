@@ -70,15 +70,15 @@ export default function Sidebar() {
       <aside
         className={`sidebar ${mobileOpen ? 'open' : ''}`}
       >
-        {/* Brand Header with prominent authentic logo.png */}
+        {/* Brand Header with authentic Investrow logo */}
         <div style={{
-          padding: '14px 16px 14px 18px',
+          padding: '14px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: '1px solid #F1F5F9',
           background: '#FFFFFF',
-          minHeight: 74
+          minHeight: 72
         }}>
           <a
             href="/dashboard"
@@ -87,31 +87,21 @@ export default function Sidebar() {
               alignItems: 'center',
               textDecoration: 'none',
               flex: 1,
-              overflow: 'hidden',
-              height: 62
+              overflow: 'hidden'
             }}
           >
-            <div style={{
-              width: '100%',
-              height: 62,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              overflow: 'hidden'
-            }}>
-              <img
-                src="/logo.png"
-                alt="Investrow Financial Services"
-                style={{
-                  width: 240,
-                  height: 240,
-                  objectFit: 'contain',
-                  display: 'block',
-                  flexShrink: 0,
-                  marginLeft: -4
-                }}
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Investrow Financial Services"
+              style={{
+                width: '100%',
+                maxWidth: 215,
+                height: 'auto',
+                maxHeight: 52,
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
           </a>
 
           <button
@@ -122,7 +112,8 @@ export default function Sidebar() {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              padding: 4
+              padding: 4,
+              marginLeft: 8
             }}
           >
             <X size={20} />

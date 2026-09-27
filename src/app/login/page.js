@@ -32,26 +32,19 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-logo" style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-          <div style={{
-            width: 280,
-            height: 72,
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <img
-              src="/logo.png"
-              alt="Investrow Financial Services"
-              style={{
-                width: 290,
-                height: 290,
-                objectFit: 'contain',
-                display: 'block'
-              }}
-            />
-          </div>
+        <div className="login-logo" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <img
+            src="/logo.png"
+            alt="Investrow Financial Services"
+            style={{
+              maxWidth: 280,
+              width: '100%',
+              height: 'auto',
+              maxHeight: 64,
+              objectFit: 'contain',
+              display: 'block'
+            }}
+          />
         </div>
         <h1 className="login-title">Welcome Back</h1>
         <p className="login-subtitle">Sign in to your Investrow CRM account</p>
