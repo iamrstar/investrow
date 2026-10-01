@@ -6,7 +6,7 @@ import ActivityLog from '@/models/ActivityLog';
 import { sendEmail, templates } from '@/lib/email';
 
 export async function GET(request) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
@@ -18,7 +18,11 @@ export async function GET(request) {
   const criteria = [];
 
   if (role) {
-    criteria.push({ role });
+    if (role === 'user') {
+      criteria.push({ role: { $in: ['user', 'relationship_manager', 'rm'] } });
+    } else {
+      criteria.push({ role });
+    }
   }
 
   if (search) {

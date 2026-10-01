@@ -32,9 +32,14 @@ export async function GET(request) {
 
   const baseCriteria = [];
 
-  // Role-based visibility
-  if (authUser.role === 'user') {
-    baseCriteria.push({ assignedTo: authUser._id });
+  // Role-based visibility: Non-admins (Relationship Managers / staff) see leads they created or are assigned to
+  if (authUser.role !== 'admin') {
+    baseCriteria.push({
+      $or: [
+        { assignedTo: authUser._id },
+        { createdBy: authUser._id }
+      ]
+    });
   }
 
   // Scope: clients vs leads vs all

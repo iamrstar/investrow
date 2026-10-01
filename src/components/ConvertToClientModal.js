@@ -39,6 +39,13 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
     bankName: lead?.bankName || '',
     bankAccountNumber: lead?.bankAccountNumber || '',
     bankIfscCode: lead?.bankIfscCode || '',
+    nomineeName: lead?.nomineeName || '',
+    nomineeRelation: lead?.nomineeRelation || '',
+    nomineePhone: lead?.nomineePhone || '',
+    nomineeEmail: lead?.nomineeEmail || '',
+    nomineeAadhaar: lead?.nomineeAadhaar || '',
+    nomineeDob: lead?.nomineeDob || '',
+    nomineeAllocation: lead?.nomineeAllocation !== undefined ? lead.nomineeAllocation : 100,
     remarks: 'Client KYC verified and onboarding completed.',
   });
 
@@ -204,6 +211,13 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         bankName: form.bankName ? form.bankName.trim() : '',
         bankAccountNumber: form.bankAccountNumber ? form.bankAccountNumber.trim() : '',
         bankIfscCode: form.bankIfscCode ? form.bankIfscCode.toUpperCase().trim() : '',
+        nomineeName: form.nomineeName ? form.nomineeName.trim() : '',
+        nomineeRelation: form.nomineeRelation || '',
+        nomineePhone: form.nomineePhone ? form.nomineePhone.trim() : '',
+        nomineeEmail: form.nomineeEmail ? form.nomineeEmail.trim() : '',
+        nomineeAadhaar: form.nomineeAadhaar ? form.nomineeAadhaar.trim() : '',
+        nomineeDob: form.nomineeDob || '',
+        nomineeAllocation: Number(form.nomineeAllocation) || 100,
       };
 
       const res = await fetch(`/api/leads/${lead._id}`, {
@@ -229,6 +243,8 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
         return `[#${idx + 1}: ${parts.join(' - ')}]`;
       }).join(', ');
 
+      const nomineeNote = form.nomineeName ? ` | Nominee: ${form.nomineeName} (${form.nomineeRelation || 'Nominee'}${form.nomineePhone ? `, Ph: ${form.nomineePhone}` : ''})` : '';
+
       await fetch(`/api/leads/${lead._id}/followup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -244,7 +260,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
           investmentAmount: totalLumpsum,
           schemes: formattedSchemes,
           medium: 'In-Person Meeting',
-          remarks: `Converted to Client: Total Monthly SIP ₹${totalMonthlySip.toLocaleString('en-IN')}, Total Lumpsum ₹${totalLumpsum.toLocaleString('en-IN')} across ${formattedSchemes.length} scheme(s). Details: ${schemeBreakdown}. Remarks: ${form.remarks}`,
+          remarks: `Converted to Client: Total Monthly SIP ₹${totalMonthlySip.toLocaleString('en-IN')}, Total Lumpsum ₹${totalLumpsum.toLocaleString('en-IN')} across ${formattedSchemes.length} scheme(s). Details: ${schemeBreakdown}.${nomineeNote} Remarks: ${form.remarks}`,
         }),
       });
 
@@ -527,7 +543,131 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
               </div>
             </div>
 
-            {/* SECTION 3: Financial Product & Investment Setup */}
+            {/* SECTION 3: Nominee & Beneficiary Details */}
+            <div style={{ 
+              background: 'white', 
+              border: '1.5px solid #E2E8F0', 
+              borderRadius: 16, 
+              padding: '16px 18px', 
+              marginBottom: 16,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.03)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EDE9FE', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <UserCheck size={16} />
+                  </div>
+                  <span>3. Nominee & Beneficiary Details</span>
+                  <span style={{ fontSize: '0.72rem', background: '#F5F3FF', color: '#6D28D9', padding: '2px 8px', borderRadius: 10, fontWeight: 700, border: '1px solid #DDD6FE' }}>
+                    Folio & Insurance
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                  Legal nominee for all mutual fund & insurance portfolios
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Nominee Full Name
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={form.nomineeName} 
+                    onChange={e => setForm({ ...form, nomineeName: e.target.value })} 
+                    placeholder="Full name of nominee"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Relationship
+                  </label>
+                  <select
+                    className="form-select"
+                    value={form.nomineeRelation}
+                    onChange={e => setForm({ ...form, nomineeRelation: e.target.value })}
+                    style={{ height: 40, borderRadius: 8, fontWeight: 600 }}
+                  >
+                    <option value="">Select Relation</option>
+                    <option value="Spouse">Spouse (Wife / Husband)</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Grandchild">Grandchild</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Mobile Number
+                  </label>
+                  <input 
+                    type="tel" 
+                    className="form-input" 
+                    value={form.nomineePhone} 
+                    onChange={e => setForm({ ...form, nomineePhone: e.target.value })} 
+                    placeholder="10-digit mobile"
+                    maxLength={15}
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Email ID <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input 
+                    type="email" 
+                    className="form-input" 
+                    value={form.nomineeEmail} 
+                    onChange={e => setForm({ ...form, nomineeEmail: e.target.value })} 
+                    placeholder="nominee@email.com"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Aadhaar Number <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={form.nomineeAadhaar} 
+                    onChange={e => setForm({ ...form, nomineeAadhaar: e.target.value })} 
+                    placeholder="12-digit Aadhaar"
+                    maxLength={12}
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                    Allocation %
+                  </label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    max="100"
+                    className="form-input" 
+                    value={form.nomineeAllocation} 
+                    onChange={e => setForm({ ...form, nomineeAllocation: e.target.value })} 
+                    placeholder="100"
+                    style={{ height: 40, borderRadius: 8 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 4: Financial Product & Investment Setup */}
             <div style={{ 
               background: '#F0FDF4', 
               border: '1.5px solid #86EFAC', 
@@ -539,7 +679,7 @@ export default function ConvertToClientModal({ lead, onClose, onConverted }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#15803D', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <IndianRupee size={18} />
-                  3. Financial Product & Investment Setup *
+                  4. Financial Product & Investment Setup *
                 </div>
 
                 <span style={{ 

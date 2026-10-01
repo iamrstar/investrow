@@ -6,7 +6,8 @@ import { useToast } from '@/context/ToastContext';
 import { 
   Plus, ListTodo, X, CheckCircle, Clock, AlertCircle, 
   Edit, Trash2, Mail, Send, UserPlus, Users, Phone,
-  Video, Calendar, ChevronLeft, ChevronRight, Filter, Search
+  Video, Calendar, ChevronLeft, ChevronRight, Filter, Search,
+  Upload, Image as ImageIcon, Check
 } from 'lucide-react';
 import LogFollowUpModal from '@/components/LogFollowUpModal';
 
@@ -39,6 +40,13 @@ export default function TasksPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [teamUsers, setTeamUsers] = useState([]);
+
+  // Completion Modal State
+  const [completingTask, setCompletingTask] = useState(null);
+  const [completionRemarks, setCompletionRemarks] = useState('');
+  const [completionScreenshot, setCompletionScreenshot] = useState('');
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [viewScreenshotUrl, setViewScreenshotUrl] = useState(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -74,7 +82,7 @@ export default function TasksPage() {
   }, [fetchTasks, fetchStats]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user) {
       fetch('/api/users?role=user').then(r => r.json()).then(d => setTeamUsers(d.users || []));
     }
   }, [user]);
@@ -109,6 +117,51 @@ export default function TasksPage() {
       fetchTasks();
       fetchStats();
     } catch { addToast('Failed to update', 'error'); }
+  };
+
+  const handleScreenshotUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingScreenshot(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+      setCompletionScreenshot(data.url);
+      addToast('Screenshot uploaded!', 'success');
+    } catch (err) {
+      addToast(err.message, 'error');
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
+
+  const handleSubmitCompleteTask = async (e) => {
+    e.preventDefault();
+    if (!completingTask?._id) return;
+    try {
+      const res = await fetch(`/api/tasks/${completingTask._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Completed',
+          remarks: completionRemarks.trim(),
+          screenshot: completionScreenshot || ''
+        })
+      });
+      if (!res.ok) throw new Error('Failed to complete task');
+      addToast('Task completed successfully! Recorded in history.', 'success');
+      setCompletingTask(null);
+      setCompletionRemarks('');
+      setCompletionScreenshot('');
+      fetchTasks();
+      fetchStats();
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
   };
 
   const handleLogFollowUp = async (formData) => {
@@ -318,10 +371,53 @@ export default function TasksPage() {
                           {isCall ? <Phone size={18} /> : isMeet ? <Video size={18} /> : <ListTodo size={18} />}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
                             <div>
-                              <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 4px 0', color: '#0F172A' }}>{task.title}</h4>
-                              <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: '0.8rem', color: '#64748B', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                                <span style={{
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  background: task.status === 'Completed' ? '#DCFCE7' : (task.status === 'Accepted' || task.status === 'In Progress' ? '#E0F2FE' : '#FEF3C7'),
+                                  color: task.status === 'Completed' ? '#15803D' : (task.status === 'Accepted' || task.status === 'In Progress' ? '#0369A1' : '#B45309'),
+                                  border: `1px solid ${task.status === 'Completed' ? '#86EFAC' : (task.status === 'Accepted' || task.status === 'In Progress' ? '#BAE6FD' : '#FDE68A')}`,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}>
+                                  {task.status === 'Completed' && <Check size={11} />}
+                                  {task.status || 'Pending'}
+                                </span>
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  background: task.priority === 'Urgent' ? '#FEE2E2' : '#F1F5F9',
+                                  color: task.priority === 'Urgent' ? '#DC2626' : '#64748B'
+                                }}>
+                                  {task.priority || 'Medium'}
+                                </span>
+                              </div>
+
+                              <h4 style={{ 
+                                fontSize: '1rem', 
+                                fontWeight: 700, 
+                                margin: '0 0 4px 0', 
+                                color: task.status === 'Completed' ? '#64748B' : '#0F172A',
+                                textDecoration: task.status === 'Completed' ? 'line-through' : 'none'
+                              }}>
+                                {task.title}
+                              </h4>
+
+                              {task.description && (
+                                <p style={{ fontSize: '0.82rem', color: '#475569', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+                                  {task.description}
+                                </p>
+                              )}
+
+                              <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: '0.78rem', color: '#64748B', flexWrap: 'wrap' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <Clock size={12} /> 
                                   {task.scheduledAt ? 
@@ -329,25 +425,100 @@ export default function TasksPage() {
                                     new Date(task.dueDate).toLocaleDateString()
                                   }
                                 </span>
-                                {task.leadId && <span style={{ fontWeight: 600, color: '#0EA5E9' }}>• {task.leadId.name}</span>}
+                                {task.leadId && (
+                                  <span style={{ fontWeight: 600, color: '#0EA5E9' }}>
+                                    • Client/Lead: {task.leadId.name}
+                                  </span>
+                                )}
+                                {task.assignedTo && (
+                                  <span style={{ color: '#475569' }}>
+                                    • <strong>Assigned to:</strong> {task.assignedTo.name}
+                                  </span>
+                                )}
+                                {task.createdBy && (
+                                  <span style={{ color: '#64748B' }}>
+                                    • <strong>By:</strong> {task.createdBy.name}
+                                  </span>
+                                )}
                               </div>
+
+                              {/* Completed Remarks & Proof Screenshot */}
+                              {task.status === 'Completed' && (
+                                <div style={{ 
+                                  marginTop: 10, 
+                                  padding: '8px 12px', 
+                                  background: '#F0FDF4', 
+                                  border: '1px solid #BBF7D0', 
+                                  borderRadius: 8, 
+                                  fontSize: '0.78rem' 
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                                    <span style={{ color: '#166534', fontWeight: 700 }}>
+                                      ✓ Resolved {task.completedAt ? `on ${new Date(task.completedAt).toLocaleDateString()}` : ''}
+                                      {task.completedBy?.name ? ` by ${task.completedBy.name}` : ''}
+                                    </span>
+                                    {task.screenshot && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewScreenshotUrl(task.screenshot)}
+                                        style={{
+                                          background: '#FFFFFF',
+                                          border: '1px solid #86EFAC',
+                                          color: '#15803D',
+                                          padding: '2px 8px',
+                                          borderRadius: 4,
+                                          fontSize: '0.72rem',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4
+                                        }}
+                                      >
+                                        <ImageIcon size={12} /> View Screenshot
+                                      </button>
+                                    )}
+                                  </div>
+                                  {task.remarks && (
+                                    <div style={{ color: '#334155', marginTop: 4, fontStyle: 'italic' }}>
+                                      "{task.remarks}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <div className="task-actions" style={{ display: 'flex', gap: 6 }}>
+
+                            <div className="task-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {task.status === 'Pending' && (
+                                <button 
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleStatusChange(task, 'Accepted')}
+                                  style={{ 
+                                    padding: '4px 10px', 
+                                    fontSize: '0.76rem', 
+                                    borderRadius: 6,
+                                    color: '#0284C7',
+                                    borderColor: '#BAE6FD',
+                                    background: '#F0F9FF',
+                                    fontWeight: 700
+                                  }}
+                                  title="Accept this assigned task"
+                                >
+                                  <Check size={13} /> Accept
+                                </button>
+                              )}
+
                               {task.status !== 'Completed' && (
                                 <button 
                                   className="btn btn-success btn-sm" 
                                   onClick={() => {
-                                    if (task.type === 'Call' || task.type === 'Meeting') {
-                                      setFollowUpLead(task.leadId);
-                                      setActiveTaskForFollowUp(task);
-                                      setShowFollowUp(true);
-                                    } else {
-                                      handleStatusChange(task, 'Completed');
-                                    }
+                                    setCompletingTask(task);
+                                    setCompletionRemarks('');
+                                    setCompletionScreenshot('');
                                   }}
-                                  style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: 6 }}
+                                  style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: 6, fontWeight: 700 }}
                                 >
-                                  <CheckCircle size={14} /> Done
+                                  <CheckCircle size={14} /> Mark Complete
                                 </button>
                               )}
                               <button className="btn btn-ghost btn-sm" onClick={() => { setEditingTask(task); setShowModal(true); }} style={{ padding: 4 }}><Edit size={14} /></button>
@@ -390,6 +561,189 @@ export default function TasksPage() {
           onClose={() => { setShowFollowUp(false); setFollowUpLead(null); }}
           onSave={handleLogFollowUp}
         />
+      )}
+
+      {/* Complete Task Modal */}
+      {completingTask && (
+        <div 
+          className="modal-backdrop" 
+          onClick={() => setCompletingTask(null)}
+          style={{ zIndex: 1100, background: 'rgba(0,0,0,0.6)' }}
+        >
+          <div 
+            className="modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ maxWidth: 520, borderRadius: 24, padding: 0, overflow: 'hidden' }}
+          >
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircle size={20} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Complete Task</h4>
+                  <p style={{ margin: 0, fontSize: '0.76rem', color: '#64748B' }}>Provide resolution remarks and optional screenshot proof</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setCompletingTask(null)}><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSubmitCompleteTask} style={{ padding: '24px' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Resolution Remarks *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Record outcome, steps taken, or client response..."
+                  value={completionRemarks}
+                  onChange={e => setCompletionRemarks(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: '1.5px solid #CBD5E1',
+                    fontSize: '0.86rem',
+                    background: '#FFFFFF'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Proof Screenshot / Document (Optional)
+                </label>
+                
+                {completionScreenshot ? (
+                  <div style={{ 
+                    padding: '12px 14px', 
+                    background: '#F0FDF4', 
+                    border: '1.5px solid #86EFAC', 
+                    borderRadius: 12, 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <ImageIcon size={20} style={{ color: '#16A34A' }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534' }}>
+                        Proof Attached
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setViewScreenshotUrl(completionScreenshot)}
+                        style={{ color: '#0EA5E9', padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setCompletionScreenshot('')}
+                        style={{ color: '#EF4444', padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <label 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        padding: '16px',
+                        borderRadius: 12,
+                        border: '1.5px dashed #CBD5E1',
+                        background: '#F8FAFC',
+                        cursor: uploadingScreenshot ? 'wait' : 'pointer',
+                        fontSize: '0.84rem',
+                        color: '#64748B',
+                        fontWeight: 600,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Upload size={18} style={{ color: '#0EA5E9' }} />
+                      <span>{uploadingScreenshot ? 'Uploading image...' : 'Click to upload screenshot proof (PNG, JPG)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        disabled={uploadingScreenshot}
+                        onChange={handleScreenshotUpload} 
+                        style={{ display: 'none' }} 
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={() => setCompletingTask(null)}
+                  style={{ borderRadius: 10 }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!completionRemarks.trim()}
+                  className="btn btn-primary"
+                  style={{ 
+                    borderRadius: 10, 
+                    padding: '9px 24px', 
+                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    border: 'none',
+                    fontWeight: 700
+                  }}
+                >
+                  Mark as Completed
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Proof Screenshot Preview Modal */}
+      {viewScreenshotUrl && (
+        <div 
+          className="modal-backdrop" 
+          onClick={() => setViewScreenshotUrl(null)}
+          style={{ zIndex: 1200, background: 'rgba(0,0,0,0.85)' }}
+        >
+          <div 
+            className="modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ maxWidth: 750, width: '90%', borderRadius: 20, padding: 0, overflow: 'hidden', background: '#0F172A' }}
+          >
+            <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+              <span style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ImageIcon size={16} /> Task Completion Proof
+              </span>
+              <button 
+                onClick={() => setViewScreenshotUrl(null)}
+                style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: 16, textAlign: 'center', maxHeight: '75vh', overflow: 'auto' }}>
+              <img 
+                src={viewScreenshotUrl} 
+                alt="Proof Screenshot" 
+                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, objectFit: 'contain' }} 
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       <style jsx>{`

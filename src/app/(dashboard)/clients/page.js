@@ -7,11 +7,18 @@ import { useToast } from '@/context/ToastContext';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
 import ClientDocumentsModal from '@/components/ClientDocumentsModal';
 import BulkUploadModal from '@/components/BulkUploadModal';
+import FamilyTreeTab from '@/components/FamilyTreeTab';
+import AddFamilyMemberModal from '@/components/AddFamilyMemberModal';
+import LogFollowUpModal from '@/components/LogFollowUpModal';
+import FollowUpHistoryTab from '@/components/FollowUpHistoryTab';
+import ClientTasksModal from '@/components/ClientTasksModal';
+import AddServiceSchemeModal from '@/components/AddServiceSchemeModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
-  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee
+  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck,
+  HeartPulse, Landmark, PiggyBank, BarChart2, Calculator, Car, Edit2
 } from 'lucide-react';
 
 const SERVICES = [
@@ -72,6 +79,43 @@ function ClientsPageContent() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [familyStats, setFamilyStats] = useState(null);
+  const [rectifyingFamilies, setRectifyingFamilies] = useState(false);
+  const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
+  const [familyModalClient, setFamilyModalClient] = useState(null);
+  const [showServiceSchemeModal, setShowServiceSchemeModal] = useState(false);
+  const [serviceSchemeTarget, setServiceSchemeTarget] = useState('Life Insurance');
+  const [editingSchemeData, setEditingSchemeData] = useState(null);
+  const [editingSchemeIndex, setEditingSchemeIndex] = useState(null);
+
+  const fetchFamilyStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/family/rectify');
+      const data = await res.json();
+      if (data.success) {
+        setFamilyStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching family stats:', err);
+    }
+  }, []);
+
+  const handleAutoRectifyFamilies = async () => {
+    setRectifyingFamilies(true);
+    try {
+      const res = await fetch('/api/family/rectify', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Rectification failed');
+      addToast(data.message, 'success');
+      fetchFamilyStats();
+      fetchClients(pagination.page);
+      if (showDetail) viewDetail(showDetail);
+    } catch (err) {
+      addToast(err.message, 'error');
+    } finally {
+      setRectifyingFamilies(false);
+    }
+  };
 
   const openUploadFor = (docLabel) => {
     setDocumentDefaultName(docLabel);
@@ -96,13 +140,40 @@ function ClientsPageContent() {
     }
   };
 
+  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [followUpClient, setFollowUpClient] = useState(null);
+
+  const handleLogFollowUp = async (formData) => {
+    if (!followUpClient?._id) return;
+    try {
+      const res = await fetch(`/api/leads/${followUpClient._id}/followup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to log follow-up');
+      }
+
+      addToast('Follow-up record created successfully!', 'success');
+      setShowFollowUp(false);
+      setFollowUpClient(null);
+      fetchClients(pagination.page);
+      if (showDetail) viewDetail(showDetail);
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
+  };
+
   const toggleActivity = (id) => {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const canCreate = user?.role === 'admin' || user?.role === 'user';
-  const canEdit = user?.role === 'admin';
-  const canAssign = user?.role === 'admin';
+  const canCreate = user?.role === 'admin' || user?.role === 'user' || user?.role === 'relationship_manager' || user?.role === 'rm';
+  const canEdit = user?.role === 'admin' || user?.role === 'user' || user?.role === 'relationship_manager' || user?.role === 'rm';
+  const canAssign = user?.role === 'admin' || user?.role === 'user' || user?.role === 'relationship_manager' || user?.role === 'rm';
   const canDelete = user?.role === 'admin';
 
   const fetchClients = useCallback(async (page = 1) => {
@@ -134,7 +205,8 @@ function ClientsPageContent() {
 
   useEffect(() => {
     fetchClients();
-  }, [fetchClients]);
+    fetchFamilyStats();
+  }, [fetchClients, fetchFamilyStats]);
 
   useEffect(() => {
     fetch('/api/form-control?type=client&t=' + Date.now()).then(r => r.json()).then(data => {
@@ -204,6 +276,9 @@ function ClientsPageContent() {
       setAssignClient(null);
       setAssignRole('');
       fetchClients(pagination.page);
+      if (showDetail) {
+        viewDetail(showDetail);
+      }
     } catch {
       addToast('Failed to assign', 'error');
     }
@@ -218,6 +293,56 @@ function ClientsPageContent() {
       setShowDetail(id);
     } catch (err) {
       addToast(err.message, 'error');
+    }
+  };
+
+  const handleOpenAddScheme = (serviceName, scheme = null, index = null) => {
+    setServiceSchemeTarget(serviceName || 'Life Insurance');
+    setEditingSchemeData(scheme);
+    setEditingSchemeIndex(index);
+    setShowServiceSchemeModal(true);
+  };
+
+  const handleDeleteScheme = async (schemeIndex, schemeName) => {
+    if (!confirm(`Are you sure you want to remove "${schemeName || 'this scheme'}" from the client's portfolio?`)) return;
+    if (!detailData?.lead?._id) return;
+
+    const currentSchemes = Array.isArray(detailData.lead.schemes) ? [...detailData.lead.schemes] : [];
+    const updatedSchemes = currentSchemes.filter((_, idx) => idx !== schemeIndex);
+
+    try {
+      const totalSip = updatedSchemes.reduce((sum, s) => {
+        if (s.service === 'Mutual Funds' || s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const totalLumpsum = updatedSchemes.reduce((sum, s) => {
+        if (s.service === 'Mutual Funds' && (s.investmentType === 'Lumpsum' || s.investmentType === 'Both')) {
+          return sum + (Number(s.investmentAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const res = await fetch(`/api/leads/${detailData.lead._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemes: updatedSchemes,
+          sipAmount: totalSip,
+          investmentAmount: totalLumpsum
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to remove scheme');
+
+      addToast('Scheme removed successfully', 'success');
+      viewDetail(detailData.lead._id);
+      fetchClients(pagination.page);
+    } catch (err) {
+      addToast(err.message || 'Error removing scheme', 'error');
     }
   };
 
@@ -359,6 +484,30 @@ function ClientsPageContent() {
         className="btn btn-ghost btn-sm" 
         onClick={(e) => { 
           e.stopPropagation(); 
+          setFollowUpClient(client);
+          setShowFollowUp(true);
+        }} 
+        title="Log Follow-up"
+        style={{ color: '#0EA5E9', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '6px 8px' }}
+      >
+        <Calendar size={15} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          setClientDetailTab('family');
+          viewDetail(client._id); 
+        }} 
+        title="View Family Tree & Hierarchy"
+        style={{ color: '#0284C7', border: '1px solid #BAE6FD', background: '#F0F9FF', borderRadius: 8, padding: '6px 8px' }}
+      >
+        <Users size={15} />
+      </button>
+      <button 
+        className="btn btn-ghost btn-sm" 
+        onClick={(e) => { 
+          e.stopPropagation(); 
           setActiveMenuClient(client); 
         }} 
         title="More Actions"
@@ -377,7 +526,31 @@ function ClientsPageContent() {
           Client Management
         </h1>
         {canCreate && (
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={handleAutoRectifyFamilies}
+              disabled={rectifyingFamilies}
+              title="Click to auto-detect and cluster family chains from shared contact details"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                borderColor: '#BAE6FD',
+                color: '#0284C7',
+                background: '#F0F9FF',
+                fontWeight: 700
+              }}
+            >
+              <Users size={18} />
+              <span>
+                {rectifyingFamilies 
+                  ? 'Connecting Families...' 
+                  : familyStats 
+                    ? `${familyStats.multiMemberFamilies || 0} Family Units (${familyStats.totalLinkedClients || 0} Clients)`
+                    : 'Auto-Detect Families'}
+              </span>
+            </button>
             <button className="btn btn-outline add-lead-btn" onClick={() => setShowBulkUpload(true)}>
               <Plus size={20} /> <span>Bulk Upload</span>
             </button>
@@ -566,6 +739,7 @@ function ClientsPageContent() {
                 <th>Pincode</th>
                 <th>Date Of Birth</th>
                 <th>Service</th>
+                <th>Nominee</th>
                 <th>Call Status</th>
                 <th>Assigned To</th>
                 <th>Follow-up</th>
@@ -589,7 +763,34 @@ function ClientsPageContent() {
                       {clientIdStr}
                     </td>
                     <td className="lead-name" data-label="Name" style={{ fontWeight: 700, color: '#0F172A' }}>
-                      {client.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span>{client.name}</span>
+                        {client.familyId && (
+                          <span 
+                            title={`Linked to Family ${client.familyId} (${client.familyRole || 'Member'}) - Click to view family tree`}
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              background: '#E0F2FE',
+                              color: '#0369A1',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setClientDetailTab('family');
+                              viewDetail(client._id);
+                            }}
+                          >
+                            <Users size={11} />
+                            {client.familyId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Phone / Mobile">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -604,6 +805,29 @@ function ClientsPageContent() {
                     <td data-label="Pincode">{client.pincode || '—'}</td>
                     <td data-label="Date Of Birth">{client.dateOfBirth || '—'}</td>
                     <td data-label="Service"><span className="badge badge-blue">{client.service || '—'}</span></td>
+                    <td data-label="Nominee">
+                      {client.nomineeName ? (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.82rem' }}>
+                            {client.nomineeName}
+                          </span>
+                          <span style={{ fontSize: '0.71rem', color: '#64748B' }}>
+                            {client.nomineeRelation || 'Nominee'} {client.nomineePhone ? `• ${client.nomineePhone}` : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ 
+                          fontSize: '0.72rem', 
+                          padding: '2px 8px', 
+                          borderRadius: 6, 
+                          background: '#FEF3C7', 
+                          color: '#B45309', 
+                          fontWeight: 700 
+                        }}>
+                          Not Added
+                        </span>
+                      )}
+                    </td>
                     <td data-label="Call Status">
                       <span className={`badge ${client.callStatus === 'Received' ? 'badge-green' : client.callStatus === 'Not Received' ? 'badge-red' : 'badge-gray'}`}>
                         {client.callStatus || 'Received'}
@@ -863,11 +1087,14 @@ function ClientsPageContent() {
             setActiveMenuClient(null);
             switch(action) {
               case 'view': viewDetail(activeMenuClient._id); break;
+              case 'followup': setFollowUpClient(activeMenuClient); setShowFollowUp(true); break;
+              case 'followup_history': setClientDetailTab('followups'); viewDetail(activeMenuClient._id); break;
+              case 'family': setClientDetailTab('family'); viewDetail(activeMenuClient._id); break;
               case 'documents': setDocumentsClient(activeMenuClient); setShowDocumentsModal(true); break;
               case 'tasks': setTasksClient(activeMenuClient); setShowTasksModal(true); break;
               case 'schedule_call': setScheduleClient(activeMenuClient); setShowScheduleCall(true); break;
               case 'schedule_meet': setScheduleClient(activeMenuClient); setShowScheduleMeet(true); break;
-              case 'history': viewDetail(activeMenuClient._id); break;
+              case 'history': setClientDetailTab('followups'); viewDetail(activeMenuClient._id); break;
               case 'email': setEmailClient(activeMenuClient); setShowEmailModal(true); break;
               case 'edit': setEditingClient(activeMenuClient); setShowModal(true); break;
               case 'assign': setAssignClient(activeMenuClient); setShowAssignModal(true); break;
@@ -964,7 +1191,94 @@ function ClientsPageContent() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {(detailData.lead?.whatsappNumber || detailData.lead?.phone) && (
+                    <a
+                      href={`https://wa.me/91${(detailData.lead.whatsappNumber || detailData.lead.phone).replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline"
+                      style={{
+                        borderRadius: 10,
+                        padding: '8px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        color: '#15803D',
+                        borderColor: '#BBF7D0',
+                        background: '#F0FDF4',
+                        textDecoration: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.82rem'
+                      }}
+                      title="Open WhatsApp chat with client"
+                    >
+                      <Phone size={14} /> WhatsApp
+                    </a>
+                  )}
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => {
+                      setTasksClient(detailData.lead);
+                      setShowTasksModal(true);
+                    }}
+                    style={{
+                      borderRadius: 10,
+                      padding: '8px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: '#7C3AED',
+                      borderColor: '#DDD6FE',
+                      background: '#F5F3FF',
+                      fontWeight: 700,
+                      fontSize: '0.82rem'
+                    }}
+                    title="Assign staff task for this client"
+                  >
+                    <CheckCircle size={14} /> + Task
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => {
+                      setFollowUpClient(detailData.lead);
+                      setShowFollowUp(true);
+                    }}
+                    style={{ 
+                      borderRadius: 10, 
+                      padding: '8px 16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 6,
+                      background: 'linear-gradient(135deg, #0EA5E9, #2563EB)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 600,
+                      boxShadow: '0 2px 6px rgba(14, 165, 233, 0.3)'
+                    }}
+                  >
+                    <Calendar size={16} /> Log Follow-up
+                  </button>
+                  {canAssign && (
+                    <button 
+                      className="btn btn-outline" 
+                      onClick={() => {
+                        setAssignClient(detailData.lead);
+                        setShowAssignModal(true);
+                      }}
+                      style={{ 
+                        borderRadius: 10, 
+                        padding: '8px 16px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 6,
+                        color: '#6366F1',
+                        borderColor: '#6366F1'
+                      }}
+                    >
+                      <UserPlus size={16} /> Assign
+                    </button>
+                  )}
                   <button 
                     className="btn btn-outline" 
                     onClick={() => {
@@ -1000,6 +1314,8 @@ function ClientsPageContent() {
               }}>
                 {[
                   { id: 'overview', label: 'Overview' },
+                  { id: 'followups', label: 'Follow-up History' },
+                  { id: 'family', label: 'Family Tree & Chain' },
                   { id: 'kyc', label: 'KYC & Documents' },
                   { id: 'investments', label: 'Mutual Fund / Investment' },
                   { id: 'services', label: 'Other Services' },
@@ -1052,7 +1368,110 @@ function ClientsPageContent() {
 
                   return (
                     <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20, alignItems: 'stretch' }}>
+                      {/* Client Summary & Quick Metrics Ribbon */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: 12,
+                        marginBottom: 20
+                      }}>
+                        {/* SIP Book */}
+                        <div style={{
+                          background: '#F0F9FF',
+                          border: '1px solid #BAE6FD',
+                          borderRadius: 14,
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12
+                        }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#0284C7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <IndianRupee size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: '#0369A1', fontWeight: 700, textTransform: 'uppercase' }}>Monthly SIP Book</div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0C4A6E' }}>
+                              ₹ {(detailData.lead?.sipAmount || 0).toLocaleString('en-IN')}{detailData.lead?.sipDay ? ` (D-${detailData.lead.sipDay})` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Lumpsum Investments */}
+                        <div style={{
+                          background: '#F0FDF4',
+                          border: '1px solid #BBF7D0',
+                          borderRadius: 14,
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12
+                        }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#16A34A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <TrendingUp size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: '#15803D', fontWeight: 700, textTransform: 'uppercase' }}>Lumpsum Holdings</div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#14532D' }}>
+                              ₹ {(detailData.lead?.investmentAmount || 0).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Active Portfolios */}
+                        <div style={{
+                          background: '#FAF5FF',
+                          border: '1px solid #E9D5FF',
+                          borderRadius: 14,
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12
+                        }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#9333EA', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: '#7E22CE', fontWeight: 700, textTransform: 'uppercase' }}>Total Schemes</div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#581C87' }}>
+                              {(detailData.lead?.schemes && detailData.lead.schemes.length > 0) ? detailData.lead.schemes.length : (detailData.lead?.schemeName ? 1 : 0)} Active
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nominee Status */}
+                        <div style={{
+                          background: detailData.lead?.nomineeName ? '#F5F3FF' : '#FEF3C7',
+                          border: detailData.lead?.nomineeName ? '1px solid #DDD6FE' : '1px solid #FDE68A',
+                          borderRadius: 14,
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12
+                        }}>
+                          <div style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            background: detailData.lead?.nomineeName ? '#7C3AED' : '#D97706',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <UserCheck size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: detailData.lead?.nomineeName ? '#6D28D9' : '#B45309', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Nominee Beneficiary
+                            </div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 800, color: detailData.lead?.nomineeName ? '#4C1D95' : '#78350F' }}>
+                              {detailData.lead?.nomineeName ? `${detailData.lead.nomineeName} (${detailData.lead.nomineeRelation || 'Nominee'})` : 'Missing Declaration ⚠️'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, alignItems: 'stretch' }}>
                         
                         {/* Card 1: Personal & Contact Details */}
                         <div style={{ 
@@ -1288,10 +1707,28 @@ function ClientsPageContent() {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
-                              <span style={{ color: '#64748B', fontWeight: 600 }}>Family Members</span>
-                              <span style={{ color: '#0F172A', fontWeight: 600 }}>
-                                {detailData.lead?.familyMembers ? `${detailData.lead.familyMembers} Members` : '—'}
-                              </span>
+                              <span style={{ color: '#64748B', fontWeight: 600 }}>Family Chain</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ color: '#0284C7', fontWeight: 700, fontSize: '0.82rem' }}>
+                                  {detailData.lead?.familyId ? `${detailData.lead.familyId} (${detailData.lead.familyRole || 'Member'})` : 'Individual'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setClientDetailTab('family')}
+                                  style={{
+                                    border: 'none',
+                                    background: '#E0F2FE',
+                                    color: '#0284C7',
+                                    borderRadius: 6,
+                                    padding: '2px 8px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  View Tree →
+                                </button>
+                              </div>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
@@ -1440,6 +1877,267 @@ function ClientsPageContent() {
                           </div>
                         </div>
 
+                        {/* Card 4: Nominee & Beneficiary Details */}
+                        <div style={{ 
+                          background: '#FFFFFF', 
+                          border: '1.5px solid #E2E8F0', 
+                          borderRadius: 18, 
+                          padding: '22px 24px',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#EDE9FE', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <UserCheck size={18} />
+                              </div>
+                              <div>
+                                <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                                  Nominee Details
+                                </h4>
+                                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>Folio & Claims Beneficiary</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setEditingClient(detailData.lead);
+                                setShowModal(true);
+                              }}
+                              style={{ color: '#7C3AED', border: '1px solid #DDD6FE', background: '#F5F3FF', borderRadius: 8, padding: '4px 10px', fontSize: '0.74rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Edit size={12} /> {detailData.lead?.nomineeName ? 'Edit' : '+ Add'}
+                            </button>
+                          </div>
+
+                          {detailData.lead?.nomineeName ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: '0.86rem', flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600 }}>Nominee Name</span>
+                                <span style={{ color: '#0F172A', fontWeight: 800, fontSize: '0.92rem' }}>
+                                  {detailData.lead.nomineeName}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600 }}>Relationship</span>
+                                <span style={{ 
+                                  padding: '2px 10px', 
+                                  borderRadius: 6, 
+                                  background: '#EDE9FE', 
+                                  color: '#6D28D9', 
+                                  fontWeight: 800, 
+                                  fontSize: '0.76rem' 
+                                }}>
+                                  {detailData.lead.nomineeRelation || 'Beneficiary'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600 }}>Contact Number</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                    {detailData.lead.nomineePhone || '—'}
+                                  </span>
+                                  {detailData.lead.nomineePhone && (
+                                    <>
+                                      <a 
+                                        href={`tel:${detailData.lead.nomineePhone}`} 
+                                        title="Call Nominee"
+                                        style={{ color: '#0284C7', textDecoration: 'none', background: '#E0F2FE', padding: '2px 6px', borderRadius: 4, fontSize: '0.72rem', fontWeight: 700 }}
+                                      >
+                                        Call
+                                      </a>
+                                      <a 
+                                        href={`https://wa.me/91${detailData.lead.nomineePhone.replace(/\D/g, '')}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        title="WhatsApp Nominee"
+                                        style={{ color: '#15803D', textDecoration: 'none', background: '#DCFCE7', padding: '2px 6px', borderRadius: 4, fontSize: '0.72rem', fontWeight: 700 }}
+                                      >
+                                        WhatsApp
+                                      </a>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {detailData.lead.nomineeEmail && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                  <span style={{ color: '#64748B', fontWeight: 600 }}>Email ID</span>
+                                  <a href={`mailto:${detailData.lead.nomineeEmail}`} style={{ color: '#6366F1', fontWeight: 600, textDecoration: 'none', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {detailData.lead.nomineeEmail}
+                                  </a>
+                                </div>
+                              )}
+
+                              {detailData.lead.nomineeAadhaar && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                  <span style={{ color: '#64748B', fontWeight: 600 }}>Aadhaar</span>
+                                  <span style={{ color: '#0F172A', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                    {detailData.lead.nomineeAadhaar.length >= 4 
+                                      ? `•••• ${detailData.lead.nomineeAadhaar.slice(-4)}`
+                                      : detailData.lead.nomineeAadhaar}
+                                  </span>
+                                </div>
+                              )}
+
+                              {detailData.lead.nomineeDob && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid #F8FAFC' }}>
+                                  <span style={{ color: '#64748B', fontWeight: 600 }}>Date of Birth</span>
+                                  <span style={{ color: '#0F172A', fontWeight: 700 }}>
+                                    {detailData.lead.nomineeDob}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600 }}>Share Allocation</span>
+                                <span style={{ 
+                                  padding: '2px 8px', 
+                                  borderRadius: 6, 
+                                  background: '#DCFCE7', 
+                                  color: '#15803D', 
+                                  fontWeight: 800, 
+                                  fontSize: '0.78rem' 
+                                }}>
+                                  {detailData.lead.nomineeAllocation || 100}% Share
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '24px 12px',
+                              background: '#FFFBEB',
+                              borderRadius: 14,
+                              border: '1px dashed #FDE68A',
+                              flex: 1
+                            }}>
+                              <AlertCircle size={28} color="#D97706" style={{ marginBottom: 8 }} />
+                              <div style={{ fontWeight: 800, color: '#92400E', fontSize: '0.88rem' }}>
+                                No Nominee Assigned
+                              </div>
+                              <p style={{ fontSize: '0.76rem', color: '#B45309', margin: '6px 0 14px', maxWidth: 220, lineHeight: 1.4 }}>
+                                AMFI & IRDAI regulations require nominating a beneficiary for mutual fund folios & policies.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setEditingClient(detailData.lead);
+                                  setShowModal(true);
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: '#D97706',
+                                  color: '#FFFFFF',
+                                  padding: '6px 14px',
+                                  borderRadius: 8,
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6
+                                }}
+                              >
+                                <Plus size={14} /> Add Nominee Details
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      {/* Family Tree Quick Strip in Overview */}
+                      <div style={{
+                        marginTop: 20,
+                        background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)',
+                        border: '1.5px solid #BAE6FD',
+                        borderRadius: 16,
+                        padding: '18px 22px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 14,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{
+                            width: 42, height: 42, borderRadius: 12,
+                            background: '#0284C7', color: '#FFFFFF',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 3px 8px rgba(2, 132, 199, 0.25)'
+                          }}>
+                            <Users size={22} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span>Family Chain & Portfolio Hierarchy</span>
+                              {detailData.lead?.familyId && (
+                                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 8, background: '#E0F2FE', color: '#0369A1', fontWeight: 700 }}>
+                                  {detailData.lead.familyId} • {detailData.lead.familyRole || 'Member'}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 3 }}>
+                              Link spouse, children & parents to track collective SIPs, schemes, and family wealth.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <button
+                            type="button"
+                            onClick={() => setClientDetailTab('family')}
+                            style={{
+                              padding: '9px 16px',
+                              borderRadius: 10,
+                              border: '1.5px solid #BAE6FD',
+                              background: '#FFFFFF',
+                              color: '#0284C7',
+                              fontSize: '0.84rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6
+                            }}
+                          >
+                            <Users size={16} />
+                            View Family Tree
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFamilyModalClient(detailData.lead);
+                              setShowAddFamilyModal(true);
+                            }}
+                            style={{
+                              padding: '9px 18px',
+                              borderRadius: 10,
+                              border: 'none',
+                              background: '#0284C7',
+                              color: '#FFFFFF',
+                              fontSize: '0.84rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              boxShadow: '0 3px 10px rgba(2, 132, 199, 0.25)'
+                            }}
+                          >
+                            <Plus size={16} />
+                            Add Family Member
+                          </button>
+                        </div>
                       </div>
 
                     {/* All Configured Investment Schemes & Policies */}
@@ -1509,6 +2207,88 @@ function ClientsPageContent() {
                         </button>
                       </div>
                     )}
+
+                    {/* Follow-up & Assignment Quick Status */}
+                    <div style={{
+                      marginTop: 20,
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #F8FAFC 100%)',
+                      border: '1.5px solid #BBF7D0',
+                      borderRadius: 18,
+                      padding: '20px 24px',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 16
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          background: '#DCFCE7',
+                          color: '#16A34A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Calendar size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0F172A' }}>
+                            Follow-up & RM Assignment
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: '#64748B', display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+                            <span><strong>RM:</strong> {detailData.lead?.assignedTo?.name || 'Unassigned'}</span>
+                            <span>•</span>
+                            <span><strong>Onboarded By:</strong> {detailData.lead?.createdBy?.name || 'System / Direct'}</span>
+                            {detailData.lead?.nextCallDate && (
+                              <>
+                                <span>•</span>
+                                <span style={{ color: '#0284C7', fontWeight: 700 }}>
+                                  <strong>Next:</strong> {detailData.lead.nextCallDate.split('T')[0]}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setClientDetailTab('followups')}
+                          style={{
+                            borderRadius: 8,
+                            padding: '6px 14px',
+                            fontWeight: 700,
+                            color: '#059669',
+                            borderColor: '#86EFAC',
+                            background: '#FFFFFF'
+                          }}
+                        >
+                          View Full History ({detailData.followups?.length || 0}) →
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            setFollowUpClient(detailData.lead);
+                            setShowFollowUp(true);
+                          }}
+                          style={{
+                            borderRadius: 8,
+                            padding: '6px 14px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #10B981, #059669)',
+                            border: 'none',
+                            color: '#FFFFFF'
+                          }}
+                        >
+                          + Log Follow-up
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Additional Custom Fields if any */}
                     {detailData.lead?.customFields?.length > 0 && (
@@ -1697,6 +2477,52 @@ function ClientsPageContent() {
                               style={{ width: '100%', borderRadius: 8, fontSize: '0.76rem', fontWeight: 700, borderColor: '#BBF7D0', color: '#15803D', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px' }}
                             >
                               <Upload size={13} /> {bankDoc ? 'Re-upload Cheque' : '+ Upload Cheque / Mandate'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 5. NOMINEE DECLARATION */}
+                        <div style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 16, padding: '16px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                Nominee Declaration
+                              </div>
+                              {detailData.lead?.nomineeName && (
+                                <span style={{ fontSize: '0.72rem', color: '#6D28D9', background: '#EDE9FE', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                  ✓ Declared
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              {detailData.lead?.nomineeName ? (
+                                <div>
+                                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.92rem' }}>
+                                    {detailData.lead.nomineeName}
+                                  </div>
+                                  <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 2 }}>
+                                    {detailData.lead.nomineeRelation || 'Nominee'} • {detailData.lead.nomineeAllocation || 100}% Share
+                                  </div>
+                                </div>
+                              ) : (
+                                <span style={{ color: '#EA580C', fontSize: '0.82rem', fontWeight: 800, background: '#FFF7ED', padding: '2px 8px', borderRadius: 6 }}>
+                                  Declaration Missing
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingClient(detailData.lead);
+                                setShowModal(true);
+                              }}
+                              className="btn btn-outline btn-sm"
+                              style={{ width: '100%', borderRadius: 8, fontSize: '0.76rem', fontWeight: 700, borderColor: '#DDD6FE', color: '#7C3AED', background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px' }}
+                            >
+                              <Edit size={13} /> {detailData.lead?.nomineeName ? 'Update Nominee' : '+ Declare Nominee'}
                             </button>
                           </div>
                         </div>
@@ -1963,24 +2789,53 @@ function ClientsPageContent() {
                 {/* TAB 4: OTHER SERVICES */}
                 {clientDetailTab === 'services' && (() => {
                   const schemesList = detailData.lead?.schemes || [];
-                  const clientServices = Array.from(new Set([
-                    detailData.lead?.service,
-                    ...schemesList.map(s => s.service)
-                  ].filter(Boolean)));
+                  const SERVICE_ICON_MAP = {
+                    'Life Insurance': Shield,
+                    'Health Insurance': HeartPulse,
+                    'General Insurance': Car,
+                    'Mutual Funds': TrendingUp,
+                    'FD & Bond': Landmark,
+                    'NPS': PiggyBank,
+                    'Stock Market & Demat': BarChart2,
+                    'Tax Planning': Calculator,
+                  };
 
                   return (
                     <div>
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Service Portfolio & Offerings</h4>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748B' }}>
-                          Active client products and additional investment avenues available for cross-selling.
-                        </p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>Service Portfolio & Offerings</h4>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748B' }}>
+                            Active client policies, multi-product holdings, and cross-selling opportunities.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddScheme('Life Insurance')}
+                          className="btn btn-primary btn-sm"
+                          style={{
+                            borderRadius: 10,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: '#0284C7',
+                            padding: '8px 14px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          <Plus size={15} /> Add Other Service / Policy
+                        </button>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', alignItems: 'start', gap: 16 }}>
                         {SERVICES.map(srv => {
-                          const isActive = clientServices.includes(srv);
-                          const matchedSchemes = schemesList.filter(s => s.service === srv);
+                          const SrvIcon = SERVICE_ICON_MAP[srv] || Shield;
+                          const matchedSchemes = schemesList
+                            .map((s, idx) => ({ ...s, originalIndex: idx }))
+                            .filter(s => s.service === srv || (srv === 'Mutual Funds' && (!s.service || s.service === 'Mutual Funds')));
+                          const isActive = matchedSchemes.length > 0 || (srv === detailData.lead?.service);
+
                           return (
                             <div 
                               key={srv}
@@ -1988,15 +2843,41 @@ function ClientsPageContent() {
                                 background: '#FFFFFF',
                                 border: `1.5px solid ${isActive ? '#86EFAC' : '#E2E8F0'}`,
                                 borderRadius: 16,
-                                padding: '20px',
-                                boxShadow: isActive ? '0 2px 8px rgba(16, 185, 129, 0.08)' : '0 1px 3px rgba(0,0,0,0.02)',
-                                position: 'relative'
+                                padding: '16px 18px',
+                                boxShadow: isActive ? '0 3px 10px rgba(16, 185, 129, 0.05)' : '0 1px 3px rgba(0,0,0,0.02)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                height: 205,
+                                boxSizing: 'border-box'
                               }}
                             >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                                <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0F172A' }}>{srv}</h5>
+                              {/* Header */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <div style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 10,
+                                    background: isActive ? '#DCFCE7' : '#F1F5F9',
+                                    color: isActive ? '#15803D' : '#64748B',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0
+                                  }}>
+                                    <SrvIcon size={18} />
+                                  </div>
+                                  <div>
+                                    <h5 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>{srv}</h5>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                                      {matchedSchemes.length > 0 ? `${matchedSchemes.length} Active Scheme${matchedSchemes.length > 1 ? 's' : ''}` : 'No active policies'}
+                                    </span>
+                                  </div>
+                                </div>
+
                                 <span style={{
-                                  padding: '2px 8px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 800,
+                                  padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 800,
                                   background: isActive ? '#DCFCE7' : '#F1F5F9',
                                   color: isActive ? '#15803D' : '#64748B',
                                   border: `1px solid ${isActive ? '#A7F3D0' : '#E2E8F0'}`
@@ -2005,29 +2886,130 @@ function ClientsPageContent() {
                                 </span>
                               </div>
 
-                              <p style={{ fontSize: '0.78rem', color: '#64748B', margin: '0 0 14px' }}>
-                                {isActive 
-                                  ? `${matchedSchemes.length || 1} product/policy active in client's portfolio.`
-                                  : `Explore ${srv} options and advisory for client.`}
-                              </p>
+                              {/* Middle Body (Consistent 84px height) */}
+                              {matchedSchemes.length > 0 ? (
+                                <div style={{
+                                  background: '#F8FAFC',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: 10,
+                                  padding: '6px 10px',
+                                  height: 84,
+                                  overflowY: 'auto',
+                                  marginBottom: 8,
+                                  boxSizing: 'border-box',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 4
+                                }}>
+                                  {matchedSchemes.map((scheme) => (
+                                    <div
+                                      key={scheme.originalIndex}
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '3px 0',
+                                        borderBottom: '1px dashed #E2E8F0',
+                                        fontSize: '0.75rem'
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0, paddingRight: 6 }}>
+                                        <div style={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                                          {scheme.schemeName || 'Active Policy'}
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>
+                                          {scheme.sipAmount > 0 
+                                            ? `₹${Number(scheme.sipAmount).toLocaleString('en-IN')}/mo` 
+                                            : scheme.investmentAmount > 0 
+                                              ? `₹${Number(scheme.investmentAmount).toLocaleString('en-IN')} ${scheme.premiumFrequency || ''}`
+                                              : (scheme.provider || 'Active')}
+                                          {scheme.sumAssured > 0 && ` • ₹${Number(scheme.sumAssured).toLocaleString('en-IN')} Cover`}
+                                        </div>
+                                      </div>
 
-                              <button 
-                                className="btn btn-outline btn-sm"
-                                onClick={() => {
-                                  setEditingClient(detailData.lead);
-                                  setShowModal(true);
-                                }}
-                                style={{ 
-                                  width: '100%', 
-                                  borderRadius: 8, 
-                                  fontSize: '0.78rem',
-                                  color: isActive ? '#059669' : '#0EA5E9',
-                                  borderColor: isActive ? '#A7F3D0' : '#BAE6FD',
-                                  background: isActive ? '#F0FDF4' : '#F0F9FF'
-                                }}
-                              >
-                                {isActive ? 'Manage Schemes' : `+ Add ${srv}`}
-                              </button>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenAddScheme(srv, scheme, scheme.originalIndex)}
+                                          title="Edit Policy"
+                                          style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 4, padding: '2px 4px', cursor: 'pointer', color: '#0284C7', display: 'flex', alignItems: 'center' }}
+                                        >
+                                          <Edit2 size={11} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteScheme(scheme.originalIndex, scheme.schemeName)}
+                                          title="Delete Policy"
+                                          style={{ background: '#FFFFFF', border: '1px solid #FCA5A5', borderRadius: 4, padding: '2px 4px', cursor: 'pointer', color: '#DC2626', display: 'flex', alignItems: 'center' }}
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  height: 84,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  marginBottom: 8,
+                                  boxSizing: 'border-box'
+                                }}>
+                                  <p style={{ fontSize: '0.78rem', color: '#64748B', margin: 0, lineHeight: 1.45 }}>
+                                    Explore {srv} options, policy schemes, and tailored advisory for this client.
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Card Action Buttons */}
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button 
+                                  type="button"
+                                  onClick={() => handleOpenAddScheme(srv)}
+                                  style={{ 
+                                    flex: 1,
+                                    padding: '7px 10px',
+                                    borderRadius: 8, 
+                                    fontSize: '0.78rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    color: isActive ? '#0284C7' : '#0EA5E9',
+                                    borderColor: '#BAE6FD',
+                                    background: '#F0F9FF',
+                                    border: '1px solid #BAE6FD',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 5,
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <Plus size={13} />
+                                  {isActive ? `+ Add Policy` : `+ Add ${srv}`}
+                                </button>
+
+                                {isActive && srv === 'Mutual Funds' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setClientDetailTab('investments')}
+                                    title="View Portfolio Schemes"
+                                    style={{
+                                      padding: '7px 10px',
+                                      borderRadius: 8,
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      color: '#475569',
+                                      border: '1px solid #CBD5E1',
+                                      background: '#FFFFFF',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    View All ({matchedSchemes.length})
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -2237,6 +3219,37 @@ function ClientsPageContent() {
                   );
                 })()}
 
+                {/* TAB 7: FAMILY TREE & CHAIN */}
+                {clientDetailTab === 'family' && (
+                  <FamilyTreeTab
+                    client={detailData.lead}
+                    onSelectClient={(id) => viewDetail(id)}
+                    onClientUpdated={() => {
+                      viewDetail(detailData.lead._id);
+                      fetchClients(pagination.page);
+                      fetchFamilyStats();
+                    }}
+                  />
+                )}
+
+                {/* TAB 8: FOLLOW-UP & ASSIGNMENT HISTORY */}
+                {clientDetailTab === 'followups' && (
+                  <FollowUpHistoryTab
+                    lead={detailData.lead}
+                    followups={detailData.followups}
+                    activities={detailData.activities}
+                    onLogFollowUp={() => {
+                      setFollowUpClient(detailData.lead);
+                      setShowFollowUp(true);
+                    }}
+                    onAssign={() => {
+                      setAssignClient(detailData.lead);
+                      setShowAssignModal(true);
+                    }}
+                    canAssign={canAssign}
+                  />
+                )}
+
               </div>
             </div>
           </div>
@@ -2245,6 +3258,10 @@ function ClientsPageContent() {
           <ClientTasksModal 
             client={tasksClient} 
             onClose={() => { setShowTasksModal(false); setTasksClient(null); }} 
+            onTaskUpdated={() => {
+              fetchClients(pagination.page);
+              if (showDetail) viewDetail(showDetail);
+            }}
           />
         )}
         {showDocumentsModal && documentsClient && (
@@ -2283,6 +3300,55 @@ function ClientsPageContent() {
           onSuccess={() => { setShowBulkUpload(false); fetchClients(pagination.page); }}
         />
       )}
+
+      {/* Add Family Member Modal */}
+      {showAddFamilyModal && familyModalClient && (
+        <AddFamilyMemberModal
+          isOpen={showAddFamilyModal}
+          onClose={() => {
+            setShowAddFamilyModal(false);
+            setFamilyModalClient(null);
+          }}
+          currentClient={familyModalClient}
+          onSuccess={() => {
+            if (showDetail) viewDetail(showDetail);
+            fetchClients(pagination.page);
+            fetchFamilyStats();
+          }}
+        />
+      )}
+
+      {/* Log Follow-up Modal */}
+      {showFollowUp && followUpClient && (
+        <LogFollowUpModal
+          lead={followUpClient}
+          onClose={() => {
+            setShowFollowUp(false);
+            setFollowUpClient(null);
+          }}
+          onSave={handleLogFollowUp}
+        />
+      )}
+
+      {/* Add / Edit Service Scheme Modal (Dedicated for Life Insurance, Health Insurance, FD, NPS, etc.) */}
+      {showServiceSchemeModal && detailData?.lead && (
+        <AddServiceSchemeModal
+          isOpen={showServiceSchemeModal}
+          onClose={() => {
+            setShowServiceSchemeModal(false);
+            setEditingSchemeData(null);
+            setEditingSchemeIndex(null);
+          }}
+          client={detailData.lead}
+          initialService={serviceSchemeTarget}
+          editingScheme={editingSchemeData}
+          editingIndex={editingSchemeIndex}
+          onSuccess={() => {
+            viewDetail(detailData.lead._id);
+            fetchClients(pagination.page);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2319,6 +3385,13 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     bankName: client?.bankName || '',
     bankAccountNumber: client?.bankAccountNumber || '',
     bankIfscCode: client?.bankIfscCode || '',
+    nomineeName: client?.nomineeName || '',
+    nomineeRelation: client?.nomineeRelation || '',
+    nomineePhone: client?.nomineePhone || '',
+    nomineeEmail: client?.nomineeEmail || '',
+    nomineeAadhaar: client?.nomineeAadhaar || '',
+    nomineeDob: client?.nomineeDob || '',
+    nomineeAllocation: client?.nomineeAllocation !== undefined ? client.nomineeAllocation : 100,
     investmentType: client?.investmentType || (client?.sipAmount ? (client?.investmentAmount ? 'Both' : 'Monthly SIP') : (client?.investmentAmount ? 'Lumpsum' : 'Monthly SIP')),
     investmentAmount: client?.investmentAmount || '',
     sipAmount: client?.sipAmount || '',
@@ -2531,6 +3604,13 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       bankName: form.bankName ? form.bankName.trim() : '',
       bankAccountNumber: form.bankAccountNumber ? form.bankAccountNumber.trim() : '',
       bankIfscCode: form.bankIfscCode ? form.bankIfscCode.toUpperCase().trim() : '',
+      nomineeName: form.nomineeName ? form.nomineeName.trim() : '',
+      nomineeRelation: form.nomineeRelation || '',
+      nomineePhone: form.nomineePhone ? form.nomineePhone.trim() : '',
+      nomineeEmail: form.nomineeEmail ? form.nomineeEmail.trim() : '',
+      nomineeAadhaar: form.nomineeAadhaar ? form.nomineeAadhaar.trim() : '',
+      nomineeDob: form.nomineeDob || '',
+      nomineeAllocation: Number(form.nomineeAllocation) || 100,
       kycStatus: form.kycStatus || 'Verified',
       riskProfile: form.riskProfile || 'Moderate',
       familyMembers: form.familyMembers ? String(form.familyMembers).trim() : '',
@@ -2804,6 +3884,132 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                     placeholder="HDFC0001234"
                     maxLength={11}
                     style={{ textTransform: 'uppercase', height: 38, borderRadius: 8 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Nominee & Beneficiary Section */}
+            <div style={{
+              background: '#FFFFFF',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              padding: '18px 20px',
+              marginTop: 18,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#EDE9FE',
+                  color: '#7C3AED',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <UserCheck size={16} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                    Nominee & Beneficiary Details
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748B' }}>
+                    Folio nominee for mutual funds, insurance & demat assets
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Nominee Full Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.nomineeName}
+                    onChange={e => setForm({ ...form, nomineeName: e.target.value })}
+                    placeholder="Full name of nominee"
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Relationship</label>
+                  <select
+                    className="form-select"
+                    value={form.nomineeRelation}
+                    onChange={e => setForm({ ...form, nomineeRelation: e.target.value })}
+                    style={{ height: 38, borderRadius: 8, fontWeight: 600 }}
+                  >
+                    <option value="">Select Relation</option>
+                    <option value="Spouse">Spouse (Wife / Husband)</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Grandchild">Grandchild</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Mobile Number</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    value={form.nomineePhone}
+                    onChange={e => setForm({ ...form, nomineePhone: e.target.value })}
+                    placeholder="10-digit mobile"
+                    maxLength={15}
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>
+                    Email ID <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={form.nomineeEmail}
+                    onChange={e => setForm({ ...form, nomineeEmail: e.target.value })}
+                    placeholder="nominee@email.com"
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>
+                    Aadhaar Number <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.nomineeAadhaar}
+                    onChange={e => setForm({ ...form, nomineeAadhaar: e.target.value })}
+                    placeholder="12-digit Aadhaar"
+                    maxLength={12}
+                    style={{ height: 38, borderRadius: 8 }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>
+                    Share / Allocation %
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    className="form-input"
+                    value={form.nomineeAllocation}
+                    onChange={e => setForm({ ...form, nomineeAllocation: e.target.value })}
+                    placeholder="100"
+                    style={{ height: 38, borderRadius: 8 }}
                   />
                 </div>
               </div>
@@ -3647,6 +4853,15 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
           <button className="bottom-sheet-item" onClick={() => onAction('view')}>
             <Eye size={20} /> View Detail
           </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('followup')} style={{ color: '#0ea5e9' }}>
+            <Calendar size={20} /> Log Follow-up
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('followup_history')} style={{ color: '#059669' }}>
+            <Clock size={20} /> Follow-up History
+          </button>
+          <button className="bottom-sheet-item" onClick={() => onAction('family')} style={{ color: '#0284c7' }}>
+            <Users size={20} /> Family Tree & Hierarchy
+          </button>
           <button className="bottom-sheet-item" onClick={() => onAction('documents')} style={{ color: '#ef4444' }}>
             <FileText size={20} /> Documents
           </button>
@@ -3688,101 +4903,6 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
         <button className="btn btn-outline btn-block" style={{ marginTop: 24 }} onClick={onClose}>
           Close
         </button>
-      </div>
-    </div>
-  );
-}
-
-function ClientTasksModal({ client, onClose }) {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const res = await fetch(`/api/tasks?leadId=${client._id}`);
-        const data = await res.json();
-        setTasks(data.tasks || []);
-      } catch (err) {
-        console.error('Failed to fetch tasks', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [client._id]);
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 28 }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--secondary-50)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Calendar size={22} />
-            </div>
-            <div>
-              <h3 className="modal-title" style={{ fontSize: '1.2rem' }}>Tasks for {client.name}</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Scheduled activities and reminders</p>
-            </div>
-          </div>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
-        </div>
-        <div className="modal-body" style={{ padding: '24px 32px', maxHeight: '70vh', overflowY: 'auto' }}>
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}><div className="spinner"></div></div>
-          ) : tasks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ width: 64, height: 64, background: 'var(--bg-body)', color: 'var(--text-muted)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', opacity: 0.5 }}>
-                <Clock size={32} />
-              </div>
-              <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>No tasks found for this client</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {tasks.map(task => (
-                <div key={task._id} style={{ 
-                  padding: '16px', 
-                  background: 'var(--bg-body)', 
-                  borderRadius: 16, 
-                  border: '1px solid var(--border-light)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ 
-                      width: 48, 
-                      height: 48, 
-                      borderRadius: 14, 
-                      background: task.type === 'Call' ? '#dcfce7' : '#fef9c3', 
-                      color: task.type === 'Call' ? '#166534' : '#854d0e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {task.type === 'Call' ? <Phone size={20} /> : <Video size={20} />}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{task.title}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <Calendar size={12} />
-                        {new Date(task.scheduledAt || task.dueDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className={`badge ${task.status === 'Completed' ? 'badge-green' : 'badge-yellow'}`} style={{ borderRadius: 10, fontSize: '0.7rem' }}>
-                      {task.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="modal-footer" style={{ borderTop: 'none', padding: '0 32px 32px' }}>
-          <button className="btn btn-primary btn-block" onClick={onClose} style={{ borderRadius: 12 }}>Understood</button>
-        </div>
       </div>
     </div>
   );

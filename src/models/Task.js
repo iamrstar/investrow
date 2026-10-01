@@ -57,13 +57,39 @@ const TaskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'In Progress', 'Completed'],
+    enum: ['Pending', 'Accepted', 'In Progress', 'Completed'],
     default: 'Pending',
   },
   priority: {
     type: String,
-    enum: ['Low', 'Medium', 'High'],
+    enum: ['Low', 'Medium', 'High', 'Urgent'],
     default: 'Medium',
+  },
+  remarks: {
+    type: String,
+    default: '',
+  },
+  screenshot: {
+    type: String,
+    default: '',
+  },
+  acceptedAt: {
+    type: Date,
+    default: null,
+  },
+  acceptedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  completedAt: {
+    type: Date,
+    default: null,
+  },
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
   },
   outcomeId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -79,4 +105,8 @@ TaskSchema.index({ status: 1 });
 TaskSchema.index({ dueDate: 1 });
 TaskSchema.index({ type: 1 });
 
-export default mongoose.models.Task || mongoose.model('Task', TaskSchema);
+if (mongoose.models.Task) {
+  delete mongoose.models.Task;
+}
+
+export default mongoose.model('Task', TaskSchema);

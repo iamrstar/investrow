@@ -8,7 +8,8 @@ import {
   TrendingUp, BarChart2, Shield, CheckCircle2,
   Phone, MessageSquare, Plus, Upload, FileText,
   AlertTriangle, ArrowUpRight, Check, X, Send,
-  Briefcase, IndianRupee, Sparkles, Target, Cake, PartyPopper, ArrowRight
+  Briefcase, IndianRupee, Sparkles, Target, Cake, PartyPopper, ArrowRight,
+  Search, Eye, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
@@ -46,6 +47,14 @@ export default function DashboardPage() {
 
   const [staffMembers, setStaffMembers] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState('all');
+
+  // Upcoming SIP Debits Controls
+  const [adminSipLimit, setAdminSipLimit] = useState(5);
+  const [empSipLimit, setEmpSipLimit] = useState(5);
+  const [sipModalData, setSipModalData] = useState({ isOpen: false, title: 'Upcoming SIP Debits', sips: [] });
+  const [sipModalSearch, setSipModalSearch] = useState('');
+  const [sipModalFilter, setSipModalFilter] = useState('All');
+  const [sipModalPage, setSipModalPage] = useState(1);
 
   useEffect(() => {
     if (user?.role === 'user') {
@@ -812,7 +821,7 @@ export default function DashboardPage() {
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1E3A8A', display: 'flex', alignItems: 'center', gap: 8 }}>
                   Upcoming SIP Debits (Next 3 Days)
                   <span style={{ fontSize: '0.72rem', background: '#3B82F6', color: 'white', fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
-                    {stats.upcomingSipAlerts.length} Due
+                    {stats.upcomingSipAlerts.length.toLocaleString('en-IN')} Due
                   </span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: 1 }}>
@@ -820,10 +829,39 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {stats.upcomingSipAlerts.length > 5 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSipModalData({ isOpen: true, title: 'All Upcoming SIP Debits', sips: stats.upcomingSipAlerts });
+                  setSipModalSearch('');
+                  setSipModalFilter('All');
+                  setSipModalPage(1);
+                }}
+                style={{
+                  background: '#FFFFFF',
+                  color: '#2563EB',
+                  border: '1.5px solid #BFDBFE',
+                  borderRadius: 10,
+                  padding: '6px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)'
+                }}
+              >
+                <span>View All ({stats.upcomingSipAlerts.length.toLocaleString('en-IN')})</span>
+                <ArrowUpRight size={14} />
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 }}>
-            {stats.upcomingSipAlerts.map(sip => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+            {stats.upcomingSipAlerts.slice(0, adminSipLimit).map(sip => (
               <div
                 key={sip._id}
                 style={{
@@ -887,6 +925,95 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {stats.upcomingSipAlerts.length > 5 && (
+            <div style={{
+              marginTop: 14,
+              paddingTop: 12,
+              borderTop: '1px solid #DBEAFE',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 10
+            }}>
+              <div style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 600 }}>
+                Showing <strong>{Math.min(adminSipLimit, stats.upcomingSipAlerts.length)}</strong> of <strong>{stats.upcomingSipAlerts.length.toLocaleString('en-IN')}</strong> upcoming debits
+                {stats.upcomingSipAlerts.length > adminSipLimit && (
+                  <span style={{ marginLeft: 8, fontSize: '0.72rem', background: '#DBEAFE', color: '#1E3A8A', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                    +{stats.upcomingSipAlerts.length - adminSipLimit} more scheduled
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {adminSipLimit > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setAdminSipLimit(5)}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #BFDBFE',
+                      borderRadius: 8,
+                      padding: '5px 12px',
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      color: '#475569',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Show Less (5)
+                  </button>
+                )}
+
+                {adminSipLimit < stats.upcomingSipAlerts.length && (
+                  <button
+                    type="button"
+                    onClick={() => setAdminSipLimit(prev => Math.min(prev + 10, stats.upcomingSipAlerts.length))}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1.5px solid #BFDBFE',
+                      borderRadius: 8,
+                      padding: '5px 14px',
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      color: '#2563EB',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Show More (+10)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSipModalData({ isOpen: true, title: 'All Upcoming SIP Debits', sips: stats.upcomingSipAlerts });
+                    setSipModalSearch('');
+                    setSipModalFilter('All');
+                    setSipModalPage(1);
+                  }}
+                  style={{
+                    background: '#2563EB',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '6px 14px',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)'
+                  }}
+                >
+                  <span>View All ({stats.upcomingSipAlerts.length.toLocaleString('en-IN')})</span>
+                  <ArrowUpRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1618,10 +1745,39 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+
+                {empStats.upcomingSipAlerts.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSipModalData({ isOpen: true, title: 'My Upcoming SIP Debits', sips: empStats.upcomingSipAlerts });
+                      setSipModalSearch('');
+                      setSipModalFilter('All');
+                      setSipModalPage(1);
+                    }}
+                    style={{
+                      background: '#FFFFFF',
+                      color: '#2563EB',
+                      border: '1.5px solid #BFDBFE',
+                      borderRadius: 10,
+                      padding: '6px 14px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)'
+                    }}
+                  >
+                    <span>View All ({empStats.upcomingSipAlerts.length.toLocaleString('en-IN')})</span>
+                    <ArrowUpRight size={14} />
+                  </button>
+                )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 }}>
-                {empStats.upcomingSipAlerts.map(sip => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+                {empStats.upcomingSipAlerts.slice(0, empSipLimit).map(sip => (
                   <div
                     key={sip._id}
                     style={{
@@ -1685,6 +1841,91 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+
+              {empStats.upcomingSipAlerts.length > 5 && (
+                <div style={{
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTop: '1px solid #DBEAFE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 10
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 600 }}>
+                    Showing <strong>{Math.min(empSipLimit, empStats.upcomingSipAlerts.length)}</strong> of <strong>{empStats.upcomingSipAlerts.length.toLocaleString('en-IN')}</strong> upcoming debits
+                    {empStats.upcomingSipAlerts.length > empSipLimit && (
+                      <span style={{ marginLeft: 8, fontSize: '0.72rem', background: '#DBEAFE', color: '#1E3A8A', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                        +{empStats.upcomingSipAlerts.length - empSipLimit} more scheduled
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {empSipLimit > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setEmpSipLimit(5)}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1px solid #BFDBFE',
+                          borderRadius: 8,
+                          padding: '5px 12px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          color: '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Show Less (5)
+                      </button>
+                    )}
+
+                    {empSipLimit < empStats.upcomingSipAlerts.length && (
+                      <button
+                        type="button"
+                        onClick={() => setEmpSipLimit(prev => Math.min(prev + 10, empStats.upcomingSipAlerts.length))}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1.5px solid #BFDBFE',
+                          borderRadius: 8,
+                          padding: '5px 14px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          color: '#2563EB',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Show More (+10)
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSipModalData({ isOpen: true, title: 'My Upcoming SIP Debits', sips: empStats.upcomingSipAlerts });
+                        setSipModalSearch('');
+                        setSipModalFilter('All');
+                        setSipModalPage(1);
+                      }}
+                      style={{
+                        background: '#2563EB',
+                        border: 'none',
+                        color: '#FFFFFF',
+                        borderRadius: 8,
+                        padding: '6px 14px',
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)'
+                      }}
+                    >
+                      View Full List ({empStats.upcomingSipAlerts.length.toLocaleString('en-IN')})
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2582,6 +2823,315 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Upcoming SIP Debits Full Modal (Paginated, Searchable, Filterable) */}
+      {sipModalData.isOpen && (() => {
+        const rawList = sipModalData.sips || [];
+        const filtered = rawList.filter(item => {
+          const matchFilter = sipModalFilter === 'All' || item.dueStatus === sipModalFilter;
+          const q = sipModalSearch.trim().toLowerCase();
+          const matchSearch = !q || 
+            (item.name && item.name.toLowerCase().includes(q)) || 
+            (item.schemeName && item.schemeName.toLowerCase().includes(q)) || 
+            (item.phone && String(item.phone).includes(q));
+          return matchFilter && matchSearch;
+        });
+
+        const perPage = 12;
+        const totalPages = Math.ceil(filtered.length / perPage) || 1;
+        const currentPage = Math.min(sipModalPage, totalPages);
+        const pagedItems = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              zIndex: 10000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSipModalData(prev => ({ ...prev, isOpen: false }));
+            }}
+          >
+            <div
+              style={{
+                background: '#FFFFFF',
+                borderRadius: 20,
+                width: '100%',
+                maxWidth: 900,
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '20px 24px',
+                background: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    background: 'rgba(255,255,255,0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <CalendarClock size={22} color="white" />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'white' }}>
+                      {sipModalData.title}
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#BFDBFE' }}>
+                      {rawList.length.toLocaleString('en-IN')} total automated debits scheduled
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSipModalData(prev => ({ ...prev, isOpen: false }))}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    color: 'white',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Controls: Search and Status Filters */}
+              <div style={{
+                padding: '16px 24px',
+                background: '#F8FAFC',
+                borderBottom: '1px solid #E2E8F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: 10,
+                  padding: '6px 12px',
+                  width: '100%',
+                  maxWidth: 320
+                }}>
+                  <Search size={16} color="#94A3B8" />
+                  <input
+                    type="text"
+                    placeholder="Search client, scheme, phone..."
+                    value={sipModalSearch}
+                    onChange={(e) => {
+                      setSipModalSearch(e.target.value);
+                      setSipModalPage(1);
+                    }}
+                    style={{ border: 'none', outline: 'none', width: '100%', fontSize: '0.85rem' }}
+                  />
+                  {sipModalSearch && (
+                    <button
+                      onClick={() => setSipModalSearch('')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      <X size={14} color="#94A3B8" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {['All', 'Today', 'Tomorrow', 'In 2 Days', 'In 3 Days', 'In 5 Days'].map(st => {
+                    const count = st === 'All' ? rawList.length : rawList.filter(x => x.dueStatus === st).length;
+                    if (st !== 'All' && count === 0) return null;
+                    const isSel = sipModalFilter === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          setSipModalFilter(st);
+                          setSipModalPage(1);
+                        }}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 20,
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          border: isSel ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                          background: isSel ? '#EFF6FF' : '#FFFFFF',
+                          color: isSel ? '#1E40AF' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {st} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Grid of Results */}
+              <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+                {pagedItems.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748B' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#334155' }}>No matching SIP debits found</div>
+                    <p style={{ fontSize: '0.82rem', margin: '4px 0 0' }}>Try adjusting your search query or status filter.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                    {pagedItems.map(sip => (
+                      <div
+                        key={sip._id}
+                        style={{
+                          background: '#FFFFFF',
+                          borderRadius: 14,
+                          padding: '14px 16px',
+                          border: '1.5px solid #DBEAFE',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F172A' }}>{sip.name}</div>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              padding: '2px 7px',
+                              borderRadius: 6,
+                              background: sip.dueStatus === 'Today' ? '#FEE2E2' : (sip.dueStatus === 'Tomorrow' ? '#FEF3C7' : '#E0F2FE'),
+                              color: sip.dueStatus === 'Today' ? '#DC2626' : (sip.dueStatus === 'Tomorrow' ? '#D97706' : '#0284C7'),
+                            }}>
+                              {sip.dueStatus} ({sip.sipDay}th)
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: '#475569', margin: '2px 0' }}>
+                            {sip.schemeName}
+                          </div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#059669', margin: '4px 0 10px' }}>
+                            {sip.formattedAmount} <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>/ month</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const cleanPhone = String(sip.phone).replace(/[^0-9]/g, '');
+                            const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                            const text = `Dear ${sip.name}, this is a gentle reminder from Investrow Financial Services that your monthly SIP of ${sip.formattedAmount} for ${sip.schemeName} is scheduled for debit on ${sip.sipDay}th. Kindly maintain sufficient bank balance to avoid ECS bounce charges. Happy Investing!`;
+                            window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`, '_blank');
+                          }}
+                          style={{
+                            background: '#25D366',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            width: '100%',
+                            boxShadow: '0 2px 6px rgba(37, 211, 102, 0.25)'
+                          }}
+                        >
+                          <Send size={13} /> Send WhatsApp Reminder
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Pagination */}
+              {totalPages > 1 && (
+                <div style={{
+                  padding: '14px 24px',
+                  background: '#F8FAFC',
+                  borderTop: '1px solid #E2E8F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                    Showing {(currentPage - 1) * perPage + 1} - {Math.min(currentPage * perPage, filtered.length)} of {filtered.length} entries
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      disabled={currentPage <= 1}
+                      onClick={() => setSipModalPage(prev => Math.max(prev - 1, 1))}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #CBD5E1',
+                        background: currentPage <= 1 ? '#F1F5F9' : '#FFFFFF',
+                        color: currentPage <= 1 ? '#94A3B8' : '#334155',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: currentPage <= 1 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Previous
+                    </button>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setSipModalPage(prev => Math.min(prev + 1, totalPages))}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #CBD5E1',
+                        background: currentPage >= totalPages ? '#F1F5F9' : '#FFFFFF',
+                        color: currentPage >= totalPages ? '#94A3B8' : '#334155',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

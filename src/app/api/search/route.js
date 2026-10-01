@@ -22,6 +22,7 @@ export async function GET(request) {
     { phone: searchRegex },
     { email: searchRegex },
     { leadId: searchRegex },
+    { clientCode: searchRegex },
     { panNumber: searchRegex },
     { aadhaarNumber: searchRegex },
     { schemeName: searchRegex },
@@ -37,9 +38,13 @@ export async function GET(request) {
 
   const query = { $or: orConditions };
 
-  // Role-based scoping: sales employees only see their assigned records
-  if (authUser.role === 'user') {
-    query.assignedTo = authUser._id;
+  // Role-based scoping: non-admins only see records they created or were assigned
+  if (authUser.role !== 'admin') {
+    query.$and = [
+      { $or: orConditions },
+      { $or: [{ assignedTo: authUser._id }, { createdBy: authUser._id }] }
+    ];
+    delete query.$or;
   }
 
   try {

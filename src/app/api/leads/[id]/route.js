@@ -13,22 +13,22 @@ async function canAccessLead(authUser, lead) {
   const assignedId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
   const createdById = lead.createdBy?._id?.toString() || lead.createdBy?.toString();
 
-  if (authUser.role === 'user') {
-    return assignedId === authUser._id || createdById === authUser._id;
+  if (authUser.role !== 'admin') {
+    return assignedId === authUser._id?.toString() || createdById === authUser._id?.toString();
   }
   return false;
 }
 
 export async function GET(request, { params }) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
   const { id } = await params;
 
   const lead = await Lead.findById(id)
-    .populate('assignedTo', 'name email phone')
-    .populate('createdBy', 'name email')
+    .populate('assignedTo', 'name email phone role')
+    .populate('createdBy', 'name email role')
     .lean();
 
   if (!lead) {
@@ -39,8 +39,8 @@ export async function GET(request, { params }) {
 
   // Get follow-up history
   const followups = await FollowUp.find({ leadId: id })
-    .populate('userId', 'name')
-    .sort({ createdAt: -1 })
+    .populate('userId', 'name role email')
+    .sort({ interactionDate: -1, createdAt: -1 })
     .lean();
 
   // Get generic activity logs for this lead
@@ -60,7 +60,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
@@ -135,7 +135,7 @@ export async function PUT(request, { params }) {
     if (body.nextCallDate && !body.followUpDate) body.followUpDate = body.nextCallDate;
     if (body.followUpDate && !body.nextCallDate) body.nextCallDate = body.followUpDate;
 
-    const isConverted = body.response === 'Converted' || body.stage === 'Converted';
+    const isConverted = body.response === 'Converted' || body.stage === 'Converted' || existingLead.response === 'Converted' || existingLead.stage === 'Converted';
     const settingsType = isConverted ? 'client' : 'lead';
     const settings = await FormControl.findOne({ singletonId: `${settingsType}_settings` }).lean();
 
@@ -208,9 +208,12 @@ export async function PUT(request, { params }) {
       body.sipAmount = totalSip;
       body.investmentAmount = totalLumpsum;
       body.schemeName = body.schemes.map(s => s.schemeName).filter(Boolean).join(', ');
-      if (body.schemes[0]?.service) body.service = body.schemes[0].service;
-      if (body.schemes[0]?.sipDay) body.sipDay = body.schemes[0].sipDay;
-      body.investmentType = totalSip > 0 && totalLumpsum > 0 ? 'Both' : totalSip > 0 ? 'Monthly SIP' : totalLumpsum > 0 ? 'Lumpsum' : (body.schemes[0]?.investmentType || 'Monthly SIP');
+      if (!body.service) {
+        body.service = existingLead.service || body.schemes[0]?.service || '';
+      }
+      const validEnums = ['Monthly SIP', 'Lumpsum', 'Both', 'None', ''];
+      const rawDerived = totalSip > 0 && totalLumpsum > 0 ? 'Both' : totalSip > 0 ? 'Monthly SIP' : totalLumpsum > 0 ? 'Lumpsum' : (body.schemes[0]?.investmentType || 'Monthly SIP');
+      body.investmentType = validEnums.includes(rawDerived) ? rawDerived : (existingLead.investmentType || 'Monthly SIP');
     }
 
     const lead = await Lead.findByIdAndUpdate(id, body, { new: true, runValidators: true });
@@ -240,6 +243,56 @@ export async function PUT(request, { params }) {
       // Standardize comparison for strings/others
       else if (String(oldVal || '') !== String(newVal || '')) {
         changes[key] = { from: oldVal, to: newVal };
+      }
+    }
+
+    // Check if assignment changed and record directly in FollowUp and ActivityLog history
+    const oldAssignedId = existingLead.assignedTo ? existingLead.assignedTo.toString() : '';
+    const newAssignedId = body.assignedTo ? body.assignedTo.toString() : '';
+    if (body.assignedTo !== undefined && oldAssignedId !== newAssignedId) {
+      const newAssignee = body.assignedTo ? await User.findById(body.assignedTo).select('name email role').lean() : null;
+      const oldAssignee = existingLead.assignedTo ? await User.findById(existingLead.assignedTo).select('name email role').lean() : null;
+
+      const newAssigneeName = newAssignee ? newAssignee.name : 'Unassigned';
+      const oldAssigneeName = oldAssignee ? oldAssignee.name : 'Unassigned';
+      const noteStr = body.assignmentNotes ? ` • Note: "${body.assignmentNotes}"` : '';
+
+      try {
+        await FollowUp.create({
+          leadId: id,
+          userId: authUser._id,
+          medium: 'Office Visit',
+          callStatus: 'Assigned',
+          response: 'Assigned',
+          stage: lead.stage || existingLead.stage || 'New',
+          service: lead.service || existingLead.service || 'Mutual Funds',
+          sipAmount: lead.sipAmount || existingLead.sipAmount || 0,
+          investmentAmount: lead.investmentAmount || existingLead.investmentAmount || 0,
+          remarks: `Assigned by ${authUser.name} to ${newAssigneeName} (Previous: ${oldAssigneeName})${noteStr}`,
+          interactionDate: new Date(),
+        });
+      } catch (fErr) {
+        console.warn('Assignment FollowUp create error:', fErr.message);
+      }
+
+      try {
+        await ActivityLog.create({
+          userId: authUser._id,
+          action: `Assigned to ${newAssigneeName} by ${authUser.name}`,
+          entityType: 'Lead',
+          entityId: lead._id,
+          details: {
+            type: 'assignment',
+            assignedBy: authUser.name,
+            assignedById: authUser._id,
+            assignedTo: newAssigneeName,
+            assignedToId: body.assignedTo,
+            previousAssignee: oldAssigneeName,
+            notes: body.assignmentNotes || ''
+          }
+        });
+      } catch (aErr) {
+        console.warn('Assignment ActivityLog error:', aErr.message);
       }
     }
 

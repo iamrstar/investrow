@@ -21,6 +21,12 @@ const LeadSchema = new mongoose.Schema({
     type: Number,
     index: true,
   },
+  clientCode: {
+    type: String,
+    trim: true,
+    default: '',
+    index: true,
+  },
   name: {
     type: String,
     trim: true,
@@ -108,10 +114,19 @@ const LeadSchema = new mongoose.Schema({
       service: { type: String, trim: true, default: '' },
       investmentType: { type: String, default: 'Monthly SIP' },
       schemeName: { type: String, trim: true, default: '' },
+      provider: { type: String, trim: true, default: '' }, // AMC / Insurer / Bank / Broker / PFM
+      policyNumber: { type: String, trim: true, default: '' }, // Policy No / Folio No / Demat ID / PRAN / FDR No
       sipAmount: { type: Number, default: 0 },
       sipDay: { type: Number, default: null },
       investmentAmount: { type: Number, default: 0 },
+      sumAssured: { type: Number, default: 0 }, // For Life / Health / General Insurance
+      premiumFrequency: { type: String, trim: true, default: 'Annual' }, // Annual, Monthly, Quarterly, Half-Yearly, Single
+      interestRate: { type: Number, default: 0 }, // For FD / Bonds
+      payoutType: { type: String, trim: true, default: '' }, // Cumulative, Monthly, Quarterly, Annual
       tenureYears: { type: Number, default: null },
+      startDate: { type: String, trim: true, default: '' },
+      maturityDate: { type: String, trim: true, default: '' },
+      status: { type: String, trim: true, default: 'Active' },
       remarks: { type: String, default: '' },
     }
   ],
@@ -221,6 +236,56 @@ const LeadSchema = new mongoose.Schema({
     type: String,
     default: '',
     trim: true,
+  },
+  familyId: {
+    type: String,
+    trim: true,
+    default: '',
+    index: true,
+  },
+  familyRole: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  isFamilyHead: {
+    type: Boolean,
+    default: false,
+  },
+  // Nominee Details
+  nomineeName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineeRelation: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineePhone: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineeEmail: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineeAadhaar: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineeDob: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  nomineeAllocation: {
+    type: Number,
+    default: 100,
   },
   kycStatus: {
     type: String,

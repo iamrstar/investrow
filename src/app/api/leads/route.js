@@ -4,6 +4,7 @@ import User from '@/models/User';
 import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middleware';
 import ActivityLog from '@/models/ActivityLog';
 import FormControl from '@/models/FormControl';
+import FollowUp from '@/models/FollowUp';
 
 export async function GET(request) {
   const authUser = await getAuthUser();
@@ -34,9 +35,14 @@ export async function GET(request) {
     });
   }
 
-  // Role-based filtering
-  if (authUser.role === 'user') {
-    criteria.push({ assignedTo: authUser._id });
+  // Role-based filtering: Admins see all leads/clients. Non-admins (Relationship Managers / staff) only see leads/clients they created/onboarded OR that are assigned to them
+  if (authUser.role !== 'admin') {
+    criteria.push({
+      $or: [
+        { assignedTo: authUser._id },
+        { createdBy: authUser._id }
+      ]
+    });
   }
 
   if (search) {
@@ -48,6 +54,7 @@ export async function GET(request) {
       { phone: searchRegex },
       { email: searchRegex },
       { leadId: searchRegex },
+      { clientCode: searchRegex },
       { panNumber: searchRegex },
       { aadhaarNumber: searchRegex },
       { schemeName: searchRegex },
@@ -100,10 +107,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
   // Allow all roles to create leads
-  if (!checkRole(authUser, ['admin', 'user'])) return forbidden();
+  if (!checkRole(authUser, ['admin', 'user', 'relationship_manager', 'rm'])) return forbidden();
 
   try {
     await dbConnect();
@@ -152,8 +159,8 @@ export async function POST(request) {
       if (!body.service) return Response.json({ error: 'Service is required' }, { status: 400 });
     }
 
-    // Auto-assign to creator if not explicitly assigned (Users are always auto-assigned to themselves)
-    if (authUser.role === 'user' || !body.assignedTo) {
+    // Auto-assign to creator if not explicitly assigned
+    if (!body.assignedTo) {
       body.assignedTo = authUser._id;
     }
 
@@ -173,12 +180,43 @@ export async function POST(request) {
       createdBy: authUser._id,
     });
 
+    // Populate assigned user info for accurate history logging
+    const assignedUser = body.assignedTo ? await User.findById(body.assignedTo).select('name email').lean() : null;
+
+    // Create initial FollowUp record so onboarding & initial assignment appear immediately in Follow-up History
+    try {
+      await FollowUp.create({
+        leadId: lead._id,
+        userId: authUser._id,
+        medium: lead.response === 'Converted' ? 'Office Visit' : 'Phone Call',
+        callStatus: lead.callStatus || (lead.response === 'Converted' ? 'Received' : 'Pending'),
+        response: lead.response || 'New',
+        stage: lead.stage || (lead.response === 'Converted' ? 'Converted' : 'New'),
+        service: lead.service || 'Mutual Funds',
+        sipAmount: lead.sipAmount || 0,
+        investmentAmount: lead.investmentAmount || 0,
+        schemeName: lead.schemeName || '',
+        remarks: lead.response === 'Converted'
+          ? `Client Onboarded by ${authUser.name} with ₹${Number(lead.sipAmount || 0).toLocaleString('en-IN')} Monthly SIP. Assigned to: ${assignedUser ? assignedUser.name : authUser.name}`
+          : `Lead created by ${authUser.name}. Assigned to: ${assignedUser ? assignedUser.name : authUser.name}`,
+        interactionDate: new Date(),
+      });
+    } catch (fErr) {
+      console.warn('Initial FollowUp create error:', fErr.message);
+    }
+
     await ActivityLog.create({
       userId: authUser._id,
       action: `Created lead: ${lead.name}`,
       entityType: 'Lead',
       entityId: lead._id,
-      details: { name: lead.name, service: lead.service, phone: lead.phone },
+      details: { 
+        name: lead.name, 
+        service: lead.service, 
+        phone: lead.phone,
+        assignedTo: assignedUser?.name || 'Self',
+        createdBy: authUser.name
+      },
     });
 
     return Response.json({ success: true, lead }, { status: 201 });

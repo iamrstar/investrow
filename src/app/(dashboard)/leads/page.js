@@ -8,6 +8,7 @@ import LogFollowUpModal from '@/components/LogFollowUpModal';
 import ScheduleEventModal from '@/components/ScheduleEventModal';
 import BulkUploadModal from '@/components/BulkUploadModal';
 import ConvertToClientModal from '@/components/ConvertToClientModal';
+import ClientTasksModal from '@/components/ClientTasksModal';
 import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
@@ -92,8 +93,8 @@ function LeadsPageContent() {
     setExpandedActivities(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const canCreate = user?.role === 'admin' || user?.role === 'user';
-  const canAssign = user?.role === 'admin';
+  const canCreate = user?.role === 'admin' || user?.role === 'user' || user?.role === 'relationship_manager' || user?.role === 'rm';
+  const canAssign = user?.role === 'admin' || user?.role === 'user' || user?.role === 'relationship_manager' || user?.role === 'rm';
   const canDelete = user?.role === 'admin';
 
   const fetchLeads = useCallback(async (page = 1) => {
@@ -221,6 +222,9 @@ function LeadsPageContent() {
       setAssignLead(null);
       setAssignRole('');
       fetchLeads(pagination.page);
+      if (showDetail) {
+        viewDetail(showDetail);
+      }
     } catch {
       addToast('Failed to assign', 'error');
     }
@@ -1703,7 +1707,14 @@ function LeadsPageContent() {
       )}
 
         {showTasksModal && tasksLead && (
-          <LeadTasksModal lead={tasksLead} onClose={() => { setShowTasksModal(false); setTasksLead(null); }} />
+          <ClientTasksModal 
+            client={tasksLead} 
+            onClose={() => { setShowTasksModal(false); setTasksLead(null); }} 
+            onTaskUpdated={() => {
+              fetchLeads(pagination.page);
+              if (showDetail) viewDetail(showDetail);
+            }}
+          />
         )}
 
       {/* Bulk Upload Modal */}
@@ -1713,101 +1724,6 @@ function LeadsPageContent() {
           onSuccess={() => { setShowBulkUpload(false); fetchLeads(pagination.page); }}
         />
       )}
-    </div>
-  );
-}
-
-function LeadTasksModal({ lead, onClose }) {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const res = await fetch(`/api/tasks?leadId=${lead._id}`);
-        const data = await res.json();
-        setTasks(data.tasks || []);
-      } catch (err) {
-        console.error('Failed to fetch tasks', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [lead._id]);
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, borderRadius: 28 }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--secondary-50)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Calendar size={22} />
-            </div>
-            <div>
-              <h3 className="modal-title" style={{ fontSize: '1.2rem' }}>Tasks for {lead.name}</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Scheduled activities and reminders</p>
-            </div>
-          </div>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
-        </div>
-        <div className="modal-body" style={{ padding: '24px 32px', maxHeight: '70vh', overflowY: 'auto' }}>
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}><div className="spinner"></div></div>
-          ) : tasks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ width: 64, height: 64, background: 'var(--bg-body)', color: 'var(--text-muted)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', opacity: 0.5 }}>
-                <Clock size={32} />
-              </div>
-              <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>No tasks found for this lead</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {tasks.map(task => (
-                <div key={task._id} style={{ 
-                  padding: '16px', 
-                  background: 'var(--bg-body)', 
-                  borderRadius: 16, 
-                  border: '1px solid var(--border-light)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ 
-                      width: 48, 
-                      height: 48, 
-                      borderRadius: 14, 
-                      background: task.type === 'Call' ? '#dcfce7' : '#fef9c3', 
-                      color: task.type === 'Call' ? '#166534' : '#854d0e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {task.type === 'Call' ? <Phone size={20} /> : <Video size={20} />}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{task.title}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <Calendar size={12} />
-                        {new Date(task.scheduledAt || task.dueDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className={`badge ${task.status === 'Completed' ? 'badge-green' : 'badge-yellow'}`} style={{ borderRadius: 10, fontSize: '0.7rem' }}>
-                      {task.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="modal-footer" style={{ borderTop: 'none', padding: '0 32px 32px' }}>
-          <button className="btn btn-primary btn-block" onClick={onClose} style={{ borderRadius: 12 }}>Understood</button>
-        </div>
-      </div>
     </div>
   );
 }
