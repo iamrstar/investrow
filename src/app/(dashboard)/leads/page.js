@@ -2758,33 +2758,197 @@ function AssignmentOptions({ role, currentUser }) {
 }
 
 function Pagination({ pagination, onPageChange }) {
-  if (pagination.pages <= 1) return null;
+  if (!pagination || pagination.pages <= 1) return null;
   
+  const { page, pages, total } = pagination;
+
+  // Generate intelligent sliding window of page numbers
+  const getPageNumbers = () => {
+    const delta = 2; // Show 2 pages on either side of current page
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || (i >= page - delta && i <= page + delta)) {
+        range.push(i);
+      }
+    }
+
+    for (const i of range) {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    }
+
+    return rangeWithDots;
+  };
+
+  const pageNumbers = getPageNumbers();
+
   return (
-    <div className="pagination">
-      <button 
-        className="pagination-btn" 
-        disabled={pagination.page <= 1} 
-        onClick={() => onPageChange(pagination.page - 1)}
-      >
-        <ChevronLeft size={16} />
-      </button>
-      {Array.from({ length: pagination.pages }, (_, i) => (
-        <button 
-          key={i + 1} 
-          className={`pagination-btn ${pagination.page === i + 1 ? 'active' : ''}`} 
-          onClick={() => onPageChange(i + 1)}
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 20,
+      padding: '12px 18px',
+      background: '#FFFFFF',
+      borderRadius: 14,
+      border: '1px solid #E2E8F0',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+    }}>
+      {/* Left Info: Current Page & Total Leads */}
+      <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>
+        Page <strong style={{ color: '#0F172A' }}>{page}</strong> of <strong style={{ color: '#0F172A' }}>{pages}</strong>
+        {total ? (
+          <span> • Showing <strong>{Number(total).toLocaleString('en-IN')}</strong> total leads</span>
+        ) : null}
+      </div>
+
+      {/* Right Controls: Navigation Buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {/* First Page Button */}
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(1)}
+          title="Go to First Page"
+          style={{
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid #CBD5E1',
+            background: page <= 1 ? '#F8FAFC' : '#FFFFFF',
+            color: page <= 1 ? '#94A3B8' : '#334155',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: page <= 1 ? 'not-allowed' : 'pointer'
+          }}
         >
-          {i + 1}
+          First
         </button>
-      ))}
-      <button 
-        className="pagination-btn" 
-        disabled={pagination.page >= pagination.pages} 
-        onClick={() => onPageChange(pagination.page + 1)}
-      >
-        <ChevronRight size={16} />
-      </button>
+
+        {/* Previous Page Button */}
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          title="Previous Page"
+          style={{
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid #CBD5E1',
+            background: page <= 1 ? '#F8FAFC' : '#FFFFFF',
+            color: page <= 1 ? '#94A3B8' : '#334155',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            cursor: page <= 1 ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <ChevronLeft size={14} /> Prev
+        </button>
+
+        {/* Page Number Chips */}
+        {pageNumbers.map((num, idx) => {
+          if (num === '...') {
+            return (
+              <span
+                key={`dots-${idx}`}
+                style={{
+                  padding: '4px 6px',
+                  color: '#94A3B8',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  userSelect: 'none'
+                }}
+              >
+                ...
+              </span>
+            );
+          }
+
+          const isCurrent = page === num;
+          return (
+            <button
+              key={num}
+              type="button"
+              onClick={() => onPageChange(num)}
+              style={{
+                minWidth: 34,
+                height: 32,
+                padding: '0 8px',
+                borderRadius: 8,
+                border: isCurrent ? '1.5px solid #0EA5E9' : '1px solid #CBD5E1',
+                background: isCurrent ? '#0EA5E9' : '#FFFFFF',
+                color: isCurrent ? '#FFFFFF' : '#334155',
+                fontSize: '0.82rem',
+                fontWeight: isCurrent ? 800 : 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {num}
+            </button>
+          );
+        })}
+
+        {/* Next Page Button */}
+        <button
+          type="button"
+          disabled={page >= pages}
+          onClick={() => onPageChange(page + 1)}
+          title="Next Page"
+          style={{
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid #CBD5E1',
+            background: page >= pages ? '#F8FAFC' : '#FFFFFF',
+            color: page >= pages ? '#94A3B8' : '#334155',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            cursor: page >= pages ? 'not-allowed' : 'pointer'
+          }}
+        >
+          Next <ChevronRight size={14} />
+        </button>
+
+        {/* Last Page Button */}
+        <button
+          type="button"
+          disabled={page >= pages}
+          onClick={() => onPageChange(pages)}
+          title="Go to Last Page"
+          style={{
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid #CBD5E1',
+            background: page >= pages ? '#F8FAFC' : '#FFFFFF',
+            color: page >= pages ? '#94A3B8' : '#334155',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: page >= pages ? 'not-allowed' : 'pointer'
+          }}
+        >
+          Last ({pages})
+        </button>
+      </div>
     </div>
   );
 }
