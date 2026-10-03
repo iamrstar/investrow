@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
@@ -29,7 +29,9 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      <Suspense fallback={<aside className="sidebar" style={{ width: 260 }} />}>
+        <Sidebar />
+      </Suspense>
       <div className="main-content">
         <Header />
         <div style={{ flex: 1 }}>

@@ -110,7 +110,7 @@ async function getLiveIndianFestivals(year) {
 function parseDayMonth(dobStr) {
   if (!dobStr || typeof dobStr !== 'string') return null;
   const s = dobStr.trim();
-  
+
   // Format YYYY-MM-DD
   const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (ymd) {
@@ -170,7 +170,7 @@ export async function GET(request) {
       let bdayDate = new Date(currentYear, month - 1, day);
       const todayStart = new Date(currentYear, currentMonth - 1, currentDay);
       let diffDays = Math.round((bdayDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays < 0) {
         bdayDate = new Date(currentYear + 1, month - 1, day);
         diffDays = Math.round((bdayDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -207,7 +207,7 @@ export async function GET(request) {
     const calculatedFestivals = rawFestivals.map(f => {
       let festDate = new Date(currentYear, f.defaultMonth - 1, f.defaultDay);
       let diffDays = Math.round((festDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays < 0) {
         festDate = new Date(currentYear + 1, f.defaultMonth - 1, f.defaultDay);
         diffDays = Math.round((festDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));

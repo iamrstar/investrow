@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   Home, Users, UserCheck, TrendingUp, Shield, Layers,
@@ -17,7 +17,7 @@ const navItems = [
   { label: 'Tasks', href: '/tasks', icon: Layers },
   { label: 'Calendar', href: '/calendar', icon: Calendar },
   { label: 'Mutual Fund', href: '/clients?service=Mutual+Funds', icon: TrendingUp },
-  { label: 'Insurance', href: '/clients?service=Life+Insurance', icon: Shield },
+  { label: 'Insurance', href: '/clients?service=Insurance', icon: Shield },
   { label: 'Documents', href: '/vault', icon: FolderOpen },
   { label: 'Communication', href: '/communication', icon: MessageSquare },
   { label: 'Reports', staffLabel: 'Reports (My)', href: '/analytics', icon: BarChart3 },
@@ -27,6 +27,8 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentService = searchParams?.get('service') || '';
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -134,7 +136,22 @@ export default function Sidebar() {
 
             const Icon = item.icon;
             const itemLabel = (user.role === 'user' && item.staffLabel) ? item.staffLabel : item.label;
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.label === 'Employees' && (pathname === '/users' || pathname === '/employees'));
+            let isActive = false;
+            if (item.href.includes('?service=')) {
+              const itemService = item.href.split('?service=')[1];
+              const decodedItemService = decodeURIComponent(itemService).toLowerCase();
+              const decodedCurrentService = currentService.toLowerCase();
+              isActive = pathname === '/clients' && (
+                decodedCurrentService === decodedItemService ||
+                (decodedItemService === 'insurance' && decodedCurrentService.includes('insurance'))
+              );
+            } else if (item.href === '/clients') {
+              isActive = pathname === '/clients' && !currentService;
+            } else if (item.label === 'Employees') {
+              isActive = pathname === '/users' || pathname === '/employees';
+            } else {
+              isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            }
 
             return (
               <a

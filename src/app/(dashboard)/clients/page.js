@@ -34,6 +34,7 @@ function ClientsPageContent() {
   const { addToast } = useToast();
   const searchParams = useSearchParams();
   const urlSearch = searchParams?.get('search') || '';
+  const urlService = searchParams?.get('service') || '';
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +46,14 @@ function ClientsPageContent() {
     if (q !== null && q !== undefined) {
       setSearch(q);
     }
+    const s = searchParams?.get('service');
+    if (s !== null && s !== undefined) {
+      setFilterService(s);
+    } else {
+      setFilterService('');
+    }
   }, [searchParams]);
-  const [filterService, setFilterService] = useState('');
+  const [filterService, setFilterService] = useState(urlService);
   const [filterCallStatus, setFilterCallStatus] = useState('');
   const [filterUser, setFilterUser] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -603,8 +610,24 @@ function ClientsPageContent() {
           )}
         </div>
         <div className="filters-scroll-row">
-          <select className="form-select" value={filterService} onChange={e => setFilterService(e.target.value)}>
+          <select 
+            className="form-select" 
+            value={filterService} 
+            onChange={e => {
+              const val = e.target.value;
+              setFilterService(val);
+              const newParams = new URLSearchParams(window.location.search);
+              if (val) {
+                newParams.set('service', val);
+              } else {
+                newParams.delete('service');
+              }
+              const queryString = newParams.toString();
+              window.history.replaceState(null, '', queryString ? `/clients?${queryString}` : '/clients');
+            }}
+          >
             <option value="">All Services</option>
+            <option value="Insurance">All Insurance</option>
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           
@@ -692,6 +715,54 @@ function ClientsPageContent() {
         </div>
       </div>
       
+      {filterService && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: '12px 16px', 
+          background: '#F0F9FF', 
+          borderRadius: 12, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          border: '1px solid #BAE6FD',
+          boxShadow: '0 2px 6px rgba(14, 165, 233, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ padding: 8, background: '#0EA5E9', color: 'white', borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+              <Shield size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: '#0369A1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered By Service:</div>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0C4A6E', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{filterService === 'Insurance' ? 'All Insurance Clients' : `${filterService} Clients`}</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#E0F2FE', color: '#0284C7' }}>
+                  {pagination.total} {pagination.total === 1 ? 'client' : 'clients'} found
+                </span>
+              </div>
+            </div>
+          </div>
+          <button 
+            className="btn btn-outline btn-sm" 
+            onClick={() => {
+              setFilterService('');
+              const newParams = new URLSearchParams(window.location.search);
+              newParams.delete('service');
+              const queryString = newParams.toString();
+              window.history.replaceState(null, '', queryString ? `/clients?${queryString}` : '/clients');
+            }}
+            style={{ 
+              background: '#FFFFFF', 
+              borderColor: '#BAE6FD', 
+              color: '#0284C7',
+              fontWeight: 600,
+              fontSize: '0.82rem'
+            }}
+          >
+            <X size={15} /> Clear Service Filter
+          </button>
+        </div>
+      )}
+
       {filterDate && (
         <div style={{ 
           marginBottom: 16, 
@@ -803,8 +874,20 @@ function ClientsPageContent() {
                     <td data-label="City">{client.city || '—'}</td>
                     <td data-label="Pan Number" style={{ fontWeight: 600 }}>{client.panNumber || '—'}</td>
                     <td data-label="Pincode">{client.pincode || '—'}</td>
-                    <td data-label="Date Of Birth">{client.dateOfBirth || '—'}</td>
-                    <td data-label="Service"><span className="badge badge-blue">{client.service || '—'}</span></td>
+                    <td data-label="Service">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                        <span className="badge badge-blue">{client.service || '—'}</span>
+                        {client.schemes && client.schemes
+                          .map(s => s.service)
+                          .filter((s, idx, arr) => s && s !== client.service && arr.indexOf(s) === idx)
+                          .map(extraS => (
+                            <span key={extraS} className="badge badge-purple" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                              + {extraS}
+                            </span>
+                          ))
+                        }
+                      </div>
+                    </td>
                     <td data-label="Nominee">
                       {client.nomineeName ? (
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -2631,7 +2714,6 @@ function ClientsPageContent() {
                     return acc;
                   }, 0) || Number(detailData.lead?.investmentAmount) || 0;
 
-                  const dynAnnual = dynLumpsum + (dynSip * 12);
                   const activeSipCount = schemesList.filter(s => (s.sipAmount || 0) > 0).length || (dynSip > 0 ? 1 : 0);
                   const activeLumpCount = schemesList.filter(s => (s.investmentAmount || 0) > 0).length || (dynLumpsum > 0 ? 1 : 0);
 
@@ -2651,8 +2733,8 @@ function ClientsPageContent() {
                         </button>
                       </div>
 
-                      {/* 3 Summary Dynamic KPI Cards */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+                      {/* 2 Summary Dynamic KPI Cards */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
                         <div style={{ 
                           background: '#FFFFFF', 
                           border: '1px solid #E2E8F0', 
@@ -2686,24 +2768,6 @@ function ClientsPageContent() {
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
                             {activeLumpCount} One-time Investment{activeLumpCount !== 1 ? 's' : ''}
-                          </div>
-                        </div>
-
-                        <div style={{ 
-                          background: '#FFFFFF', 
-                          border: '1px solid #E2E8F0', 
-                          borderRadius: 16, 
-                          padding: '16px 20px',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
-                        }}>
-                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                            Annual Committed Value
-                          </div>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#059669', marginTop: 4 }}>
-                            ₹ {dynAnnual.toLocaleString('en-IN')}
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
-                            Annual SIP + Lumpsum
                           </div>
                         </div>
                       </div>

@@ -70,7 +70,24 @@ export async function GET(request) {
     criteria.push({ $or: searchConditions });
   }
 
-  if (service) criteria.push({ service });
+  if (service) {
+    if (service.toLowerCase() === 'insurance') {
+      const insRegex = /insurance/i;
+      criteria.push({
+        $or: [
+          { service: insRegex },
+          { 'schemes.service': insRegex }
+        ]
+      });
+    } else {
+      criteria.push({
+        $or: [
+          { service: service },
+          { 'schemes.service': service }
+        ]
+      });
+    }
+  }
   if (response && response !== 'All') {
     criteria.push({ response });
   } else if (!response && !search && includeConverted !== 'true') {
