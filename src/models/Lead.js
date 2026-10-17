@@ -76,6 +76,21 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  clientStatus: {
+    type: String,
+    enum: ['Active', 'Inactive', 'Closed'],
+    default: 'Active',
+    index: true,
+  },
+  closedAt: {
+    type: Date,
+    default: null,
+  },
+  closedReason: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   product: {
     type: String,
     trim: true,

@@ -17,7 +17,7 @@ import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
-  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck,
+  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck, UserX,
   HeartPulse, Landmark, PiggyBank, BarChart2, Calculator, Car, Edit2, Percent, PieChart, Award,
   Download, MessageSquare, FileSpreadsheet
 } from 'lucide-react';
@@ -101,6 +101,7 @@ function ClientsPageContent() {
   }, [searchParams]);
   const [filterService, setFilterService] = useState(urlService);
   const [filterCallStatus, setFilterCallStatus] = useState('');
+  const [filterClientStatus, setFilterClientStatus] = useState('All');
   const [filterUser, setFilterUser] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
@@ -241,6 +242,7 @@ function ClientsPageContent() {
       if (search) params.set('search', search);
       if (filterService) params.set('service', filterService);
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
+      if (filterClientStatus && filterClientStatus !== 'All') params.set('clientStatus', filterClientStatus);
       if (filterUser) params.set('assignedTo', filterUser);
       if (filterDate) params.set('followUpDate', filterDate);
       if (startDate) params.set('startDate', startDate);
@@ -255,7 +257,7 @@ function ClientsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterService, filterCallStatus, filterUser, filterDate, startDate, endDate, addToast]);
+  }, [search, filterService, filterCallStatus, filterClientStatus, filterUser, filterDate, startDate, endDate, addToast]);
 
   useEffect(() => {
     fetchClients();
@@ -345,6 +347,43 @@ function ClientsPageContent() {
       if (!res.ok) throw new Error(data.error || 'Failed to load details');
       setDetailData(data);
       setShowDetail(id);
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
+  };
+
+  const handleToggleClientStatus = async (client, targetStatus) => {
+    if (!client?._id) return;
+    const isClosing = targetStatus === 'Inactive' || targetStatus === 'Closed';
+    const confirmMsg = isClosing
+      ? `Are you sure you want to mark "${client.name}" as Inactive (Closed)?`
+      : `Are you sure you want to reactivate "${client.name}" as Active?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const payload = {
+        clientStatus: targetStatus,
+        status: targetStatus,
+        ...(isClosing ? { closedAt: new Date().toISOString() } : { closedAt: null })
+      };
+
+      const res = await fetch(`/api/leads/${client._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update client status');
+      }
+
+      addToast(isClosing ? 'Client marked as Inactive (Closed)' : 'Client reactivated to Active!', 'success');
+      fetchClients(pagination.page);
+      if (showDetail) {
+        viewDetail(client._id);
+      }
     } catch (err) {
       addToast(err.message, 'error');
     }
@@ -443,6 +482,7 @@ function ClientsPageContent() {
       if (search) params.set('search', search);
       if (filterService) params.set('service', filterService);
       if (filterCallStatus) params.set('callStatus', filterCallStatus);
+      if (filterClientStatus && filterClientStatus !== 'All') params.set('clientStatus', filterClientStatus);
       if (filterUser) params.set('assignedTo', filterUser);
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
@@ -456,9 +496,10 @@ function ClientsPageContent() {
       if (exportClients.length === 0) return addToast('No data to export', 'error');
 
       // Simple CSV export
-      const headers = ['Name', 'Phone', 'Email', 'Service', 'Call Status', 'Assigned To', 'Follow-up Date', 'Remarks', 'Created At'];
+      const headers = ['Name', 'Status', 'Phone', 'Email', 'Service', 'Call Status', 'Assigned To', 'Follow-up Date', 'Remarks', 'Created At'];
       const csvData = exportClients.map(l => [
         l.name,
+        l.clientStatus || 'Active',
         l.phone,
         l.email || '',
         l.service,
@@ -558,6 +599,31 @@ function ClientsPageContent() {
       >
         <Users size={15} />
       </button>
+      {client.clientStatus === 'Inactive' || client.clientStatus === 'Closed' ? (
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            handleToggleClientStatus(client, 'Active');
+          }} 
+          title="Reactivate Client to Active"
+          style={{ color: '#059669', border: '1px solid #A7F3D0', background: '#ECFDF5', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <UserCheck size={15} />
+        </button>
+      ) : (
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            handleToggleClientStatus(client, 'Inactive');
+          }} 
+          title="Close Client (Mark Inactive)"
+          style={{ color: '#DC2626', border: '1px solid #FECACA', background: '#FEF2F2', borderRadius: 8, padding: '6px 8px' }}
+        >
+          <UserX size={15} />
+        </button>
+      )}
       <button 
         className="btn btn-ghost btn-sm" 
         onClick={(e) => { 
@@ -684,6 +750,23 @@ function ClientsPageContent() {
             <option value="Not Received">Not Received</option>
             <option value="Pending">Pending</option>
           </select>
+
+          <select 
+            className="form-select" 
+            value={filterClientStatus} 
+            onChange={e => setFilterClientStatus(e.target.value)}
+            style={{ 
+              fontWeight: 600, 
+              minWidth: 155,
+              borderColor: filterClientStatus === 'Inactive' ? '#FECACA' : filterClientStatus === 'Active' ? '#A7F3D0' : undefined,
+              background: filterClientStatus === 'Inactive' ? '#FEF2F2' : filterClientStatus === 'Active' ? '#ECFDF5' : undefined,
+              color: filterClientStatus === 'Inactive' ? '#DC2626' : filterClientStatus === 'Active' ? '#059669' : undefined
+            }}
+          >
+            <option value="All">All Clients (Active & Inactive)</option>
+            <option value="Active">Active Clients Only</option>
+            <option value="Inactive">Inactive / Closed Clients</option>
+          </select>
           
           {/* User Filters for Admin */}
           {user?.role === 'admin' && (
@@ -707,8 +790,46 @@ function ClientsPageContent() {
           </button>
         </div>
 
-        {/* Quick Follow-up Preset Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid var(--border-light)' }}>
+        {/* Quick Follow-up Preset Filters & Status Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)' }}>STATUS:</span>
+            {[
+              { id: 'All', label: 'All' },
+              { id: 'Active', label: 'Active', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+              { id: 'Inactive', label: 'Inactive / Closed', color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
+            ].map(s => {
+              const isSelected = filterClientStatus === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setFilterClientStatus(s.id)}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    height: 28,
+                    fontWeight: isSelected ? 800 : 600,
+                    background: isSelected ? (s.bg || 'var(--primary)') : 'var(--bg-secondary)',
+                    border: `1.5px solid ${isSelected ? (s.border || 'var(--primary)') : 'var(--border)'}`,
+                    color: isSelected ? (s.color || '#FFFFFF') : 'var(--text-secondary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  {s.id === 'Active' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }}></span>}
+                  {s.id === 'Inactive' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }}></span>}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ width: 1, height: 18, background: 'var(--border-light)' }} />
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             <CalendarClock size={14} color="var(--secondary)" />
             <span>FOLLOW-UP PRESETS:</span>
@@ -849,6 +970,7 @@ function ClientsPageContent() {
               <tr>
                 <th>ID</th>
                 <th>Name</th>
+                <th>Status</th>
                 <th>Phone / Mobile</th>
                 <th>Email</th>
                 <th>Address</th>
@@ -914,6 +1036,48 @@ function ClientsPageContent() {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td data-label="Status">
+                      {client.clientStatus === 'Inactive' || client.clientStatus === 'Closed' ? (
+                        <span 
+                          className="badge" 
+                          style={{ 
+                            background: '#FEF2F2', 
+                            color: '#DC2626', 
+                            border: '1px solid #FECACA',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: 12,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                          title={client.closedAt ? `Closed on ${new Date(client.closedAt).toLocaleDateString()}` : 'Inactive / Closed Client'}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }}></span>
+                          Inactive
+                        </span>
+                      ) : (
+                        <span 
+                          className="badge" 
+                          style={{ 
+                            background: '#ECFDF5', 
+                            color: '#059669', 
+                            border: '1px solid #A7F3D0',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: 12,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }}></span>
+                          Active
+                        </span>
+                      )}
                     </td>
                     <td data-label="Phone / Mobile">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1232,6 +1396,8 @@ function ClientsPageContent() {
               case 'history': setClientDetailTab('followups'); viewDetail(activeMenuClient._id); break;
               case 'email': setEmailClient(activeMenuClient); setShowEmailModal(true); break;
               case 'edit': setEditingClient(activeMenuClient); setShowModal(true); break;
+              case 'close_client': handleToggleClientStatus(activeMenuClient, 'Inactive'); break;
+              case 'reactivate_client': handleToggleClientStatus(activeMenuClient, 'Active'); break;
               case 'assign': setAssignClient(activeMenuClient); setShowAssignModal(true); break;
               case 'delete': handleDelete(activeMenuClient._id); break;
             }
@@ -1314,17 +1480,51 @@ function ClientsPageContent() {
                               </span>
                             )}
                           </h2>
-                          <span style={{ 
-                            background: '#ECFDF5', 
-                            color: '#059669', 
-                            border: '1px solid #A7F3D0',
-                            fontSize: '0.72rem', 
-                            fontWeight: 700, 
-                            padding: '2px 8px', 
-                            borderRadius: 12 
-                          }}>
-                            Active
-                          </span>
+                          {detailData.lead?.clientStatus === 'Inactive' || detailData.lead?.clientStatus === 'Closed' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleClientStatus(detailData.lead, 'Active')}
+                              style={{ 
+                                background: '#FEF2F2', 
+                                color: '#DC2626', 
+                                border: '1px solid #FECACA',
+                                fontSize: '0.72rem', 
+                                fontWeight: 700, 
+                                padding: '3px 10px', 
+                                borderRadius: 12,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                              title="Client is Inactive / Closed. Click to reactivate as Active."
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }}></span>
+                              Inactive (Closed) ↺
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleClientStatus(detailData.lead, 'Inactive')}
+                              style={{ 
+                                background: '#ECFDF5', 
+                                color: '#059669', 
+                                border: '1px solid #A7F3D0',
+                                fontSize: '0.72rem', 
+                                fontWeight: 700, 
+                                padding: '3px 10px', 
+                                borderRadius: 12,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                              title="Client is Active. Click to close client."
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }}></span>
+                              Active
+                            </button>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: '0.78rem', color: '#64748B', flexWrap: 'wrap', lineHeight: 1.4 }}>
                           {fullAddress && <span>{fullAddress}</span>}
@@ -1448,6 +1648,47 @@ function ClientsPageContent() {
                   >
                     <Edit size={16} /> Edit Client
                   </button>
+                  {detailData.lead?.clientStatus === 'Inactive' || detailData.lead?.clientStatus === 'Closed' ? (
+                    <button 
+                      className="btn btn-outline" 
+                      onClick={() => handleToggleClientStatus(detailData.lead, 'Active')}
+                      style={{ 
+                        borderRadius: 10, 
+                        padding: '8px 16px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 6,
+                        color: '#059669',
+                        borderColor: '#A7F3D0',
+                        background: '#ECFDF5',
+                        fontWeight: 700,
+                        fontSize: '0.82rem'
+                      }}
+                      title="Reactivate this client"
+                    >
+                      <UserCheck size={16} /> Reactivate Client
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn btn-outline" 
+                      onClick={() => handleToggleClientStatus(detailData.lead, 'Inactive')}
+                      style={{ 
+                        borderRadius: 10, 
+                        padding: '8px 16px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 6,
+                        color: '#DC2626',
+                        borderColor: '#FECACA',
+                        background: '#FEF2F2',
+                        fontWeight: 700,
+                        fontSize: '0.82rem'
+                      }}
+                      title="Mark this client as closed / inactive"
+                    >
+                      <UserX size={16} /> Close Client
+                    </button>
+                  )}
                   <button className="modal-close" onClick={() => setShowDetail(null)} style={{ padding: 8 }}>
                     <X size={20} />
                   </button>
@@ -4373,6 +4614,7 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
     sipAmount: client?.sipAmount || '',
     sipDay: client?.sipDay || (client?.sipAmount ? 10 : ''),
     schemeName: client?.schemeName || '',
+    clientStatus: client?.clientStatus || 'Active',
     customFields: client?.customFields || [],
   });
 
@@ -4613,6 +4855,8 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       nomineeAllocation: Number(form.nomineeAllocation) || 100,
       kycStatus: form.kycStatus || 'Verified',
       riskProfile: form.riskProfile || 'Moderate',
+      clientStatus: form.clientStatus || 'Active',
+      status: form.clientStatus || 'Active',
       familyMembers: form.familyMembers ? String(form.familyMembers).trim() : '',
       whatsappNumber: form.whatsappNumber ? form.whatsappNumber.trim() : '',
     };
@@ -4782,6 +5026,26 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
                     <option value="In Progress">In Progress</option>
                     <option value="Pending">Pending Verification</option>
                     <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.76rem', fontWeight: 700 }}>Client Status</label>
+                  <select
+                    className="form-select"
+                    value={form.clientStatus || 'Active'}
+                    onChange={e => setForm({ ...form, clientStatus: e.target.value })}
+                    style={{ 
+                      height: 38, 
+                      borderRadius: 8, 
+                      fontWeight: 700,
+                      color: form.clientStatus === 'Inactive' || form.clientStatus === 'Closed' ? '#DC2626' : '#059669',
+                      background: form.clientStatus === 'Inactive' || form.clientStatus === 'Closed' ? '#FEF2F2' : '#ECFDF5',
+                      borderColor: form.clientStatus === 'Inactive' || form.clientStatus === 'Closed' ? '#FECACA' : '#A7F3D0'
+                    }}
+                  >
+                    <option value="Active">Active Client</option>
+                    <option value="Inactive">Inactive / Closed</option>
                   </select>
                 </div>
 
@@ -5886,6 +6150,15 @@ function ActionMenu({ client, onClose, onAction, canAssign, canDelete, canEdit }
           {canEdit && (
             <button className="bottom-sheet-item" onClick={() => onAction('edit')}>
               <Edit size={20} /> Edit Client
+            </button>
+          )}
+          {client.clientStatus === 'Inactive' || client.clientStatus === 'Closed' ? (
+            <button className="bottom-sheet-item" onClick={() => onAction('reactivate_client')} style={{ color: '#059669' }}>
+              <UserCheck size={20} /> Reactivate Client
+            </button>
+          ) : (
+            <button className="bottom-sheet-item" onClick={() => onAction('close_client')} style={{ color: '#dc2626' }}>
+              <UserX size={20} /> Close Client (Mark Inactive)
             </button>
           )}
           {canAssign && (

@@ -21,6 +21,7 @@ export async function GET(request) {
   const assignedTo = searchParams.get('assignedTo');
   const followUpDate = searchParams.get('followUpDate');
   const source = searchParams.get('source');
+  const clientStatus = searchParams.get('clientStatus');
   const page = parseInt(searchParams.get('page')) || 1;
   const limit = parseInt(searchParams.get('limit')) || 20;
 
@@ -112,6 +113,31 @@ export async function GET(request) {
 
   if (assignedTo) {
     criteria.push({ assignedTo: assignedTo === 'unassigned' ? null : assignedTo });
+  }
+
+  if (clientStatus && clientStatus !== 'All') {
+    if (clientStatus === 'Inactive' || clientStatus === 'Closed') {
+      criteria.push({
+        $or: [
+          { clientStatus: { $in: ['Inactive', 'Closed'] } },
+          { status: { $in: ['Inactive', 'Closed'] } }
+        ]
+      });
+    } else if (clientStatus === 'Active') {
+      criteria.push({
+        $and: [
+          {
+            $or: [
+              { clientStatus: 'Active' },
+              { clientStatus: { $exists: false } },
+              { clientStatus: null },
+              { clientStatus: '' }
+            ]
+          },
+          { status: { $nin: ['Inactive', 'Closed'] } }
+        ]
+      });
+    }
   }
 
 
