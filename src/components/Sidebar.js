@@ -5,13 +5,14 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Home, Users, UserCheck, TrendingUp, Shield, Layers,
   CalendarClock, Calendar, MessageSquare, BarChart3,
-  FolderOpen, Settings, LogOut, Menu, X, Sprout
+  FolderOpen, Settings, LogOut, Menu, X, Sprout, Globe
 } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: Home },
   { label: 'Leads', staffLabel: 'My Leads', href: '/leads', icon: Users },
+  { label: 'Website Leads', href: '/leads?source=Website', icon: Globe, isSubItem: true },
   { label: 'Clients', staffLabel: 'My Clients', href: '/clients', icon: UserCheck },
   { label: 'Follow-ups', href: '/follow-ups', icon: CalendarClock },
   { label: 'Tasks', href: '/tasks', icon: Layers },
@@ -29,6 +30,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentService = searchParams?.get('service') || '';
+  const currentSource = searchParams?.get('source') || '';
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -137,7 +139,11 @@ export default function Sidebar() {
             const Icon = item.icon;
             const itemLabel = (user.role === 'user' && item.staffLabel) ? item.staffLabel : item.label;
             let isActive = false;
-            if (item.href.includes('?service=')) {
+            if (item.href.includes('?source=Website')) {
+              isActive = pathname === '/leads' && currentSource.toLowerCase() === 'website';
+            } else if (item.href === '/leads') {
+              isActive = pathname === '/leads' && (!currentSource || currentSource.toLowerCase() !== 'website');
+            } else if (item.href.includes('?service=')) {
               const itemService = item.href.split('?service=')[1];
               const decodedItemService = decodeURIComponent(itemService).toLowerCase();
               const decodedCurrentService = currentService.toLowerCase();
@@ -161,33 +167,51 @@ export default function Sidebar() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
+                  gap: item.isSubItem ? 10 : 12,
+                  padding: item.isSubItem ? '8px 12px 8px 28px' : '10px 14px',
+                  marginLeft: item.isSubItem ? 8 : 0,
                   borderRadius: 10,
-                  fontSize: '0.85rem',
+                  fontSize: item.isSubItem ? '0.82rem' : '0.85rem',
                   fontWeight: isActive ? 700 : 500,
                   textDecoration: 'none',
                   transition: 'all 0.15s ease',
-                  background: isActive ? 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)' : 'transparent',
-                  color: isActive ? '#FFFFFF' : '#475569',
-                  boxShadow: isActive ? '0 4px 12px rgba(14, 165, 233, 0.28)' : 'none',
+                  background: isActive 
+                    ? (item.isSubItem ? 'linear-gradient(135deg, #FF6A13 0%, #EA580C 100%)' : 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)')
+                    : 'transparent',
+                  color: isActive ? '#FFFFFF' : (item.isSubItem ? '#64748B' : '#475569'),
+                  boxShadow: isActive ? (item.isSubItem ? '0 4px 12px rgba(255, 106, 19, 0.3)' : '0 4px 12px rgba(14, 165, 233, 0.28)') : 'none',
+                  borderLeft: item.isSubItem ? (isActive ? 'none' : '2px solid rgba(14, 165, 233, 0.2)') : 'none',
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
-                    e.currentTarget.style.background = '#F0F9FF';
-                    e.currentTarget.style.color = '#0284C7';
+                    e.currentTarget.style.background = item.isSubItem ? '#FFF7ED' : '#F0F9FF';
+                    e.currentTarget.style.color = item.isSubItem ? '#EA580C' : '#0284C7';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#475569';
+                    e.currentTarget.style.color = item.isSubItem ? '#64748B' : '#475569';
                   }
                 }}
               >
-                <Icon size={18} color={isActive ? '#FFFFFF' : '#0EA5E9'} />
+                <Icon size={item.isSubItem ? 16 : 18} color={isActive ? '#FFFFFF' : (item.isSubItem ? '#FF6A13' : '#0EA5E9')} />
                 <span style={{ flex: 1 }}>{itemLabel}</span>
-                {isActive && (
+                {item.isSubItem && (
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    padding: '1px 6px',
+                    borderRadius: 9999,
+                    background: isActive ? 'rgba(255,255,255,0.25)' : '#FFF7ED',
+                    color: isActive ? '#FFFFFF' : '#EA580C',
+                    border: isActive ? 'none' : '1px solid #FFEDD5',
+                    letterSpacing: '0.4px'
+                  }}>
+                    LIVE
+                  </span>
+                )}
+                {isActive && !item.isSubItem && (
                   <span style={{
                     width: 6,
                     height: 6,

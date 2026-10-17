@@ -14,11 +14,11 @@ const REPORTS = [
   { id: 'lead_conversion', title: 'Lead Conversion Report', icon: Target, desc: 'Funnel progression from New to Converted' },
   { id: 'employee_perf', title: 'Employee Performance', icon: Users, desc: 'Sales, call activity, and conversion rates by staff' },
   { id: 'sip_business', title: 'SIP Business Report', icon: TrendingUp, desc: 'Monthly SIP book growth, book size, and mandates' },
-  { id: 'aum_report', title: 'AUM Report', desc: 'Assets Under Management breakdown across mutual funds' },
-  { id: 'insurance_report', title: 'Insurance Business Report', desc: 'Life, health, and general insurance premium tracking' },
-  { id: 'pending_followup', title: 'Pending Follow-up Report', desc: 'Follow-up schedules, overdue calls, and action items' },
-  { id: 'lost_leads', title: 'Lost Leads Report', desc: 'Reasons and patterns for non-converted opportunities' },
-  { id: 'custom_report', title: 'Custom Report', desc: 'Date-range custom queries across all CRM parameters' },
+  { id: 'aum_report', title: 'AUM Report', icon: DollarSign, desc: 'Assets Under Management breakdown across mutual funds' },
+  { id: 'insurance_report', title: 'Insurance Business Report', icon: ShieldAlert, desc: 'Life, health, and general insurance premium tracking' },
+  { id: 'pending_followup', title: 'Pending Follow-up Report', icon: Clock, desc: 'Follow-up schedules, overdue calls, and action items' },
+  { id: 'lost_leads', title: 'Lost Leads Report', icon: FileText, desc: 'Reasons and patterns for non-converted opportunities' },
+  { id: 'custom_report', title: 'Custom Report', icon: BarChart3, desc: 'Date-range custom queries across all CRM parameters' },
 ];
 
 export default function AnalyticsPage() {
@@ -58,26 +58,10 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user) {
       fetchAnalytics();
-    } else if (user) {
-      setLoading(false);
     }
   }, [startDate, endDate, user]);
-
-  if (user && user.role !== 'admin') {
-    return (
-      <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <div style={{ width: 80, height: 80, background: '#F0F9FF', color: '#0EA5E9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-            <BarChart3 size={40} />
-          </div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: 12 }}>Access Denied</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Only administrators can access the full Financial Reports Hub.</p>
-        </div>
-      </div>
-    );
-  }
 
   const activeReport = REPORTS.find(r => r.id === activeReportId) || REPORTS[0];
   const filteredStats = stats.filter(s => s.name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase()));
@@ -85,6 +69,134 @@ export default function AnalyticsPage() {
   const handleExportCSV = () => {
     addToast(`Exporting ${activeReport.title} as CSV...`, 'success');
   };
+
+  // Staff Personal Report View
+  if (user && user.role !== 'admin') {
+    const myStat = stats.find(s => String(s.userId) === String(user?._id || user?.id) || s.email === user?.email) || {
+      name: user?.name,
+      email: user?.email,
+      leadsCreated: 0,
+      leadsAssigned: 0,
+      clientsConverted: 0,
+      conversionRate: 0
+    };
+
+    return (
+      <div className="page-content" style={{ padding: '24px 32px' }}>
+        <div className="page-header" style={{ marginBottom: 24 }}>
+          <div>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px 0', fontSize: '1.75rem', fontWeight: 800 }}>
+              <BarChart3 size={28} style={{ color: '#0EA5E9' }} />
+              My Performance Report
+            </h1>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748B' }}>
+              Welcome back, <strong>{user.name}</strong> • Your conversion metrics and advisory analytics
+            </p>
+          </div>
+          <button 
+            className="btn btn-outline" 
+            onClick={() => addToast('Exporting your performance report as CSV...', 'success')}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, borderColor: '#0EA5E9', color: '#0EA5E9', borderRadius: 10 }}
+          >
+            <Download size={16} /> Export My Report
+          </button>
+        </div>
+
+        {/* Staff KPI Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div style={{ background: '#FFFFFF', borderRadius: 16, border: '1px solid #E2E8F0', padding: '18px 20px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              Leads Assigned To Me
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0F172A', marginTop: 4 }}>
+              {myStat.leadsAssigned}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#0EA5E9', fontWeight: 600, marginTop: 4 }}>
+              Active Client Portfolio
+            </div>
+          </div>
+
+          <div style={{ background: '#FFFFFF', borderRadius: 16, border: '1px solid #E2E8F0', padding: '18px 20px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              Clients Converted
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669', marginTop: 4 }}>
+              {myStat.clientsConverted}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: 4 }}>
+              Successful Closures
+            </div>
+          </div>
+
+          <div style={{ background: '#FFFFFF', borderRadius: 16, border: '1px solid #E2E8F0', padding: '18px 20px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              My Conversion Ratio
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0EA5E9', marginTop: 4 }}>
+              {myStat.conversionRate}%
+            </div>
+            <div style={{ fontSize: '0.75rem', color: myStat.conversionRate >= 30 ? '#059669' : '#0EA5E9', fontWeight: 600, marginTop: 4 }}>
+              {myStat.conversionRate >= 30 ? 'High Performance' : 'Standard Pipeline'}
+            </div>
+          </div>
+
+          <div style={{ background: '#FFFFFF', borderRadius: 16, border: '1px solid #E2E8F0', padding: '18px 20px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              Leads Created By Me
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#F59E0B', marginTop: 4 }}>
+              {myStat.leadsCreated}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#D97706', fontWeight: 600, marginTop: 4 }}>
+              Direct Outreach / Referrals
+            </div>
+          </div>
+        </div>
+
+        {/* Lead Source Breakdown for Staff */}
+        <div style={{ background: '#FFFFFF', borderRadius: 20, border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0F172A' }}>
+              Lead Acquisition Channels & Marketing Pipeline
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748B' }}>
+              Overview of where leads originate across channels and their conversion health
+            </p>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                  <th style={{ padding: '14px 20px', fontWeight: 700 }}>Source / Channel</th>
+                  <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Total Leads</th>
+                  <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Converted</th>
+                  <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>Conversion %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourceStats.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '40px 20px', textAlign: 'center', color: '#94A3B8' }}>
+                      No lead sources recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  sourceStats.map((s, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 20px', fontWeight: 700, color: '#0F172A' }}>{s.source}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 600 }}>{s.totalLeads}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center', color: '#059669', fontWeight: 700 }}>{s.convertedCount}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0EA5E9' }}>{s.conversionRate}%</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-content" style={{ padding: '24px 32px' }}>
@@ -129,7 +241,7 @@ export default function AnalyticsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {REPORTS.map((rpt, idx) => {
               const isSelected = activeReportId === rpt.id;
-              const IconComp = rpt.icon;
+              const IconComp = rpt.icon || BarChart3;
 
               return (
                 <button

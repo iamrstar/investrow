@@ -126,7 +126,9 @@ const LeadSchema = new mongoose.Schema({
       tenureYears: { type: Number, default: null },
       startDate: { type: String, trim: true, default: '' },
       maturityDate: { type: String, trim: true, default: '' },
-      status: { type: String, trim: true, default: 'Active' },
+      deductionBank: { type: String, trim: true, default: '' },
+      sipFrequency: { type: String, trim: true, default: 'Monthly' },
+      status: { type: String, trim: true, default: 'Running' },
       remarks: { type: String, default: '' },
     }
   ],

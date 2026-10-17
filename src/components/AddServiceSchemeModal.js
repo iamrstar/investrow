@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   X, Shield, HeartPulse, Landmark, TrendingUp, PiggyBank, 
-  BarChart2, Calculator, Car, Check, Plus, AlertCircle, Calendar, IndianRupee, FileText, Info
+  BarChart2, Calculator, Car, Check, Plus, AlertCircle, Calendar, IndianRupee, FileText, Info,
+  Upload, FileSpreadsheet, Download, RefreshCw, Trash2, CheckCircle2, AlertTriangle, Layers, Edit2
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
+import * as XLSX from 'xlsx';
+import { parseSipExcel, downloadSipExcelTemplate } from '@/utils/sipExcelParser';
 
 const SERVICE_ICONS = {
   'Life Insurance': Shield,
@@ -105,7 +108,7 @@ const FREQUENCY_OPTIONS = [
   'Annual', 'Half-Yearly', 'Quarterly', 'Monthly', 'Single Premium / Lumpsum'
 ];
 
-const SIP_DAYS = [1, 5, 7, 10, 15, 20, 25, 28];
+const SIP_DAYS = [1, 2, 3, 5, 7, 10, 12, 14, 15, 18, 20, 21, 25, 28];
 
 export default function AddServiceSchemeModal({
   isOpen,
@@ -114,9 +117,18 @@ export default function AddServiceSchemeModal({
   initialService = 'Life Insurance',
   editingScheme = null,
   editingIndex = null,
+  initialTab = 'manual',
   onSuccess
 }) {
   const { addToast } = useToast();
+
+  const [entryMode, setEntryMode] = useState(initialTab || 'manual');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [parsingFile, setParsingFile] = useState(false);
+  const [parsedData, setParsedData] = useState(null);
+  const [importMode, setImportMode] = useState('replace');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [service, setService] = useState(initialService || 'Life Insurance');
   const [provider, setProvider] = useState('');
@@ -134,13 +146,15 @@ export default function AddServiceSchemeModal({
   const [tenureYears, setTenureYears] = useState('');
   const [startDate, setStartDate] = useState('');
   const [maturityDate, setMaturityDate] = useState('');
-  const [status, setStatus] = useState('Active');
+  const [status, setStatus] = useState('Running');
+  const [deductionBank, setDeductionBank] = useState('');
+  const [sipFrequency, setSipFrequency] = useState('Monthly');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editingScheme) {
-      setService(editingScheme.service || initialService || 'Life Insurance');
+      setService(editingScheme.service || initialService || 'Mutual Funds');
       setProvider(editingScheme.provider || '');
       setCustomProvider(editingScheme.provider || '');
       setSchemeName(editingScheme.schemeName || '');
@@ -155,11 +169,13 @@ export default function AddServiceSchemeModal({
       setPayoutType(editingScheme.payoutType || 'Cumulative');
       setTenureYears(editingScheme.tenureYears ? String(editingScheme.tenureYears) : '');
       setStartDate(editingScheme.startDate || '');
-      setMaturityDate(editingScheme.maturityDate || '');
-      setStatus(editingScheme.status || 'Active');
+      setMaturityDate(editingScheme.maturityDate || (editingScheme.service === 'Mutual Funds' ? '2099-12-20' : ''));
+      setStatus(editingScheme.status || 'Running');
+      setDeductionBank(editingScheme.deductionBank || editingScheme.bankName || client?.bankName || 'STATE BANK OF INDIA');
+      setSipFrequency(editingScheme.sipFrequency || 'Monthly');
       setRemarks(editingScheme.remarks || '');
     } else {
-      const activeService = initialService || 'Life Insurance';
+      const activeService = initialService || 'Mutual Funds';
       setService(activeService);
       setProvider('');
       setCustomProvider('');
@@ -175,11 +191,20 @@ export default function AddServiceSchemeModal({
       setPayoutType('Cumulative');
       setTenureYears('');
       setStartDate(new Date().toISOString().split('T')[0]);
-      setMaturityDate('');
-      setStatus('Active');
+      setMaturityDate(activeService === 'Mutual Funds' ? '2099-12-20' : '');
+      setStatus('Running');
+      setDeductionBank(client?.bankName || 'STATE BANK OF INDIA');
+      setSipFrequency('Monthly');
       setRemarks('');
     }
-  }, [isOpen, editingScheme, initialService]);
+
+    setEntryMode(initialTab || 'manual');
+    setUploadedFileName('');
+    setParsingFile(false);
+    setParsedData(null);
+    setImportMode('replace');
+    setIsDragging(false);
+  }, [isOpen, editingScheme, initialService, initialTab, client]);
 
   if (!isOpen || !client) return null;
 
@@ -192,6 +217,109 @@ export default function AddServiceSchemeModal({
   const isNPS = service === 'NPS';
   const isDemat = service === 'Stock Market & Demat';
   const isTax = service === 'Tax Planning';
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+      addToast('Please upload a valid Excel (.xlsx, .xls) or CSV file', 'error');
+      return;
+    }
+    setUploadedFileName(file.name);
+    setParsingFile(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const result = parseSipExcel(workbook);
+
+      if (!result.schemes || result.schemes.length === 0) {
+        throw new Error('No valid SIP schemes could be detected in this sheet. Please ensure the Excel contains SIP details with fund names and amounts.');
+      }
+
+      setParsedData(result);
+      addToast(`Successfully parsed ${result.schemes.length} SIP schemes from ${file.name}!`, 'success');
+    } catch (err) {
+      console.error('Error parsing Excel:', err);
+      addToast(err.message || 'Failed to parse Excel file', 'error');
+      setParsedData(null);
+    } finally {
+      setParsingFile(false);
+    }
+  };
+
+  const handleRemovePreviewRow = (idxToRemove) => {
+    if (!parsedData) return;
+    const updated = parsedData.schemes.filter((_, i) => i !== idxToRemove);
+    setParsedData({
+      ...parsedData,
+      schemes: updated
+    });
+    addToast('Removed scheme from preview list', 'info');
+  };
+
+  const handleImportSchemes = async () => {
+    if (!parsedData || !parsedData.schemes || parsedData.schemes.length === 0) {
+      addToast('No schemes to import', 'error');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const currentSchemes = Array.isArray(client.schemes) ? [...client.schemes] : [];
+      let updatedSchemes;
+
+      if (importMode === 'replace') {
+        // Keep non-Mutual-Fund schemes and replace SIP schemes with imported ones
+        const nonSipSchemes = currentSchemes.filter(s => s.service !== 'Mutual Funds' && s.investmentType !== 'Monthly SIP');
+        updatedSchemes = [...nonSipSchemes, ...parsedData.schemes];
+      } else {
+        // Append mode
+        updatedSchemes = [...currentSchemes, ...parsedData.schemes];
+      }
+
+      const totalSip = updatedSchemes.reduce((sum, s) => {
+        if (s.service === 'Mutual Funds' || s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const totalLumpsum = updatedSchemes.reduce((sum, s) => {
+        if (s.service === 'Mutual Funds' && (s.investmentType === 'Lumpsum' || s.investmentType === 'Both')) {
+          return sum + (Number(s.investmentAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const payload = {
+        schemes: updatedSchemes,
+        sipAmount: totalSip > 0 ? totalSip : (Number(client.sipAmount) || 0),
+        investmentAmount: totalLumpsum > 0 ? totalLumpsum : (Number(client.investmentAmount) || 0),
+      };
+
+      const res = await fetch(`/api/leads/${client._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to save imported schemes');
+      }
+
+      addToast(`Successfully imported ${parsedData.schemes.length} SIP schemes for ${client.name}!`, 'success');
+
+      if (onSuccess) {
+        onSuccess(data.lead || { ...client, schemes: updatedSchemes });
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error importing schemes:', err);
+      addToast(err.message || 'Error importing schemes', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -208,6 +336,8 @@ export default function AddServiceSchemeModal({
       schemeName: schemeName.trim(),
       provider: finalProvider.trim(),
       policyNumber: policyNumber.trim(),
+      deductionBank: deductionBank.trim() || client?.bankName || 'STATE BANK OF INDIA',
+      sipFrequency: isMF ? (sipFrequency || 'Monthly') : premiumFrequency.trim(),
       investmentType: isMF ? investmentType : (isInsurance ? premiumFrequency : (isNPS ? 'Monthly SIP' : 'Lumpsum')),
       sipAmount: Number(sipAmount) || 0,
       sipDay: (isMF || isNPS) && sipDay ? Number(sipDay) : null,
@@ -219,7 +349,7 @@ export default function AddServiceSchemeModal({
       tenureYears: tenureYears ? Number(tenureYears) : null,
       startDate: startDate || '',
       maturityDate: maturityDate || '',
-      status: status || 'Active',
+      status: status || 'Running',
       remarks: remarks.trim()
     };
 
@@ -307,8 +437,8 @@ export default function AddServiceSchemeModal({
           background: '#FFFFFF',
           borderRadius: 20,
           width: '100%',
-          maxWidth: 680,
-          maxHeight: '90vh',
+          maxWidth: entryMode === 'upload' && parsedData ? 1040 : 700,
+          maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -372,7 +502,492 @@ export default function AddServiceSchemeModal({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
+        <div style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
+          
+          {/* Mode Switcher: Add Manually vs Upload Excel (only when adding new scheme) */}
+          {editingIndex === null && (
+            <div style={{
+              display: 'flex',
+              background: '#F1F5F9',
+              padding: 4,
+              borderRadius: 12,
+              marginBottom: 20,
+              border: '1px solid #E2E8F0'
+            }}>
+              <button
+                type="button"
+                onClick={() => setEntryMode('manual')}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  borderRadius: 9,
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  background: entryMode === 'manual' ? '#FFFFFF' : 'transparent',
+                  color: entryMode === 'manual' ? '#0F172A' : '#64748B',
+                  boxShadow: entryMode === 'manual' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Edit2 size={16} color={entryMode === 'manual' ? '#0284C7' : '#64748B'} />
+                Add Manually
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryMode('upload');
+                  setService('Mutual Funds');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  borderRadius: 9,
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  background: entryMode === 'upload' ? '#FFFFFF' : 'transparent',
+                  color: entryMode === 'upload' ? '#0284C7' : '#64748B',
+                  boxShadow: entryMode === 'upload' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <FileSpreadsheet size={16} color={entryMode === 'upload' ? '#0284C7' : '#64748B'} />
+                Upload Excel (.xlsx / .csv)
+              </button>
+            </div>
+          )}
+
+          {entryMode === 'upload' ? (
+            /* ============================================================== */
+            /* UPLOAD EXCEL VIEW                                              */
+            /* ============================================================== */
+            <div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept=".xlsx,.xls,.csv" 
+                onChange={(e) => handleFileUpload(e.target.files?.[0])} 
+                style={{ display: 'none' }} 
+              />
+
+              {!parsedData ? (
+                /* File Dropzone */
+                <div>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: isDragging ? '2.5px dashed #0284C7' : '2px dashed #94A3B8',
+                      background: isDragging ? '#F0F9FF' : '#F8FAFC',
+                      borderRadius: 16,
+                      padding: '48px 24px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 12
+                    }}
+                  >
+                    <div style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%)',
+                      color: '#0284C7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 14px rgba(2, 132, 199, 0.2)'
+                    }}>
+                      <Upload size={28} />
+                    </div>
+
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                        {parsingFile ? 'Analyzing & Parsing Spreadsheet...' : 'Upload Client SIP Portfolio Excel'}
+                      </h4>
+                      <p style={{ margin: '6px 0 0', fontSize: '0.84rem', color: '#64748B' }}>
+                        Drag & drop client <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong> statement here, or <span style={{ color: '#0284C7', fontWeight: 700, textDecoration: 'underline' }}>browse files</span>
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '0.74rem', background: '#E2E8F0', color: '#334155', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>
+                        ✓ IFA-Planet Exports Supported
+                      </span>
+                      <span style={{ fontSize: '0.74rem', background: '#E2E8F0', color: '#334155', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>
+                        ✓ Multi-Scheme Auto Detection
+                      </span>
+                      <span style={{ fontSize: '0.74rem', background: '#E2E8F0', color: '#334155', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>
+                        ✓ Auto Folio & Dates Mapping
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions & Template Download */}
+                  <div style={{
+                    marginTop: 18,
+                    padding: '14px 18px',
+                    borderRadius: 12,
+                    background: '#F0F9FF',
+                    border: '1px solid #BAE6FD',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Info size={18} style={{ color: '#0284C7', flexShrink: 0 }} />
+                      <div style={{ fontSize: '0.8rem', color: '#0369A1' }}>
+                        Need a reference template? Download the official Investrow SIP portfolio sheet format.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => downloadSipExcelTemplate(client.name, client.pan)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#FFFFFF',
+                        border: '1px solid #0284C7',
+                        color: '#0284C7',
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Download size={14} />
+                      Download Sample Template
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Parsed Data Preview View */
+                <div>
+                  {/* Top File & Verification Banner */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 18px',
+                    borderRadius: 12,
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    marginBottom: 16,
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <FileSpreadsheet size={24} style={{ color: '#0284C7' }} />
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>
+                          {uploadedFileName}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                          Found <strong>{parsedData.schemes.length}</strong> SIP mandates ready to import
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setParsedData(null);
+                        setUploadedFileName('');
+                        fileInputRef.current?.click();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
+                        color: '#475569',
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <RefreshCw size={14} />
+                      Change File
+                    </button>
+                  </div>
+
+                  {/* Client Match Verification */}
+                  {parsedData.clientInfo && (
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      marginBottom: 16,
+                      background: (client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) ? '#F0FDF4' : '#FFFBEB',
+                      border: (client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) ? '1px solid #BBF7D0' : '1px solid #FDE68A',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 10
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {(client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) ? (
+                          <CheckCircle2 size={18} style={{ color: '#16A34A' }} />
+                        ) : (
+                          <AlertTriangle size={18} style={{ color: '#D97706' }} />
+                        )}
+                        <span style={{ fontSize: '0.84rem', color: '#0F172A' }}>
+                          Sheet indicates client: <strong>{parsedData.clientInfo.name || 'Client'}</strong> [{parsedData.clientInfo.pan || 'PAN'}]
+                        </span>
+                      </div>
+                      <span style={{
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        padding: '3px 10px',
+                        borderRadius: 12,
+                        background: (client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) ? '#DCFCE7' : '#FEF3C7',
+                        color: (client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) ? '#166534' : '#92400E'
+                      }}>
+                        {(client.pan && parsedData.clientInfo.pan && client.pan.toUpperCase() === parsedData.clientInfo.pan.toUpperCase()) 
+                          ? `✓ Verified Match for ${client.name}` 
+                          : `Importing into ${client.name}`}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Metrics Banner */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: 12,
+                    marginBottom: 16
+                  }}>
+                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px 16px', borderRadius: 10 }}>
+                      <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>Total SIP Schemes</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0F172A', marginTop: 2 }}>
+                        {parsedData.schemes.length} Mandates
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '12px 16px', borderRadius: 10 }}>
+                      <div style={{ fontSize: '0.74rem', color: '#0284C7', fontWeight: 700, textTransform: 'uppercase' }}>Total Monthly Commitment</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0284C7', marginTop: 2 }}>
+                        ₹{parsedData.schemes.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px 16px', borderRadius: 10 }}>
+                      <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>Target Client Account</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                        {client.name}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Import Mode Radio Switcher */}
+                  <div style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 24,
+                    flexWrap: 'wrap'
+                  }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#334155' }}>
+                      Import Strategy:
+                    </span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem', cursor: 'pointer', fontWeight: importMode === 'replace' ? 700 : 500, color: '#0F172A' }}>
+                      <input 
+                        type="radio" 
+                        name="importMode" 
+                        value="replace" 
+                        checked={importMode === 'replace'} 
+                        onChange={() => setImportMode('replace')}
+                        style={{ accentColor: '#0284C7' }} 
+                      />
+                      <span>Replace existing SIP schemes (Recommended)</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem', cursor: 'pointer', fontWeight: importMode === 'append' ? 700 : 500, color: '#0F172A' }}>
+                      <input 
+                        type="radio" 
+                        name="importMode" 
+                        value="append" 
+                        checked={importMode === 'append'} 
+                        onChange={() => setImportMode('append')}
+                        style={{ accentColor: '#0284C7' }} 
+                      />
+                      <span>Append to existing schemes</span>
+                    </label>
+                  </div>
+
+                  {/* Preview Table */}
+                  <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #E2E8F0', marginBottom: 20 }}>
+                    <div style={{ overflowX: 'auto', maxHeight: 360 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem', minWidth: 920 }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '2px solid #E2E8F0', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <th style={{ padding: '10px 12px', width: 45, textAlign: 'center', borderRight: '1px solid #E2E8F0' }}>Sr.</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Scheme Name</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Deduction Bank</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Folio Number</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'right' }}>SIP Amount</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Frequency</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Start Date</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>End Date</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Deduction</th>
+                            <th style={{ padding: '10px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Status</th>
+                            <th style={{ padding: '10px 12px', fontWeight: 700, textAlign: 'center', width: 50 }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parsedData.schemes.map((s, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #E2E8F0', background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                              <td style={{ padding: '8px 12px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 600, color: '#64748B' }}>
+                                {idx + 1}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 700, color: '#0F172A' }}>
+                                {s.schemeName}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', color: '#475569', fontSize: '0.76rem', textTransform: 'uppercase' }}>
+                                {s.deductionBank || client.bankName || 'STATE BANK OF INDIA'}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#0284C7', fontWeight: 800 }}>
+                                {s.folioNumber || '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                                ₹{Number(s.sipAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#475569' }}>
+                                {s.sipFrequency || 'Monthly'}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#475569' }}>
+                                {s.startDate || '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center', fontWeight: 700, color: '#0F172A' }}>
+                                {s.maturityDate || '20 Dec 2099'}
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                <span style={{ background: '#E0F2FE', color: '#0284C7', fontWeight: 800, fontSize: '0.76rem', padding: '2px 8px', borderRadius: 6 }}>
+                                  {s.sipDay ? `${s.sipDay}th` : '20th'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: 10,
+                                  background: s.status === 'Closed' ? '#FEE2E2' : '#DCFCE7',
+                                  color: s.status === 'Closed' ? '#991B1B' : '#166534'
+                                }}>
+                                  {s.status || 'Running'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePreviewRow(idx)}
+                                  title="Remove from import"
+                                  style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 2 }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+
+                          {/* Total Row */}
+                          <tr style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)', borderTop: '2px solid #0284C7', color: '#0369A1', fontWeight: 800 }}>
+                            <td colSpan={4} style={{ padding: '10px 14px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Total Monthly Commitment
+                            </td>
+                            <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: '0.92rem', fontWeight: 900, color: '#0284C7' }}>
+                              ₹{parsedData.schemes.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td colSpan={6} style={{ padding: '10px 14px', color: '#0369A1', fontStyle: 'italic', fontSize: '0.76rem' }}>
+                              {parsedData.schemes.length} Schemes to be imported
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Import Action Buttons */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 10, borderTop: '1px solid #E2E8F0' }}>
+                    <button
+                      type="button"
+                      onClick={() => setParsedData(null)}
+                      disabled={saving}
+                      style={{
+                        padding: '10px 18px',
+                        borderRadius: 10,
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#475569',
+                        fontSize: '0.88rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear & Upload Different File
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleImportSchemes}
+                      disabled={saving || parsedData.schemes.length === 0}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)',
+                        color: '#FFFFFF',
+                        fontSize: '0.88rem',
+                        fontWeight: 800,
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)'
+                      }}
+                    >
+                      <Check size={16} />
+                      {saving ? 'Importing Schemes...' : `Import ${parsedData.schemes.length} SIP Schemes to Portfolio`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
           
           {/* Service Selector Tabs (if creating new) */}
           {editingIndex === null && (
@@ -546,6 +1161,9 @@ export default function AddServiceSchemeModal({
                     fontWeight: 600
                   }}
                 >
+                  <option value="Running">Running (Active SIP)</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Paused">Paused / Suspended</option>
                   <option value="Active">Active</option>
                   <option value="In Grace Period">In Grace Period</option>
                   <option value="Under Review">Under Review</option>
@@ -599,6 +1217,40 @@ export default function AddServiceSchemeModal({
                   <>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                        Deduction from Bank
+                      </label>
+                      <input
+                        type="text"
+                        list="bank-options"
+                        value={deductionBank}
+                        onChange={(e) => setDeductionBank(e.target.value)}
+                        placeholder="e.g. STATE BANK OF INDIA"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #CBD5E1',
+                          fontSize: '0.85rem',
+                          background: '#FFFFFF',
+                          fontWeight: 600
+                        }}
+                      />
+                      <datalist id="bank-options">
+                        <option value="STATE BANK OF INDIA" />
+                        <option value="HDFC Bank" />
+                        <option value="ICICI Bank" />
+                        <option value="Axis Bank" />
+                        <option value="Kotak Mahindra Bank" />
+                        <option value="Punjab National Bank" />
+                        <option value="Bank of Baroda" />
+                        <option value="Canara Bank" />
+                        <option value="Union Bank of India" />
+                        <option value="IndusInd Bank" />
+                      </datalist>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                         Monthly SIP Amount (₹)
                       </label>
                       <input
@@ -619,9 +1271,35 @@ export default function AddServiceSchemeModal({
                         }}
                       />
                     </div>
+
                     <div>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                        SIP Debit Day
+                        SIP Frequency
+                      </label>
+                      <select
+                        value={sipFrequency}
+                        onChange={(e) => setSipFrequency(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #CBD5E1',
+                          fontSize: '0.85rem',
+                          background: '#FFFFFF',
+                          fontWeight: 600
+                        }}
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Half-Yearly">Half-Yearly</option>
+                        <option value="Annual">Annual</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                        SIP Deduction Day
                       </label>
                       <select
                         value={sipDay}
@@ -994,9 +1672,20 @@ export default function AddServiceSchemeModal({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  {isInsurance ? 'Renewal / Maturity Date' : 'Maturity / Review Date'}
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', margin: 0 }}>
+                    {isMF ? 'SIP End Date' : isInsurance ? 'Renewal / Maturity Date' : 'Maturity / Review Date'}
+                  </label>
+                  {isMF && (
+                    <button
+                      type="button"
+                      onClick={() => setMaturityDate('2099-12-20')}
+                      style={{ fontSize: '0.7rem', color: '#0284C7', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: 0, textDecoration: 'underline' }}
+                    >
+                      Perpetual (2099)
+                    </button>
+                  )}
+                </div>
                 <input
                   type="date"
                   value={maturityDate}
@@ -1079,6 +1768,8 @@ export default function AddServiceSchemeModal({
             </button>
           </div>
         </form>
+        )}
+      </div>
       </div>
     </div>
   );

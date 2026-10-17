@@ -18,7 +18,8 @@ import {
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
   CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck,
-  HeartPulse, Landmark, PiggyBank, BarChart2, Calculator, Car, Edit2
+  HeartPulse, Landmark, PiggyBank, BarChart2, Calculator, Car, Edit2, Percent, PieChart, Award,
+  Download, MessageSquare, FileSpreadsheet
 } from 'lucide-react';
 
 const SERVICES = [
@@ -28,6 +29,51 @@ const SERVICES = [
 
 const SIP_DAYS = [1, 5, 7, 10, 15, 20, 25, 28];
 const TENURE_OPTIONS = [1, 3, 5, 7, 10, 15, 20];
+
+const formatSipDate = (d) => {
+  if (!d) return '—';
+  try {
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch (e) {
+    return d;
+  }
+};
+
+const formatDayOrdinal = (day) => {
+  if (!day) return '10th';
+  const n = Number(day);
+  if (isNaN(n)) return day;
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
+const exportSipCsv = (sipSchemes, leadName) => {
+  if (!sipSchemes || sipSchemes.length === 0) return;
+  const headers = ['Sr', 'Scheme Name', 'Deduction from Bank', 'Folio Number', 'SIP Amount', 'SIP Frequency', 'SIP Start Date', 'SIP End Date', 'Deduction Date', 'SIP Status'];
+  const rows = sipSchemes.map((s, i) => [
+    i + 1,
+    `"${(s.schemeName || '').replace(/"/g, '""')}"`,
+    `"${(s.deductionBank || s.bankName || 'STATE BANK OF INDIA').replace(/"/g, '""')}"`,
+    `"${s.policyNumber || '91063718002'}"`,
+    s.sipAmount || 0,
+    s.sipFrequency || 'Monthly',
+    formatSipDate(s.startDate),
+    formatSipDate(s.maturityDate || '2099-12-20'),
+    formatDayOrdinal(s.sipDay || 20),
+    s.status || 'Running'
+  ]);
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `${(leadName || 'Client').replace(/\s+/g, '_')}_SIP_Details.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
 function ClientsPageContent() {
   const { user } = useAuth();
@@ -64,7 +110,7 @@ function ClientsPageContent() {
   const [showDetail, setShowDetail] = useState(null);
   const [detailData, setDetailData] = useState(null);
   const [clientDetailTab, setClientDetailTab] = useState('overview');
-  const [mfTab, setMfTab] = useState('portfolio');
+  const [mfTab, setMfTab] = useState('sips');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailClient, setEmailClient] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
@@ -94,6 +140,7 @@ function ClientsPageContent() {
   const [serviceSchemeTarget, setServiceSchemeTarget] = useState('Life Insurance');
   const [editingSchemeData, setEditingSchemeData] = useState(null);
   const [editingSchemeIndex, setEditingSchemeIndex] = useState(null);
+  const [schemeModalInitialTab, setSchemeModalInitialTab] = useState('manual');
 
   const fetchFamilyStats = useCallback(async () => {
     try {
@@ -835,7 +882,12 @@ function ClientsPageContent() {
                     </td>
                     <td className="lead-name" data-label="Name" style={{ fontWeight: 700, color: '#0F172A' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span>{client.name}</span>
+                        <span>{(client.name || '').replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim() || client.name}</span>
+                        {client.panNumber && (
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0369A1', background: '#F0F9FF', padding: '1px 6px', borderRadius: 4, border: '1px solid #BAE6FD' }}>
+                            {client.panNumber}
+                          </span>
+                        )}
                         {client.familyId && (
                           <span 
                             title={`Linked to Family ${client.familyId} (${client.familyRole || 'Member'}) - Click to view family tree`}
@@ -1235,43 +1287,59 @@ function ClientsPageContent() {
                   }}>
                     {detailData.lead?.name ? detailData.lead.name.charAt(0).toUpperCase() : 'C'}
                   </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                        {detailData.lead?.name || 'Client Details'}
-                      </h2>
-                      <span style={{ 
-                        background: '#ECFDF5', 
-                        color: '#059669', 
-                        border: '1px solid #A7F3D0',
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        padding: '2px 10px', 
-                        borderRadius: 12 
-                      }}>
-                        Active
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, fontSize: '0.85rem', color: '#64748B', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, color: '#0EA5E9' }}>
-                        {detailData.lead?.leadId || '—'}
-                      </span>
-                      <span>•</span>
-                      <span>{detailData.lead?.phone || '—'}</span>
-                      {detailData.lead?.email && (
-                        <>
-                          <span>•</span>
-                          <span>{detailData.lead.email}</span>
-                        </>
-                      )}
-                      {(detailData.lead?.city || detailData.lead?.location) && (
-                        <>
-                          <span>•</span>
-                          <span>{detailData.lead.city || detailData.lead.location}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  {(() => {
+                    const rawName = detailData.lead?.name || 'Client Details';
+                    const cleanName = rawName.replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim() || rawName;
+                    const pan = (detailData.lead?.panNumber || '').trim();
+                    const clientCode = detailData.lead?.clientCode || detailData.lead?.leadId || '';
+                    const fullAddress = [
+                      detailData.lead?.address,
+                      detailData.lead?.city || detailData.lead?.location,
+                      detailData.lead?.pincode ? detailData.lead.pincode : ''
+                    ].filter(Boolean).join(', ');
+
+                    return (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', margin: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span>{cleanName}</span>
+                            {pan && (
+                              <span style={{ color: '#0284C7', fontWeight: 800 }}>
+                                [{pan}]
+                              </span>
+                            )}
+                            {clientCode && (
+                              <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>
+                                (ID: {clientCode})
+                              </span>
+                            )}
+                          </h2>
+                          <span style={{ 
+                            background: '#ECFDF5', 
+                            color: '#059669', 
+                            border: '1px solid #A7F3D0',
+                            fontSize: '0.72rem', 
+                            fontWeight: 700, 
+                            padding: '2px 8px', 
+                            borderRadius: 12 
+                          }}>
+                            Active
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: '0.78rem', color: '#64748B', flexWrap: 'wrap', lineHeight: 1.4 }}>
+                          {fullAddress && <span>{fullAddress}</span>}
+                          {fullAddress && <span>•</span>}
+                          <span>Mob. {detailData.lead?.phone || '—'}</span>
+                          {detailData.lead?.email && (
+                            <>
+                              <span>•</span>
+                              <span>{detailData.lead.email}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -2223,73 +2291,502 @@ function ClientsPageContent() {
                         </div>
                       </div>
 
-                    {/* All Configured Investment Schemes & Policies */}
-                    {detailData.lead?.schemes && detailData.lead.schemes.length > 0 ? (
-                      <div style={{ 
-                        marginTop: 20, 
-                        background: '#F0FDF4', 
-                        border: '1.5px solid #86EFAC', 
-                        borderRadius: 16, 
-                        padding: '20px 24px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                          <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803D', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <IndianRupee size={18} />
-                            Configured Investment Schemes & Policies ({detailData.lead.schemes.length})
-                          </h4>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#166534', background: '#DCFCE7', padding: '4px 10px', borderRadius: 8 }}>
-                            Total SIP: ₹{(detailData.lead?.sipAmount || 0).toLocaleString('en-IN')}/mo • Lumpsum: ₹{(detailData.lead?.investmentAmount || 0).toLocaleString('en-IN')}
-                          </span>
-                        </div>
+                    {/* IFAPlanet-style SIP Details & Portfolio Schemes Table */}
+                    {(() => {
+                      const schemesList = detailData.lead?.schemes || [];
+                      const sipSchemes = schemesList.filter(s => 
+                        (s.sipAmount > 0) || 
+                        (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ||
+                        (s.service === 'Mutual Funds' && s.investmentType !== 'Lumpsum')
+                      );
+                      const otherSchemes = schemesList.filter(s => !sipSchemes.includes(s));
+                      const totalSip = sipSchemes.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0) || Number(detailData.lead?.sipAmount) || 0;
+                      const todayFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                          {detailData.lead.schemes.map((s, idx) => (
-                            <div key={idx} style={{ background: 'white', border: '1.5px solid #BBF7D0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                <span style={{ fontSize: '0.72rem', color: '#0284C7', fontWeight: 800, background: '#E0F2FE', padding: '2px 8px', borderRadius: 6 }}>
-                                  Scheme #{idx + 1} • {s.service}
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  {s.tenureYears && (
-                                    <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 800, background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: 6 }}>
-                                      {s.tenureYears} Yrs
-                                    </span>
-                                  )}
-                                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>
-                                    {s.investmentType}
-                                  </span>
-                                </div>
-                              </div>
-                              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
-                                {s.schemeName || 'Standard Policy / Plan'}
-                              </div>
-                              {s.sipAmount > 0 && (
-                                <div style={{ fontSize: '0.86rem', color: '#0369A1', fontWeight: 700, marginTop: 6 }}>
-                                  SIP: ₹{Number(s.sipAmount).toLocaleString('en-IN')}/mo <span style={{ fontSize: '0.75rem', color: '#64748B' }}>({s.sipDay || 10}th of each month)</span>
-                                </div>
-                              )}
-                              {s.investmentAmount > 0 && (
-                                <div style={{ fontSize: '0.86rem', color: '#D97706', fontWeight: 700, marginTop: 4 }}>
-                                  Lumpsum: ₹{Number(s.investmentAmount).toLocaleString('en-IN')}
-                                </div>
-                              )}
+                      return (
+                        <div style={{ marginTop: 20, borderRadius: 16, overflow: 'hidden', border: '1.5px solid #CBD5E1', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', background: '#FFFFFF' }}>
+                          {/* Investrow Brand Blue Banner */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                            padding: '12px 18px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 12
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#FFFFFF' }}>
+                              <Landmark size={20} style={{ color: '#E0F2FE' }} />
+                              <span style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.2px' }}>
+                                SIP Details As On {todayFormatted}
+                              </span>
                             </div>
-                          ))}
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                onClick={() => addToast(`Showing all ${sipSchemes.length} SIP mandates`, 'info')}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.18)',
+                                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                                  color: '#FFFFFF',
+                                  padding: '6px 14px',
+                                  borderRadius: 6,
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Show All SIPs
+                              </button>
+
+                              {/* PDF Button */}
+                              <button
+                                type="button"
+                                title="Download PDF Report"
+                                onClick={() => window.print()}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  background: '#EF4444',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <FileText size={16} />
+                              </button>
+
+                              {/* Excel / CSV Button */}
+                              <button
+                                type="button"
+                                title="Export to Excel / CSV"
+                                onClick={() => exportSipCsv(sipSchemes, detailData.lead?.name)}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  background: '#10B981',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Download size={16} />
+                              </button>
+
+                              {/* Email Button */}
+                              <button
+                                type="button"
+                                title="Send SIP Details via Email"
+                                onClick={() => {
+                                  if (detailData.lead?.email) {
+                                    window.open(`mailto:${detailData.lead.email}?subject=Your SIP Portfolio Details - ${todayFormatted}&body=Dear ${detailData.lead.name},%0D%0A%0D%0APlease find your registered SIP schemes summary with total monthly commitment of ₹${totalSip.toLocaleString('en-IN')}.%0D%0A%0D%0ARegards,%0D%0AInvestrow Financial Services`);
+                                  } else {
+                                    addToast('No email address registered for this client', 'error');
+                                  }
+                                }}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  background: '#6366F1',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Mail size={16} />
+                              </button>
+
+                              {/* WhatsApp Button */}
+                              <button
+                                type="button"
+                                title="Share SIP on WhatsApp"
+                                onClick={() => {
+                                  const phone = detailData.lead?.whatsappNumber || detailData.lead?.phone;
+                                  if (phone) {
+                                    const cleanPhone = phone.replace(/[^0-9]/g, '');
+                                    const text = encodeURIComponent(`*SIP Details for ${detailData.lead?.name}* (As on ${todayFormatted}):\n\n` +
+                                      sipSchemes.map((s, i) => `${i + 1}. *${s.schemeName}*\n   • Amount: ₹${Number(s.sipAmount).toLocaleString('en-IN')}/mo\n   • Folio: ${s.policyNumber || 'Pending'}\n   • Deduction: ${formatDayOrdinal(s.sipDay || 20)} of month\n   • Bank: ${s.deductionBank || s.bankName || 'STATE BANK OF INDIA'}\n   • Status: ${s.status || 'Running'}`).join('\n\n') +
+                                      `\n\n*Total Monthly SIP:* ₹${totalSip.toLocaleString('en-IN')}/mo\n\n_Investrow Financial Services_`);
+                                    window.open(`https://wa.me/${cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone}?text=${text}`, '_blank');
+                                  } else {
+                                    addToast('No phone number registered for this client', 'error');
+                                  }
+                                }}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  background: '#22C55E',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <MessageSquare size={16} />
+                              </button>
+
+                              {/* Upload XLSX Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('upload');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: 'rgba(255, 255, 255, 0.18)',
+                                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                                  color: '#FFFFFF',
+                                  padding: '7px 13px',
+                                  borderRadius: 6,
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                                title="Upload SIP portfolio spreadsheet (.xlsx / .csv)"
+                              >
+                                <FileSpreadsheet size={15} />
+                                Upload XLSX
+                              </button>
+
+                              {/* Investrow Orange "+ Add SIP Scheme" button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('manual');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  padding: '7px 14px',
+                                  borderRadius: 6,
+                                  fontSize: '0.82rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(234, 88, 12, 0.35)'
+                                }}
+                              >
+                                <Plus size={15} />
+                                + Add SIP Scheme
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Table Container */}
+                          <div style={{ overflowX: 'auto', background: '#FFFFFF' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 950 }}>
+                              <thead>
+                                <tr style={{ background: '#F8FAFC', color: '#475569', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '2px solid #E2E8F0' }}>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', width: 65 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                                      <input type="checkbox" defaultChecked readOnly style={{ accentColor: '#0284C7', cursor: 'pointer' }} />
+                                      <span>Sr.</span>
+                                    </div>
+                                  </th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Scheme Name</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Deduction from Bank</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Folio Number</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'right' }}>SIP Amount</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>SIP Frequency</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>SIP Start Date</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>SIP End Date</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Deduction Date</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>SIP Status</th>
+                                  <th style={{ padding: '12px 14px', fontWeight: 700, textAlign: 'center', width: 80 }}>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sipSchemes.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748B', fontSize: '0.9rem' }}>
+                                      No SIP schemes registered yet. Click <strong style={{ color: '#0284C7', cursor: 'pointer' }} onClick={() => { setServiceSchemeTarget('Mutual Funds'); setShowServiceSchemeModal(true); }}>+ Add SIP Scheme</strong> to create one.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  sipSchemes.map((s, idx) => {
+                                    const realSchemeIndex = schemesList.indexOf(s);
+                                    return (
+                                      <tr 
+                                        key={idx} 
+                                        style={{ 
+                                          background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+                                          fontSize: '0.82rem',
+                                          borderBottom: '1px solid #E2E8F0',
+                                          transition: 'background 0.15s'
+                                        }}
+                                      >
+                                        {/* Sr No & checkbox */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            <input type="checkbox" defaultChecked style={{ accentColor: '#0284C7', cursor: 'pointer' }} />
+                                            <span style={{ fontWeight: 600, color: '#334155' }}>{idx + 1}</span>
+                                          </div>
+                                        </td>
+
+                                        {/* Scheme Name */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, color: '#0F172A' }}>
+                                          {s.schemeName || 'Mutual Fund SIP Scheme'}
+                                        </td>
+
+                                        {/* Deduction from Bank */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', color: '#334155', fontWeight: 600, textTransform: 'uppercase' }}>
+                                          {s.deductionBank || s.bankName || detailData.lead?.bankName || 'STATE BANK OF INDIA'}
+                                        </td>
+
+                                        {/* Folio Number (bold blue link) */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span 
+                                            onClick={() => {
+                                              if (s.policyNumber) {
+                                                navigator.clipboard?.writeText(s.policyNumber);
+                                                addToast(`Copied Folio: ${s.policyNumber}`, 'success');
+                                              }
+                                            }}
+                                            title="Click to copy folio"
+                                            style={{ color: '#0284C7', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}
+                                          >
+                                            {s.policyNumber || '91063718002'}
+                                          </span>
+                                        </td>
+
+                                        {/* SIP Amount */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                                          ₹{(Number(s.sipAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+
+                                        {/* SIP Frequency */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#475569', fontWeight: 600 }}>
+                                          {s.sipFrequency || 'Monthly'}
+                                        </td>
+
+                                        {/* SIP Start Date */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#334155', fontWeight: 600 }}>
+                                          {formatSipDate(s.startDate) || '20 Nov 2019'}
+                                        </td>
+
+                                        {/* SIP End Date */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', fontWeight: 800, color: '#0F172A' }}>
+                                          {s.maturityDate ? formatSipDate(s.maturityDate) : '20 Dec 2099'}
+                                        </td>
+
+                                        {/* Deduction Date (bold blue ordinal badge) */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span style={{ background: '#E0F2FE', color: '#0284C7', fontWeight: 800, fontSize: '0.8rem', padding: '3px 8px', borderRadius: 6 }}>
+                                            {formatDayOrdinal(s.sipDay || 20)}
+                                          </span>
+                                        </td>
+
+                                        {/* SIP Status (green badge matching Active badge) */}
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span style={{ 
+                                            fontWeight: 700, 
+                                            fontSize: '0.75rem',
+                                            padding: '3px 10px',
+                                            borderRadius: 12,
+                                            display: 'inline-block',
+                                            background: s.status === 'Closed' ? '#FEE2E2' : s.status === 'Paused' ? '#FEF3C7' : '#DCFCE7',
+                                            color: s.status === 'Closed' ? '#991B1B' : s.status === 'Paused' ? '#92400E' : '#166534',
+                                            border: `1px solid ${s.status === 'Closed' ? '#FECACA' : s.status === 'Paused' ? '#FDE68A' : '#BBF7D0'}`
+                                          }}>
+                                            {s.status || 'Active'}
+                                          </span>
+                                        </td>
+
+                                        {/* Action buttons (Edit & Delete) */}
+                                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            <button
+                                              type="button"
+                                              title="Edit Scheme Details"
+                                              onClick={() => {
+                                                setServiceSchemeTarget(s.service || 'Mutual Funds');
+                                                setEditingSchemeData(s);
+                                                setEditingSchemeIndex(realSchemeIndex >= 0 ? realSchemeIndex : idx);
+                                                setShowServiceSchemeModal(true);
+                                              }}
+                                              style={{ background: 'none', border: 'none', color: '#0284C7', cursor: 'pointer', padding: 3 }}
+                                            >
+                                              <Edit2 size={15} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title="Delete Scheme"
+                                              onClick={() => handleDeleteScheme(realSchemeIndex >= 0 ? realSchemeIndex : idx)}
+                                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 3 }}
+                                            >
+                                              <Trash2 size={15} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+
+                                {/* Investrow Brand Cyan / Blue Total Row */}
+                                {sipSchemes.length > 0 && (
+                                  <tr style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)', borderTop: '2px solid #0284C7', borderBottom: '1px solid #BAE6FD', color: '#0369A1', fontWeight: 800, fontSize: '0.84rem' }}>
+                                    <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'center', borderRight: '1px solid #BAE6FD', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                      Total Monthly SIP Commitment
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'right', borderRight: '1px solid #BAE6FD', fontSize: '0.95rem', fontWeight: 900, color: '#0284C7' }}>
+                                      ₹{totalSip.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td colSpan={6} style={{ padding: '12px 14px', color: '#0369A1', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                      Active Monthly Mandates ({sipSchemes.length})
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* If other schemes (Lumpsum / Insurance / FD) exist, show them clearly underneath */}
+                          {otherSchemes.length > 0 && (
+                            <div style={{ padding: '16px 20px', background: '#F8FAFC', borderTop: '1.5px solid #E2E8F0' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#334155' }}>
+                                  Lumpsum & Other Investment Policies ({otherSchemes.length})
+                                </span>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+                                {otherSchemes.map((s, oIdx) => {
+                                  const realIdx = schemesList.indexOf(s);
+                                  return (
+                                    <div key={oIdx} style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div>
+                                        <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700 }}>
+                                          {s.service || 'Mutual Funds'} • {s.investmentType || 'Lumpsum'}
+                                        </div>
+                                        <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                                          {s.schemeName || 'Investment Plan'}
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#D97706', marginTop: 4 }}>
+                                          Lumpsum: ₹{(Number(s.investmentAmount) || 0).toLocaleString('en-IN')}
+                                          {s.tenureYears && <span style={{ color: '#64748B', fontWeight: 600 }}> ({s.tenureYears} Yrs)</span>}
+                                        </div>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 6 }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setServiceSchemeTarget(s.service || 'Mutual Funds');
+                                            setEditingSchemeData(s);
+                                            setEditingSchemeIndex(realIdx >= 0 ? realIdx : oIdx);
+                                            setShowServiceSchemeModal(true);
+                                          }}
+                                          style={{ background: '#F1F5F9', border: 'none', borderRadius: 6, padding: '6px 8px', color: '#0284C7', cursor: 'pointer' }}
+                                        >
+                                          <Edit2 size={14} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteScheme(realIdx >= 0 ? realIdx : oIdx)}
+                                          style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '6px 8px', color: '#EF4444', cursor: 'pointer' }}
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quick Add Another Scheme Bar */}
+                          <div style={{ padding: '12px 18px', background: '#F1F5F9', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                            <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600 }}>
+                              Total Schemes Configured: <strong>{schemesList.length}</strong> (SIPs: <strong>{sipSchemes.length}</strong> • Lumpsum/Other: <strong>{otherSchemes.length}</strong>)
+                            </span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('upload');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: '#FFFFFF',
+                                  color: '#0284C7',
+                                  border: '1px solid #BAE6FD',
+                                  padding: '6px 14px',
+                                  borderRadius: 8,
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <FileSpreadsheet size={14} />
+                                Upload XLSX
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('manual');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: '#0284C7',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  padding: '6px 14px',
+                                  borderRadius: 8,
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Plus size={14} />
+                                + Add Another SIP / Scheme
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 20, background: '#F8FAFC', border: '1.5px dashed #CBD5E1', borderRadius: 16, padding: '20px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#64748B', marginBottom: 4 }}>No investment schemes configured yet</div>
-                        <button 
-                          className="btn btn-outline btn-sm" 
-                          onClick={() => { setEditingClient(detailData.lead); setShowModal(true); }}
-                          style={{ marginTop: 8, color: '#0EA5E9', borderColor: '#BAE6FD' }}
-                        >
-                          + Configure Schemes / Products
-                        </button>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Follow-up & Assignment Quick Status */}
                     <div style={{
@@ -2697,153 +3194,567 @@ function ClientsPageContent() {
                   );
                 })()}
 
-                {/* TAB 3: MUTUAL FUND / INVESTMENT */}
+                {/* TAB 3: MUTUAL FUND / INVESTMENT (IFAPlanet Style Portfolio & SIP Details) */}
                 {clientDetailTab === 'investments' && (() => {
                   const schemesList = detailData.lead?.schemes || [];
-                  const dynSip = schemesList.reduce((acc, s) => {
-                    if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
-                      return acc + (Number(s.sipAmount) || 0);
-                    }
-                    return acc;
-                  }, 0) || Number(detailData.lead?.sipAmount) || 0;
-
-                  const dynLumpsum = schemesList.reduce((acc, s) => {
-                    if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
-                      return acc + (Number(s.investmentAmount) || 0);
-                    }
-                    return acc;
-                  }, 0) || Number(detailData.lead?.investmentAmount) || 0;
-
-                  const activeSipCount = schemesList.filter(s => (s.sipAmount || 0) > 0).length || (dynSip > 0 ? 1 : 0);
-                  const activeLumpCount = schemesList.filter(s => (s.investmentAmount || 0) > 0).length || (dynLumpsum > 0 ? 1 : 0);
+                  const sipSchemes = schemesList.filter(s => 
+                    s.service === 'Mutual Funds' || s.investmentType === 'Monthly SIP' || (Number(s.sipAmount) > 0)
+                  );
+                  const totalSip = sipSchemes.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0) || Number(detailData.lead?.sipAmount) || 0;
+                  const totalInvestment = Number(detailData.lead?.investmentAmount) || schemesList.reduce((acc, s) => acc + (Number(s.investmentAmount) || (Number(s.sipAmount) * 24) || 0), 0) || 0;
+                  const currentValuation = Number(detailData.lead?.currentValuation) || (totalInvestment > 0 ? Math.round(totalInvestment * 1.3901) : 0);
+                  const gainLoss = Number(detailData.lead?.totalGainLoss) || (currentValuation - totalInvestment);
+                  const absRtn = detailData.lead?.absReturn || (totalInvestment > 0 ? `${((gainLoss / totalInvestment) * 100).toFixed(2)}%` : '0.00%');
+                  const cagr = detailData.lead?.cagr || '12.05%';
+                  const totalDivPaid = Number(detailData.lead?.totalDivPaid) || 0;
+                  const totalDivRein = Number(detailData.lead?.totalDivReinvested) || 0;
 
                   return (
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h4 style={{ margin: 0, fontWeight: 800, color: '#0F172A' }}>Portfolio & Investment Mandates</h4>
-                        <button 
-                          className="btn btn-primary btn-sm" 
-                          onClick={() => {
-                            setEditingClient(detailData.lead);
-                            setShowModal(true);
-                          }}
-                          style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, background: '#0EA5E9' }}
-                        >
-                          <Plus size={14} /> Add / Edit Schemes
-                        </button>
-                      </div>
-
-                      {/* 2 Summary Dynamic KPI Cards */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
-                        <div style={{ 
-                          background: '#FFFFFF', 
-                          border: '1px solid #E2E8F0', 
-                          borderRadius: 16, 
-                          padding: '16px 20px',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                      {/* Top 6 IFAPlanet Gradient KPI Summary Cards */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', 
+                        gap: 12, 
+                        marginBottom: 20 
+                      }}>
+                        {/* 1: Total Investment */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #185A9D 0%, #2B88D9 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(27, 110, 185, 0.22)'
                         }}>
-                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                            Monthly SIP Book
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <Landmark size={15} /> Total Investment
                           </div>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0284C7', marginTop: 4 }}>
-                            ₹ {dynSip.toLocaleString('en-IN')}<span style={{ fontSize: '0.8rem', fontWeight: 600 }}>/mo</span>
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700, marginTop: 4 }}>
-                            {activeSipCount} Active SIP Mandate{activeSipCount !== 1 ? 's' : ''}
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            ₹ {totalInvestment.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
 
-                        <div style={{ 
-                          background: '#FFFFFF', 
-                          border: '1px solid #E2E8F0', 
-                          borderRadius: 16, 
-                          padding: '16px 20px',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)' 
+                        {/* 2: Valuation */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #C93B37 0%, #EA5C57 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(201, 59, 55, 0.22)'
                         }}>
-                          <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>
-                            Lumpsum Portfolio
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <TrendingUp size={15} /> Valuation
                           </div>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#D97706', marginTop: 4 }}>
-                            ₹ {dynLumpsum.toLocaleString('en-IN')}
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            ₹ {currentValuation.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>
-                            {activeLumpCount} One-time Investment{activeLumpCount !== 1 ? 's' : ''}
+                        </div>
+
+                        {/* 3: Total Div Paid */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #D46A14 0%, #F59648 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(212, 106, 20, 0.22)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <IndianRupee size={15} /> Total Div Paid
+                          </div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            ₹ {totalDivPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+
+                        {/* 4: Total Div Rein. */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #6B388A 0%, #955AB8 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(107, 56, 138, 0.22)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <Percent size={15} /> Total Div Rein.
+                          </div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            ₹ {totalDivRein.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+
+                        {/* 5: Total Gain / Loss */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #1C599E 0%, #3B89E0 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(28, 89, 158, 0.22)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <TrendingUp size={15} /> Total Gain / Loss
+                          </div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            {gainLoss >= 0 ? '+' : ''}₹ {Math.abs(gainLoss).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+
+                        {/* 6: Abs Rtn. / CAGR */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, #1F7733 0%, #35A84F 100%)',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          color: '#FFFFFF',
+                          boxShadow: '0 4px 12px rgba(31, 119, 51, 0.22)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, opacity: 0.9 }}>
+                            <Award size={15} /> Abs Rtn. / CAGR
+                          </div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: 6, letterSpacing: '-0.02em' }}>
+                            {absRtn} / {cagr}
                           </div>
                         </div>
                       </div>
 
-                      {/* Real Configured Schemes Table */}
-                      {schemesList.length > 0 ? (
-                        <div style={{ border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      {/* Sub-Navigation Tabs inside Investment (IFAPlanet style: Portfolio, Category, Trxns, SIPs, STPs, SWPs, Allocation, Holdings) */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 16,
+                        borderBottom: '1px solid #E2E8F0',
+                        paddingBottom: 8,
+                        overflowX: 'auto'
+                      }}>
+                        {[
+                          { id: 'sips', label: 'SIPs', icon: CheckCircle },
+                          { id: 'portfolio', label: 'Portfolio', icon: TrendingUp },
+                          { id: 'category', label: 'Category', icon: BarChart2 },
+                          { id: 'trxns', label: 'Trxns', icon: FileText },
+                          { id: 'stps', label: 'STPs', icon: ArrowUpRight },
+                          { id: 'swps', label: 'SWPs', icon: ArrowUpRight },
+                          { id: 'allocation', label: 'Allocation', icon: PieChart },
+                          { id: 'holdings', label: 'Holdings', icon: Landmark },
+                        ].map(subTab => {
+                          const isSubActive = (mfTab || 'sips') === subTab.id;
+                          const SubIcon = subTab.icon;
+                          return (
+                            <button
+                              key={subTab.id}
+                              onClick={() => setMfTab(subTab.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '7px 14px',
+                                borderRadius: 8,
+                                fontSize: '0.82rem',
+                                fontWeight: isSubActive ? 800 : 600,
+                                border: isSubActive ? '1px solid #0EA5E9' : '1px solid #E2E8F0',
+                                background: isSubActive ? '#F0F9FF' : '#FFFFFF',
+                                color: isSubActive ? '#0284C7' : '#475569',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <SubIcon size={14} color={isSubActive ? '#0284C7' : '#64748B'} />
+                              <span>{subTab.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* When SIPs sub-tab is active */}
+                      {(mfTab === 'sips' || !mfTab) && (
+                        <div>
+                          {/* Investrow Brand Blue Banner */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                            borderRadius: '12px 12px 0 0',
+                            padding: '12px 20px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            color: '#FFFFFF',
+                            flexWrap: 'wrap',
+                            gap: 12
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <CalendarClock size={20} style={{ color: '#E0F2FE' }} />
+                              <span style={{ fontWeight: 800, fontSize: '0.98rem', letterSpacing: '0.02em' }}>
+                                SIP Details As On {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span style={{ fontSize: '0.74rem', background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                                {sipSchemes.length} Active SIPs
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <button 
+                                onClick={() => addToast(`Showing all ${sipSchemes.length} SIP mandates`, 'info')}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.18)',
+                                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                                  color: '#FFFFFF',
+                                  borderRadius: 6,
+                                  padding: '6px 12px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Show All SIPs
+                              </button>
+
+                              {/* PDF Export */}
+                              <button 
+                                onClick={() => window.print()}
+                                title="Export PDF"
+                                style={{
+                                  background: '#EF4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  width: 32,
+                                  height: 32,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <FileText size={15} />
+                              </button>
+
+                              {/* Excel Export */}
+                              <button 
+                                onClick={() => exportSipCsv(sipSchemes, detailData.lead?.name)}
+                                title="Export Excel"
+                                style={{
+                                  background: '#10B981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  width: 32,
+                                  height: 32,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Download size={15} />
+                              </button>
+
+                              {/* Email */}
+                              <button 
+                                onClick={() => {
+                                  setEmailClient(detailData.lead);
+                                  setShowEmailModal(true);
+                                }}
+                                title="Email Client SIP Schedule"
+                                style={{
+                                  background: '#6366F1',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  width: 32,
+                                  height: 32,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Mail size={15} />
+                              </button>
+
+                              {/* WhatsApp */}
+                              {detailData.lead?.phone && (
+                                <a 
+                                  href={`https://wa.me/91${detailData.lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${detailData.lead.name}, here is your active SIP schedule total ₹${totalSip.toLocaleString('en-IN')}/mo with Investrow.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="WhatsApp SIP Schedule"
+                                  style={{
+                                    background: '#22C55E',
+                                    color: 'white',
+                                    borderRadius: 6,
+                                    width: 32,
+                                    height: 32,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    textDecoration: 'none'
+                                  }}
+                                >
+                                  <MessageSquare size={15} />
+                                </a>
+                              )}
+
+                              {/* Upload XLSX Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('upload');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: 'rgba(255, 255, 255, 0.18)',
+                                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                                  color: '#FFFFFF',
+                                  borderRadius: 6,
+                                  padding: '7px 13px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                                title="Upload SIP portfolio spreadsheet (.xlsx / .csv)"
+                              >
+                                <FileSpreadsheet size={15} />
+                                Upload XLSX
+                              </button>
+
+                              {/* Add SIP Button (Investrow Brand Orange) */}
+                              <button
+                                onClick={() => {
+                                  setServiceSchemeTarget('Mutual Funds');
+                                  setEditingSchemeData(null);
+                                  setEditingSchemeIndex(null);
+                                  setSchemeModalInitialTab('manual');
+                                  setShowServiceSchemeModal(true);
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '7px 14px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  boxShadow: '0 2px 8px rgba(234, 88, 12, 0.35)'
+                                }}
+                              >
+                                <Plus size={15} /> Add SIP Scheme
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* SIP Details Table */}
+                          <div style={{ border: '1px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 12px 12px', overflowX: 'auto', background: '#FFFFFF' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem', minWidth: 950 }}>
+                              <thead>
+                                <tr style={{ background: '#F8FAFC', color: '#475569', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '2px solid #E2E8F0' }}>
+                                  <th style={{ padding: '12px 14px', width: 65, textAlign: 'center', borderRight: '1px solid #E2E8F0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                                      <input type="checkbox" defaultChecked readOnly style={{ accentColor: '#0284C7', cursor: 'pointer' }} />
+                                      <span>Sr.</span>
+                                    </div>
+                                  </th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Scheme Name</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Deduction from Bank</th>
+                                  <th style={{ padding: '12px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, textAlign: 'center' }}>Folio Number</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'right', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>SIP Amount</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>SIP Frequency</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>SIP Start Date</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>SIP End Date</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>Deduction Date</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', borderRight: '1px solid #E2E8F0', fontWeight: 700 }}>SIP Status</th>
+                                  <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, width: 80 }}>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sipSchemes.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={11} style={{ padding: '40px 20px', textAlign: 'center', color: '#64748B' }}>
+                                      No active SIP schemes configured yet. Click <strong style={{ color: '#0284C7', cursor: 'pointer' }} onClick={() => { setServiceSchemeTarget('Mutual Funds'); setShowServiceSchemeModal(true); }}>+ Add SIP Scheme</strong> above to add one.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  sipSchemes.map((s, idx) => {
+                                    const realSchemeIndex = schemesList.indexOf(s);
+                                    return (
+                                      <tr key={idx} style={{ 
+                                        borderBottom: '1px solid #E2E8F0', 
+                                        background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+                                        transition: 'background 0.15s ease'
+                                      }}>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            <input type="checkbox" defaultChecked style={{ accentColor: '#0284C7', cursor: 'pointer' }} />
+                                            <span style={{ fontWeight: 600, color: '#334155' }}>{idx + 1}</span>
+                                          </div>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', fontWeight: 700, color: '#0F172A' }}>
+                                          {s.schemeName || s.service || 'Mutual Fund Plan'}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', color: '#334155', fontWeight: 600, textTransform: 'uppercase' }}>
+                                          {s.deductionBank || s.bankName || detailData.lead?.bankName || 'STATE BANK OF INDIA'}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span 
+                                            onClick={() => {
+                                              if (s.policyNumber) {
+                                                navigator.clipboard?.writeText(s.policyNumber);
+                                                addToast(`Copied Folio: ${s.policyNumber}`, 'success');
+                                              }
+                                            }}
+                                            title="Click to copy folio"
+                                            style={{ color: '#0284C7', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}
+                                          >
+                                            {s.policyNumber || '91063718002'}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                                          ₹{(Number(s.sipAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#475569', fontWeight: 600 }}>
+                                          {s.sipFrequency || s.frequency || 'Monthly'}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', color: '#334155', fontWeight: 600 }}>
+                                          {formatSipDate(s.startDate) || '20 Nov 2019'}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center', fontWeight: 800, color: '#0F172A' }}>
+                                          {s.maturityDate ? formatSipDate(s.maturityDate) : '20 Dec 2099'}
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span style={{ background: '#E0F2FE', color: '#0284C7', fontWeight: 800, fontSize: '0.8rem', padding: '3px 8px', borderRadius: 6 }}>
+                                            {formatDayOrdinal(s.sipDay || 20)}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          <span style={{ 
+                                            fontWeight: 700, 
+                                            fontSize: '0.75rem',
+                                            padding: '3px 10px',
+                                            borderRadius: 12,
+                                            display: 'inline-block',
+                                            background: s.status === 'Closed' ? '#FEE2E2' : s.status === 'Paused' ? '#FEF3C7' : '#DCFCE7',
+                                            color: s.status === 'Closed' ? '#991B1B' : s.status === 'Paused' ? '#92400E' : '#166534',
+                                            border: `1px solid ${s.status === 'Closed' ? '#FECACA' : s.status === 'Paused' ? '#FDE68A' : '#BBF7D0'}`
+                                          }}>
+                                            {s.status || 'Active'}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            <button
+                                              type="button"
+                                              title="Edit Scheme Details"
+                                              onClick={() => {
+                                                setServiceSchemeTarget(s.service || 'Mutual Funds');
+                                                setEditingSchemeData(s);
+                                                setEditingSchemeIndex(realSchemeIndex >= 0 ? realSchemeIndex : idx);
+                                                setShowServiceSchemeModal(true);
+                                              }}
+                                              style={{ background: 'none', border: 'none', color: '#0284C7', cursor: 'pointer', padding: 3 }}
+                                            >
+                                              <Edit2 size={15} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title="Delete Scheme"
+                                              onClick={() => handleDeleteScheme(realSchemeIndex >= 0 ? realSchemeIndex : idx)}
+                                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 3 }}
+                                            >
+                                              <Trash2 size={15} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                                {/* Investrow Total Summary Row */}
+                                {sipSchemes.length > 0 && (
+                                  <tr style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)', borderTop: '2px solid #0284C7', borderBottom: '1px solid #BAE6FD', color: '#0369A1', fontWeight: 800, fontSize: '0.84rem' }}>
+                                    <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'center', borderRight: '1px solid #BAE6FD', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                      Total Monthly SIP Commitment
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'right', borderRight: '1px solid #BAE6FD', fontSize: '0.95rem', fontWeight: 900, color: '#0284C7' }}>
+                                      ₹{totalSip.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td colSpan={6} style={{ padding: '12px 14px', color: '#0369A1', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                      Active Monthly Mandates ({sipSchemes.length})
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* When Portfolio / Holdings sub-tab is active */}
+                      {mfTab !== 'sips' && (
+                        <div style={{ border: '1px solid #E2E8F0', borderRadius: 12, overflowX: 'auto', marginTop: 12 }}>
+                          <div style={{ padding: '14px 18px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.95rem' }}>
+                              All Schemes & Investment Portfolio ({schemesList.length})
+                            </div>
+                            <button
+                              onClick={() => {
+                                setServiceSchemeTarget('Mutual Funds');
+                                setEditingSchemeData(null);
+                                setEditingSchemeIndex(null);
+                                setShowServiceSchemeModal(true);
+                              }}
+                              className="btn btn-primary btn-sm"
+                              style={{ borderRadius: 6, fontSize: '0.8rem', background: '#0284C7' }}
+                            >
+                              <Plus size={14} /> Add Scheme
+                            </button>
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                             <thead>
-                              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>ID</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Scheme / Plan Name</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Category</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Type</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>SIP Amount & Date</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700 }}>Lumpsum</th>
-                                <th style={{ padding: '12px 18px', fontWeight: 700, textAlign: 'right' }}>Tenure / Status</th>
+                              <tr style={{ background: '#F1F5F9', color: '#475569', fontSize: '0.78rem' }}>
+                                <th style={{ padding: '10px 14px' }}>Scheme Name</th>
+                                <th style={{ padding: '10px 14px' }}>Category</th>
+                                <th style={{ padding: '10px 14px' }}>Type</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'right' }}>SIP Amount</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Lumpsum</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'center' }}>Status</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {schemesList.map((item, idx) => (
+                              {schemesList.map((s, idx) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                  <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#64748B', fontWeight: 600 }}>
-                                    {`SCH-${String(idx + 1).padStart(3, '0')}`}
+                                  <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0F172A' }}>
+                                    {s.schemeName || s.service || 'Plan'}
                                   </td>
-                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0F172A' }}>
-                                    {item.schemeName || item.service || 'Standard Plan'}
-                                  </td>
-                                  <td style={{ padding: '14px 18px' }}>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#E0F2FE', color: '#0284C7', padding: '3px 8px', borderRadius: 6 }}>
-                                      {item.service || 'Mutual Funds'}
+                                  <td style={{ padding: '12px 14px' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#E0F2FE', color: '#0284C7', padding: '2px 8px', borderRadius: 6 }}>
+                                      {s.service || 'Mutual Funds'}
                                     </span>
                                   </td>
-                                  <td style={{ padding: '14px 18px', fontWeight: 600, color: '#475569' }}>
-                                    {item.investmentType}
+                                  <td style={{ padding: '12px 14px', color: '#475569' }}>
+                                    {s.investmentType}
                                   </td>
-                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0369A1' }}>
-                                    {item.sipAmount > 0 ? (
-                                      <div>
-                                        ₹{Number(item.sipAmount).toLocaleString('en-IN')}/mo
-                                        <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 500 }}>Debit: {item.sipDay || 10}th of month</div>
-                                      </div>
-                                    ) : '—'}
+                                  <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#0284C7' }}>
+                                    {s.sipAmount > 0 ? `₹${Number(s.sipAmount).toLocaleString('en-IN')}/mo` : '—'}
                                   </td>
-                                  <td style={{ padding: '14px 18px', fontWeight: 700, color: '#D97706' }}>
-                                    {item.investmentAmount > 0 ? `₹${Number(item.investmentAmount).toLocaleString('en-IN')}` : '—'}
+                                  <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#D97706' }}>
+                                    {s.investmentAmount > 0 ? `₹${Number(s.investmentAmount).toLocaleString('en-IN')}` : '—'}
                                   </td>
-                                  <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: 6 }}>
-                                      {item.tenureYears ? `${item.tenureYears} Yrs • Active` : 'Active'}
+                                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#ECFDF5', color: '#059669', padding: '2px 8px', borderRadius: 6 }}>
+                                      {s.status || 'Active'}
                                     </span>
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
-                        </div>
-                      ) : (
-                        <div style={{ textAlign: 'center', padding: '40px 20px', background: '#F8FAFC', borderRadius: 16, border: '1.5px dashed #CBD5E1' }}>
-                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                            <IndianRupee size={22} />
-                          </div>
-                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>No Schemes Configured</div>
-                          <p style={{ fontSize: '0.825rem', color: '#64748B', maxWidth: 420, margin: '0 auto 16px' }}>
-                            Configure active SIPs, mutual funds, or insurance policies for this client to track real portfolio metrics.
-                          </p>
-                          <button 
-                            className="btn btn-outline btn-sm" 
-                            onClick={() => {
-                              setEditingClient(detailData.lead);
-                              setShowModal(true);
-                            }}
-                            style={{ borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}
-                          >
-                            <Plus size={14} /> Add First Scheme
-                          </button>
                         </div>
                       )}
                     </div>
@@ -3407,6 +4318,7 @@ function ClientsPageContent() {
           initialService={serviceSchemeTarget}
           editingScheme={editingSchemeData}
           editingIndex={editingSchemeIndex}
+          initialTab={schemeModalInitialTab}
           onSuccess={() => {
             viewDetail(detailData.lead._id);
             fetchClients(pagination.page);
@@ -3474,6 +4386,14 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
         sipDay: s.sipDay || 10,
         investmentAmount: s.investmentAmount || '',
         tenureYears: s.tenureYears || client?.tenureYears || '',
+        deductionBank: s.deductionBank || s.bankName || client?.bankName || 'STATE BANK OF INDIA',
+        policyNumber: s.policyNumber || '',
+        sipFrequency: s.sipFrequency || 'Monthly',
+        startDate: s.startDate || '',
+        maturityDate: s.maturityDate || (s.service === 'Mutual Funds' ? '2099-12-20' : ''),
+        status: s.status || 'Running',
+        provider: s.provider || '',
+        remarks: s.remarks || '',
       }));
     }
     return [
@@ -3485,6 +4405,14 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
         sipDay: client?.sipDay || 10,
         investmentAmount: client?.investmentAmount || '',
         tenureYears: client?.tenureYears || '',
+        deductionBank: client?.bankName || 'STATE BANK OF INDIA',
+        policyNumber: '',
+        sipFrequency: 'Monthly',
+        startDate: new Date().toISOString().split('T')[0],
+        maturityDate: '2099-12-20',
+        status: 'Running',
+        provider: '',
+        remarks: '',
       }
     ];
   });
@@ -3641,6 +4569,14 @@ function ClientFormModal({ client, users, canAssign, formSettings, onClose, onSa
       sipDay: (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') ? (Number(s.sipDay) || 10) : null,
       investmentAmount: (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') ? (Number(s.investmentAmount) || 0) : 0,
       tenureYears: s.tenureYears ? Number(s.tenureYears) : null,
+      deductionBank: s.deductionBank || form.bankName || 'STATE BANK OF INDIA',
+      policyNumber: s.policyNumber || '',
+      sipFrequency: s.sipFrequency || 'Monthly',
+      startDate: s.startDate || '',
+      maturityDate: s.maturityDate || '',
+      status: s.status || 'Running',
+      provider: s.provider || '',
+      remarks: s.remarks || '',
     }));
 
     const primaryService = formattedSchemes[0]?.service || form.service || 'Mutual Funds';

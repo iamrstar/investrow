@@ -13,7 +13,7 @@ import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Clock, CheckCircle, Video, Calendar, IndianRupee, UserCheck,
-  MessageSquare, TrendingUp
+  MessageSquare, TrendingUp, Globe, Users
 } from 'lucide-react';
 
 const SERVICES = [
@@ -32,6 +32,7 @@ function LeadsPageContent() {
   const urlStatus = searchParams?.get('status') || searchParams?.get('response') || searchParams?.get('stage') || '';
   const initialFilter = (urlStatus && urlStatus !== 'All') ? urlStatus : '';
   const urlSearch = searchParams?.get('search') || '';
+  const urlSource = searchParams?.get('source') || '';
 
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ function LeadsPageContent() {
   const [search, setSearch] = useState(urlSearch);
   const [filterService, setFilterService] = useState('');
   const [filterResponse, setFilterResponse] = useState(initialFilter);
+  const [filterSource, setFilterSource] = useState(urlSource);
 
   // Sync state if URL query params change dynamically
   useEffect(() => {
@@ -54,6 +56,12 @@ function LeadsPageContent() {
     const q = searchParams?.get('search');
     if (q !== null && q !== undefined) {
       setSearch(q);
+    }
+    const src = searchParams?.get('source');
+    if (src !== null && src !== undefined) {
+      setFilterSource(src);
+    } else {
+      setFilterSource('');
     }
   }, [searchParams]);
   const [filterCallStatus, setFilterCallStatus] = useState('');
@@ -117,6 +125,7 @@ function LeadsPageContent() {
       if (filterDate) params.set('followUpDate', filterDate);
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
+      if (filterSource) params.set('source', filterSource);
 
       const res = await fetch(`/api/leads?${params}`);
       const data = await res.json();
@@ -128,7 +137,7 @@ function LeadsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterService, filterResponse, filterCallStatus, filterUser, filterDate, startDate, endDate, addToast]);
+  }, [search, filterService, filterResponse, filterCallStatus, filterUser, filterDate, startDate, endDate, filterSource, addToast]);
 
   useEffect(() => {
     fetchLeads();
@@ -521,6 +530,100 @@ function LeadsPageContent() {
         )}
       </div>
 
+      {/* Subsections: All Leads vs Website Leads */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 18,
+        padding: '5px',
+        background: '#F1F5F9',
+        borderRadius: 12,
+        width: 'fit-content'
+      }}>
+        <button
+          type="button"
+          onClick={() => {
+            setFilterSource('');
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('source');
+              window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+            } catch (e) {}
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 18px',
+            borderRadius: 9,
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            background: (!filterSource || filterSource.toLowerCase() !== 'website')
+              ? '#FFFFFF'
+              : 'transparent',
+            color: (!filterSource || filterSource.toLowerCase() !== 'website')
+              ? '#0F172A'
+              : '#64748B',
+            boxShadow: (!filterSource || filterSource.toLowerCase() !== 'website')
+              ? '0 2px 8px rgba(0,0,0,0.06)'
+              : 'none'
+          }}
+        >
+          <Users size={16} color={(!filterSource || filterSource.toLowerCase() !== 'website') ? '#0EA5E9' : '#64748B'} />
+          <span>All Leads</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setFilterSource('Website');
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set('source', 'Website');
+              window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+            } catch (e) {}
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 18px',
+            borderRadius: 9,
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            background: (filterSource && filterSource.toLowerCase() === 'website')
+              ? 'linear-gradient(135deg, #FF6A13 0%, #EA580C 100%)'
+              : 'transparent',
+            color: (filterSource && filterSource.toLowerCase() === 'website')
+              ? '#FFFFFF'
+              : '#64748B',
+            boxShadow: (filterSource && filterSource.toLowerCase() === 'website')
+              ? '0 4px 14px rgba(255, 106, 19, 0.35)'
+              : 'none'
+          }}
+        >
+          <Globe size={16} color={(filterSource && filterSource.toLowerCase() === 'website') ? '#FFFFFF' : '#FF6A13'} />
+          <span>Website Leads</span>
+          <span style={{
+            fontSize: '10px',
+            padding: '2px 7px',
+            borderRadius: 9999,
+            background: (filterSource && filterSource.toLowerCase() === 'website') ? 'rgba(255,255,255,0.25)' : '#FEF3C7',
+            color: (filterSource && filterSource.toLowerCase() === 'website') ? '#FFFFFF' : '#D97706',
+            fontWeight: 800
+          }}>
+            LIVE
+          </span>
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="filters-container">
         <div className="search-input-wrapper" style={{ position: 'relative' }}>
@@ -655,6 +758,53 @@ function LeadsPageContent() {
       )}
 
 
+      {/* Website Leads Active Banner */}
+      {filterSource && filterSource.toLowerCase() === 'website' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 18px',
+          background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+          color: 'white',
+          borderRadius: 12,
+          marginBottom: 16,
+          boxShadow: '0 4px 14px rgba(14, 165, 233, 0.25)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '18px' }}>🌐</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>Website Inbound Leads (Live)</div>
+              <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+                Showing inquiries captured from the public website, goal calculators, AI chatbot, and exit offers.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFilterSource('');
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('source');
+                window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+              } catch (e) {}
+            }}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              color: 'white',
+              borderRadius: 8,
+              padding: '6px 14px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            Show All Leads
+          </button>
+        </div>
+      )}
+
       {/* Horizontal Status Filter Tabs (Panel 4) */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 16 }}>
         {STATUS_TABS.map(tab => {
@@ -769,7 +919,14 @@ function LeadsPageContent() {
                       {leadIdStr}
                     </td>
                     <td className="lead-name" data-label="Name" style={{ fontWeight: 600, color: '#0F172A' }}>
-                      {lead.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span>{(lead.name || '').replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim() || lead.name}</span>
+                        {lead.panNumber && (
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0369A1', background: '#F0F9FF', padding: '1px 6px', borderRadius: 4, border: '1px solid #BAE6FD' }}>
+                            {lead.panNumber}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Mobile">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

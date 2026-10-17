@@ -59,11 +59,18 @@ export async function GET(request) {
       const displayId = item.leadId || (item.leadNumber ? `INV-${item.leadNumber}` : '');
       const primaryScheme = item.schemeName || item.schemes?.[0]?.schemeName || '';
 
+      const rawName = (item.name || '').trim();
+      const cleanName = rawName.replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim() || rawName || 'Unnamed';
+      const pan = (item.panNumber || '').trim();
+      const displayName = pan ? `${cleanName} [${pan}]` : cleanName;
+
       return {
         _id: item._id,
         leadId: displayId,
         leadNumber: item.leadNumber,
-        name: item.name || 'Unnamed',
+        name: displayName,
+        cleanName,
+        panNumber: pan,
         phone: item.phone || '',
         email: item.email || '',
         service: item.service || '',

@@ -78,7 +78,7 @@ export default function Header() {
 
   const handleSelectResult = (item) => {
     setSearchOpen(false);
-    const identifier = item.leadId || item.name || '';
+    const identifier = item.leadId || item.cleanName || item.name || '';
     if (item.isClient) {
       router.push(`/clients?search=${encodeURIComponent(identifier)}`);
     } else {
@@ -95,11 +95,12 @@ export default function Header() {
 
   const getInitials = (name) => {
     if (!name) return 'BK';
-    const parts = name.trim().split(' ');
+    const clean = name.replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim();
+    const parts = (clean || name).trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return (clean || name).slice(0, 2).toUpperCase();
   };
 
   return (
@@ -278,7 +279,12 @@ export default function Header() {
                         <div style={{ minWidth: 0, textAlign: 'left' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a' }}>
-                              {item.name}
+                              {item.cleanName || (item.name ? item.name.replace(/\s*\[.*?\]|\s*\(.*?\)/g, '').trim() : 'Unnamed')}
+                              {(item.panNumber || '').trim() && (
+                                <span style={{ marginLeft: 6, fontWeight: 700, color: '#0284C7' }}>
+                                  [{item.panNumber.trim()}]
+                                </span>
+                              )}
                             </span>
 
                             {/* ID Badge */}
