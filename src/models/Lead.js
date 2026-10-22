@@ -145,6 +145,8 @@ const LeadSchema = new mongoose.Schema({
       sipFrequency: { type: String, trim: true, default: 'Monthly' },
       status: { type: String, trim: true, default: 'Running' },
       remarks: { type: String, default: '' },
+      deactivatedAt: { type: Date, default: null },
+      deactivationReason: { type: String, trim: true, default: '' },
     }
   ],
   assignedTo: {

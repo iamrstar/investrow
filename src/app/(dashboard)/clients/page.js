@@ -17,7 +17,7 @@ import {
   Plus, Search, Eye, Edit, Trash2, UserPlus, Phone,
   Filter, FileText, ChevronLeft, ChevronRight, X, Mail, Send, Activity,
   MoreVertical, Users, Clock, CheckCircle, Video, Calendar,
-  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck, UserX,
+  CalendarClock, User, TrendingUp, Shield, ArrowUpRight, Upload, AlertCircle, IndianRupee, UserCheck, UserX, Info,
   HeartPulse, Landmark, PiggyBank, BarChart2, Calculator, Car, Edit2, Percent, PieChart, Award,
   Download, MessageSquare, FileSpreadsheet
 } from 'lucide-react';
@@ -142,6 +142,8 @@ function ClientsPageContent() {
   const [editingSchemeData, setEditingSchemeData] = useState(null);
   const [editingSchemeIndex, setEditingSchemeIndex] = useState(null);
   const [schemeModalInitialTab, setSchemeModalInitialTab] = useState('manual');
+  const [deactivateSchemeModal, setDeactivateSchemeModal] = useState({ isOpen: false, schemeIndex: null, scheme: null, remarks: '' });
+  const [viewSchemeRemarksModal, setViewSchemeRemarksModal] = useState({ isOpen: false, scheme: null });
 
   const fetchFamilyStats = useCallback(async () => {
     try {
@@ -437,6 +439,168 @@ function ClientsPageContent() {
     } catch (err) {
       addToast(err.message || 'Error removing scheme', 'error');
     }
+  };
+
+  const handleToggleSchemeStatus = async (schemeIndex, newStatus, remarks = '') => {
+    if (!detailData?.lead?._id) return;
+
+    const currentSchemes = Array.isArray(detailData.lead.schemes) ? [...detailData.lead.schemes] : [];
+    if (!currentSchemes[schemeIndex]) return;
+
+    const isDeactivating = ['Inactive', 'Closed', 'Discontinued', 'Terminated'].includes(newStatus);
+
+    const updatedScheme = {
+      ...currentSchemes[schemeIndex],
+      status: newStatus,
+      remarks: remarks ? remarks.trim() : (currentSchemes[schemeIndex].remarks || ''),
+      deactivationReason: isDeactivating ? (remarks.trim() || 'Discontinued by client') : (currentSchemes[schemeIndex].deactivationReason || ''),
+      deactivatedAt: isDeactivating ? new Date().toISOString() : null,
+    };
+
+    currentSchemes[schemeIndex] = updatedScheme;
+
+    try {
+      const activeSipTotal = currentSchemes.reduce((sum, s) => {
+        const isInactive = ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status);
+        if (!isInactive && (s.service === 'Mutual Funds' || s.investmentType === 'Monthly SIP' || s.investmentType === 'Both')) {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const activeLumpsumTotal = currentSchemes.reduce((sum, s) => {
+        const isInactive = ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status);
+        if (!isInactive && s.service === 'Mutual Funds' && (s.investmentType === 'Lumpsum' || s.investmentType === 'Both')) {
+          return sum + (Number(s.investmentAmount) || 0);
+        }
+        return sum;
+      }, 0);
+
+      const res = await fetch(`/api/leads/${detailData.lead._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemes: currentSchemes,
+          sipAmount: activeSipTotal,
+          investmentAmount: activeLumpsumTotal
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update scheme status');
+
+      addToast(
+        isDeactivating 
+          ? `Scheme marked as ${newStatus}` 
+          : 'Scheme reactivated as Active / Running!', 
+        'success'
+      );
+      setDeactivateSchemeModal({ isOpen: false, schemeIndex: null, scheme: null, remarks: '' });
+      viewDetail(detailData.lead._id);
+      fetchClients(pagination.page);
+    } catch (err) {
+      addToast(err.message || 'Error updating scheme status', 'error');
+    }
+  };
+
+  const renderSchemeStatusToggle = (s, realSchemeIndex, idx) => {
+    const isInactive = ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status);
+    const targetIdx = realSchemeIndex >= 0 ? realSchemeIndex : idx;
+
+    return (
+      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (isInactive) {
+              if (confirm(`Reactivate "${s.schemeName || 'this scheme'}" back to Active / Running?`)) {
+                handleToggleSchemeStatus(targetIdx, 'Running');
+              }
+            } else {
+              setDeactivateSchemeModal({
+                isOpen: true,
+                schemeIndex: targetIdx,
+                scheme: s,
+                remarks: s.deactivationReason || s.remarks || ''
+              });
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: isInactive ? '#FEF2F2' : '#ECFDF5',
+            color: isInactive ? '#DC2626' : '#059669',
+            border: `1.5px solid ${isInactive ? '#FECACA' : '#A7F3D0'}`,
+            borderRadius: 20,
+            padding: '3px 10px',
+            fontSize: '0.74rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          }}
+          title={isInactive ? "Scheme Inactive / Discontinued. Click to reactivate" : "Scheme Active / Running. Click to deactivate with remarks"}
+        >
+          {/* Custom Toggle Switch Pill */}
+          <span style={{
+            width: 26,
+            height: 15,
+            background: isInactive ? '#CBD5E1' : '#10B981',
+            borderRadius: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: 1.5,
+            transition: 'background 0.2s ease'
+          }}>
+            <span style={{
+              width: 12,
+              height: 12,
+              background: '#FFFFFF',
+              borderRadius: '50%',
+              marginLeft: isInactive ? 0 : 'auto',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+              transition: 'margin 0.2s ease'
+            }} />
+          </span>
+          <span>{isInactive ? 'Inactive' : 'Active'}</span>
+        </button>
+
+        {/* Remarks Button / Badge */}
+        {(s.remarks || s.deactivationReason) && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewSchemeRemarksModal({ isOpen: true, scheme: s });
+            }}
+            style={{
+              background: isInactive ? '#FFF7ED' : '#F0F9FF',
+              border: `1px solid ${isInactive ? '#FED7AA' : '#BAE6FD'}`,
+              color: isInactive ? '#C2410C' : '#0284C7',
+              borderRadius: 6,
+              padding: '2px 7px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              maxWidth: 140,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+            title={`Remark: "${s.deactivationReason || s.remarks}". Click to read full details.`}
+          >
+            <MessageSquare size={11} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {s.deactivationReason || s.remarks}
+            </span>
+          </button>
+        )}
+      </div>
+    );
   };
 
   const handleSendEmail = async (templateType) => {
@@ -2541,7 +2705,8 @@ function ClientsPageContent() {
                         (s.service === 'Mutual Funds' && s.investmentType !== 'Lumpsum')
                       );
                       const otherSchemes = schemesList.filter(s => !sipSchemes.includes(s));
-                      const totalSip = sipSchemes.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0) || Number(detailData.lead?.sipAmount) || 0;
+                      const activeSips = sipSchemes.filter(s => !['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status));
+                      const totalSip = activeSips.reduce((acc, s) => acc + (Number(s.sipAmount) || 0), 0);
                       const todayFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
                       return (
@@ -2846,25 +3011,24 @@ function ClientsPageContent() {
                                           </span>
                                         </td>
 
-                                        {/* SIP Status (green badge matching Active badge) */}
-                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
-                                          <span style={{ 
-                                            fontWeight: 700, 
-                                            fontSize: '0.75rem',
-                                            padding: '3px 10px',
-                                            borderRadius: 12,
-                                            display: 'inline-block',
-                                            background: s.status === 'Closed' ? '#FEE2E2' : s.status === 'Paused' ? '#FEF3C7' : '#DCFCE7',
-                                            color: s.status === 'Closed' ? '#991B1B' : s.status === 'Paused' ? '#92400E' : '#166534',
-                                            border: `1px solid ${s.status === 'Closed' ? '#FECACA' : s.status === 'Paused' ? '#FDE68A' : '#BBF7D0'}`
-                                          }}>
-                                            {s.status || 'Active'}
-                                          </span>
+                                        {/* SIP Status Toggle with Remarks */}
+                                        <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          {renderSchemeStatusToggle(s, realSchemeIndex, idx)}
                                         </td>
 
-                                        {/* Action buttons (Edit & Delete) */}
+                                        {/* Action buttons (View Remarks, Edit & Delete) */}
                                         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            {(s.remarks || s.deactivationReason) && (
+                                              <button
+                                                type="button"
+                                                title="View Remarks & Status Details"
+                                                onClick={() => setViewSchemeRemarksModal({ isOpen: true, scheme: s })}
+                                                style={{ background: 'none', border: 'none', color: '#EA580C', cursor: 'pointer', padding: 3 }}
+                                              >
+                                                <MessageSquare size={15} />
+                                              </button>
+                                            )}
                                             <button
                                               type="button"
                                               title="Edit Scheme Details"
@@ -2897,13 +3061,13 @@ function ClientsPageContent() {
                                 {sipSchemes.length > 0 && (
                                   <tr style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)', borderTop: '2px solid #0284C7', borderBottom: '1px solid #BAE6FD', color: '#0369A1', fontWeight: 800, fontSize: '0.84rem' }}>
                                     <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'center', borderRight: '1px solid #BAE6FD', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                      Total Monthly SIP Commitment
+                                      Total Active Monthly SIP Commitment
                                     </td>
                                     <td style={{ padding: '12px 14px', textAlign: 'right', borderRight: '1px solid #BAE6FD', fontSize: '0.95rem', fontWeight: 900, color: '#0284C7' }}>
                                       ₹{totalSip.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                     <td colSpan={6} style={{ padding: '12px 14px', color: '#0369A1', fontStyle: 'italic', fontSize: '0.78rem' }}>
-                                      Active Monthly Mandates ({sipSchemes.length})
+                                      Active Monthly Mandates ({activeSips.length} active / {sipSchemes.length} total)
                                     </td>
                                   </tr>
                                 )}
@@ -2936,7 +3100,8 @@ function ClientsPageContent() {
                                           {s.tenureYears && <span style={{ color: '#64748B', fontWeight: 600 }}> ({s.tenureYears} Yrs)</span>}
                                         </div>
                                       </div>
-                                      <div style={{ display: 'flex', gap: 6 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {renderSchemeStatusToggle(s, realIdx, oIdx)}
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -2945,6 +3110,7 @@ function ClientsPageContent() {
                                             setEditingSchemeIndex(realIdx >= 0 ? realIdx : oIdx);
                                             setShowServiceSchemeModal(true);
                                           }}
+                                          title="Edit Scheme Details"
                                           style={{ background: '#F1F5F9', border: 'none', borderRadius: 6, padding: '6px 8px', color: '#0284C7', cursor: 'pointer' }}
                                         >
                                           <Edit2 size={14} />
@@ -2952,6 +3118,7 @@ function ClientsPageContent() {
                                         <button
                                           type="button"
                                           onClick={() => handleDeleteScheme(realIdx >= 0 ? realIdx : oIdx)}
+                                          title="Delete Scheme"
                                           style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '6px 8px', color: '#EF4444', cursor: 'pointer' }}
                                         >
                                           <Trash2 size={14} />
@@ -3873,22 +4040,22 @@ function ClientsPageContent() {
                                             {formatDayOrdinal(s.sipDay || 20)}
                                           </span>
                                         </td>
-                                        <td style={{ padding: '10px 14px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
-                                          <span style={{ 
-                                            fontWeight: 700, 
-                                            fontSize: '0.75rem',
-                                            padding: '3px 10px',
-                                            borderRadius: 12,
-                                            display: 'inline-block',
-                                            background: s.status === 'Closed' ? '#FEE2E2' : s.status === 'Paused' ? '#FEF3C7' : '#DCFCE7',
-                                            color: s.status === 'Closed' ? '#991B1B' : s.status === 'Paused' ? '#92400E' : '#166534',
-                                            border: `1px solid ${s.status === 'Closed' ? '#FECACA' : s.status === 'Paused' ? '#FDE68A' : '#BBF7D0'}`
-                                          }}>
-                                            {s.status || 'Active'}
-                                          </span>
+                                        {/* SIP Status Toggle with Remarks */}
+                                        <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'center' }}>
+                                          {renderSchemeStatusToggle(s, realSchemeIndex, idx)}
                                         </td>
                                         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            {(s.remarks || s.deactivationReason) && (
+                                              <button
+                                                type="button"
+                                                title="View Remarks & Status Details"
+                                                onClick={() => setViewSchemeRemarksModal({ isOpen: true, scheme: s })}
+                                                style={{ background: 'none', border: 'none', color: '#EA580C', cursor: 'pointer', padding: 3 }}
+                                              >
+                                                <MessageSquare size={15} />
+                                              </button>
+                                            )}
                                             <button
                                               type="button"
                                               title="Edit Scheme Details"
@@ -3920,13 +4087,13 @@ function ClientsPageContent() {
                                 {sipSchemes.length > 0 && (
                                   <tr style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)', borderTop: '2px solid #0284C7', borderBottom: '1px solid #BAE6FD', color: '#0369A1', fontWeight: 800, fontSize: '0.84rem' }}>
                                     <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'center', borderRight: '1px solid #BAE6FD', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                      Total Monthly SIP Commitment
+                                      Total Active Monthly SIP Commitment
                                     </td>
                                     <td style={{ padding: '12px 14px', textAlign: 'right', borderRight: '1px solid #BAE6FD', fontSize: '0.95rem', fontWeight: 900, color: '#0284C7' }}>
                                       ₹{totalSip.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                     <td colSpan={6} style={{ padding: '12px 14px', color: '#0369A1', fontStyle: 'italic', fontSize: '0.78rem' }}>
-                                      Active Monthly Mandates ({sipSchemes.length})
+                                      Active Monthly Mandates ({sipSchemes.filter(s => !['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status)).length} active / {sipSchemes.length} total)
                                     </td>
                                   </tr>
                                 )}
@@ -4565,6 +4732,335 @@ function ClientsPageContent() {
             fetchClients(pagination.page);
           }}
         />
+      )}
+
+      {/* Deactivate Scheme Modal with Remarks */}
+      {deactivateSchemeModal.isOpen && deactivateSchemeModal.scheme && (
+        <div 
+          className="modal-backdrop" 
+          onClick={() => setDeactivateSchemeModal({ isOpen: false, schemeIndex: null, scheme: null, remarks: '' })}
+          style={{ zIndex: 1250 }}
+        >
+          <div 
+            className="modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ maxWidth: 520, borderRadius: 16, overflow: 'hidden', padding: 0, zIndex: 1251 }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              background: '#FEF2F2',
+              padding: '16px 20px',
+              borderBottom: '1px solid #FECACA',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ background: '#FEE2E2', color: '#DC2626', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#991B1B' }}>
+                    Deactivate / Discontinue Scheme
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#B91C1C' }}>
+                    Mark this specific scheme inactive & log discontinuation remarks
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                className="modal-close" 
+                onClick={() => setDeactivateSchemeModal({ isOpen: false, schemeIndex: null, scheme: null, remarks: '' })}
+                style={{ color: '#991B1B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px' }}>
+              {/* Scheme Summary Card */}
+              <div style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: 10,
+                padding: '12px 14px',
+                marginBottom: 16
+              }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A' }}>
+                  {deactivateSchemeModal.scheme.schemeName || 'Selected Scheme'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: '0.78rem', color: '#475569', flexWrap: 'wrap' }}>
+                  {deactivateSchemeModal.scheme.policyNumber && (
+                    <span>Folio: <strong style={{ color: '#0284C7' }}>{deactivateSchemeModal.scheme.policyNumber}</strong></span>
+                  )}
+                  {deactivateSchemeModal.scheme.sipAmount > 0 && (
+                    <span>SIP: <strong style={{ color: '#0F172A' }}>₹{Number(deactivateSchemeModal.scheme.sipAmount).toLocaleString('en-IN')}/mo</strong></span>
+                  )}
+                  {deactivateSchemeModal.scheme.deductionBank && (
+                    <span>Bank: <strong>{deactivateSchemeModal.scheme.deductionBank}</strong></span>
+                  )}
+                </div>
+              </div>
+
+              {/* Remarks label & Quick Preset chips */}
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1E293B', marginBottom: 6 }}>
+                Reason / Remarks for Discontinuing <span style={{ color: '#DC2626' }}>*</span>
+              </label>
+
+              {/* Quick suggestion chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {[
+                  'Client stopped SIP',
+                  'Bank mandate failed',
+                  'Switched to another scheme',
+                  'Goal achieved / Profit booking',
+                  'Financial constraints',
+                  'Fund underperformance',
+                  'Bank account changed'
+                ].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => {
+                      const cur = deactivateSchemeModal.remarks.trim();
+                      const next = cur ? `${cur}; ${chip}` : chip;
+                      setDeactivateSchemeModal(prev => ({ ...prev, remarks: next }));
+                    }}
+                    style={{
+                      background: '#F1F5F9',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: 14,
+                      padding: '3px 9px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: '#334155',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={deactivateSchemeModal.remarks}
+                onChange={e => setDeactivateSchemeModal(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Type discontinuation remarks, client instructions, or specific reason..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '1.5px solid #CBD5E1',
+                  fontSize: '0.84rem',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  boxSizing: 'border-box'
+                }}
+              />
+
+              <div style={{ marginTop: 12, padding: '10px 12px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 8, fontSize: '0.76rem', color: '#0369A1', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Info size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  This will mark only this scheme as <strong>Inactive</strong>. You can view this remark anytime and reactivate the scheme whenever the client resumes.
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '12px 20px',
+              background: '#F8FAFC',
+              borderTop: '1px solid #E2E8F0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 10
+            }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setDeactivateSchemeModal({ isOpen: false, schemeIndex: null, scheme: null, remarks: '' })}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  const remarksToSave = deactivateSchemeModal.remarks.trim() || 'Discontinued by client';
+                  handleToggleSchemeStatus(deactivateSchemeModal.schemeIndex, 'Inactive', remarksToSave);
+                }}
+                style={{
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '7px 16px',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer'
+                }}
+              >
+                <UserX size={14} />
+                Confirm & Mark Inactive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Scheme Remarks Modal */}
+      {viewSchemeRemarksModal.isOpen && viewSchemeRemarksModal.scheme && (
+        <div 
+          className="modal-backdrop" 
+          onClick={() => setViewSchemeRemarksModal({ isOpen: false, scheme: null })}
+          style={{ zIndex: 1250 }}
+        >
+          <div 
+            className="modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ maxWidth: 500, borderRadius: 16, overflow: 'hidden', padding: 0, zIndex: 1251 }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              background: '#F0F9FF',
+              padding: '16px 20px',
+              borderBottom: '1px solid #BAE6FD',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ background: '#E0F2FE', color: '#0284C7', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0C4A6E' }}>
+                    Scheme Status & Remarks
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#0369A1' }}>
+                    Discontinuation notes, mandate status & advisory remarks
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                className="modal-close" 
+                onClick={() => setViewSchemeRemarksModal({ isOpen: false, scheme: null })}
+                style={{ color: '#0369A1' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px' }}>
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                    {viewSchemeRemarksModal.scheme.schemeName || 'Scheme'}
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: 12,
+                    background: ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(viewSchemeRemarksModal.scheme.status) ? '#FEF2F2' : '#ECFDF5',
+                    color: ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(viewSchemeRemarksModal.scheme.status) ? '#DC2626' : '#059669',
+                    border: `1px solid ${['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(viewSchemeRemarksModal.scheme.status) ? '#FECACA' : '#A7F3D0'}`
+                  }}>
+                    {viewSchemeRemarksModal.scheme.status || 'Active'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: '0.78rem', color: '#475569', flexWrap: 'wrap' }}>
+                  {viewSchemeRemarksModal.scheme.policyNumber && <span>Folio: <strong>{viewSchemeRemarksModal.scheme.policyNumber}</strong></span>}
+                  {viewSchemeRemarksModal.scheme.sipAmount > 0 && <span>SIP: <strong>₹{Number(viewSchemeRemarksModal.scheme.sipAmount).toLocaleString('en-IN')}/mo</strong></span>}
+                  {viewSchemeRemarksModal.scheme.deductionBank && <span>Bank: <strong>{viewSchemeRemarksModal.scheme.deductionBank}</strong></span>}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Discontinuation Remark / Notes:
+                </div>
+                <div style={{
+                  padding: '12px 14px',
+                  background: '#FFFBEB',
+                  border: '1.5px solid #FDE68A',
+                  borderRadius: 10,
+                  color: '#92400E',
+                  fontSize: '0.86rem',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {viewSchemeRemarksModal.scheme.deactivationReason || viewSchemeRemarksModal.scheme.remarks || 'No specific remarks recorded for this scheme.'}
+                </div>
+              </div>
+
+              {viewSchemeRemarksModal.scheme.deactivatedAt && (
+                <div style={{ fontSize: '0.76rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={13} />
+                  <span>Deactivated on: {new Date(viewSchemeRemarksModal.scheme.deactivatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '12px 20px',
+              background: '#F8FAFC',
+              borderTop: '1px solid #E2E8F0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              {['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(viewSchemeRemarksModal.scheme.status) ? (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    const schemesList = detailData?.lead?.schemes || [];
+                    const realIdx = schemesList.indexOf(viewSchemeRemarksModal.scheme);
+                    setViewSchemeRemarksModal({ isOpen: false, scheme: null });
+                    if (realIdx >= 0) {
+                      handleToggleSchemeStatus(realIdx, 'Running');
+                    }
+                  }}
+                  style={{
+                    background: '#059669',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '6px 14px',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <UserCheck size={14} />
+                  Reactivate Scheme Now
+                </button>
+              ) : <div />}
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setViewSchemeRemarksModal({ isOpen: false, scheme: null })}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -194,13 +194,15 @@ export async function PUT(request, { params }) {
     // Sync multi-scheme totals with top-level financial metrics
     if (body.schemes && Array.isArray(body.schemes) && body.schemes.length > 0) {
       const totalSip = body.schemes.reduce((sum, s) => {
-        if (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+        const isInactive = ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status);
+        if (!isInactive && (s.investmentType === 'Monthly SIP' || s.investmentType === 'Both')) {
           return sum + (Number(s.sipAmount) || 0);
         }
         return sum;
       }, 0);
       const totalLumpsum = body.schemes.reduce((sum, s) => {
-        if (s.investmentType === 'Lumpsum' || s.investmentType === 'Both') {
+        const isInactive = ['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status);
+        if (!isInactive && (s.investmentType === 'Lumpsum' || s.investmentType === 'Both')) {
           return sum + (Number(s.investmentAmount) || 0);
         }
         return sum;

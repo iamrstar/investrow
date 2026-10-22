@@ -350,7 +350,9 @@ export default function AddServiceSchemeModal({
       startDate: startDate || '',
       maturityDate: maturityDate || '',
       status: status || 'Running',
-      remarks: remarks.trim()
+      remarks: remarks.trim(),
+      deactivationReason: (status === 'Inactive' || status === 'Closed') ? (remarks.trim() || editingScheme?.deactivationReason || '') : '',
+      deactivatedAt: (status === 'Inactive' || status === 'Closed') ? (editingScheme?.deactivatedAt || new Date().toISOString()) : null,
     };
 
     setSaving(true);
@@ -1162,9 +1164,10 @@ export default function AddServiceSchemeModal({
                   }}
                 >
                   <option value="Running">Running (Active SIP)</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive / Discontinued</option>
                   <option value="Closed">Closed</option>
                   <option value="Paused">Paused / Suspended</option>
-                  <option value="Active">Active</option>
                   <option value="In Grace Period">In Grace Period</option>
                   <option value="Under Review">Under Review</option>
                   <option value="Matured">Matured</option>
