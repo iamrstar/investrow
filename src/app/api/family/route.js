@@ -10,12 +10,23 @@ async function updateFamilyTotals(familyId) {
   if (!family) return null;
 
   const memberIds = family.members.map(m => m.clientId);
-  const leads = await Lead.find({ _id: { $in: memberIds } }).select('sipAmount investmentAmount');
+  const leads = await Lead.find({ _id: { $in: memberIds } }).select('sipAmount investmentAmount schemes');
   
   let totalSip = 0;
   let totalInvestment = 0;
   leads.forEach(l => {
-    totalSip += (Number(l.sipAmount) || 0);
+    if (l.schemes && l.schemes.length > 0) {
+      const activeSips = l.schemes.filter(s => !['Closed', 'Inactive', 'Discontinued', 'Terminated'].includes(s.status));
+      const sTotal = activeSips.reduce((sum, s) => {
+        if (s.service === 'Mutual Funds' || s.investmentType === 'Monthly SIP' || s.investmentType === 'Both') {
+          return sum + (Number(s.sipAmount) || 0);
+        }
+        return sum;
+      }, 0);
+      totalSip += sTotal;
+    } else {
+      totalSip += (Number(l.sipAmount) || 0);
+    }
     totalInvestment += (Number(l.investmentAmount) || 0);
   });
 
@@ -42,7 +53,7 @@ async function getNextFamilyId() {
   return `FAM-${1000 + count + 1}`;
 }
 
-// GET: Get family tree for a client or family ID
+// GET: Get family tree for a client or family ID, OR full paginated family list with data health audit
 export async function GET(request) {
   const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
@@ -73,6 +84,117 @@ export async function GET(request) {
           .populate('members.clientId', 'name leadId clientCode phone sipAmount investmentAmount schemeName schemes dateOfBirth panNumber address city isFamilyHead familyRole')
           .lean();
       }
+    } else {
+      // LIST ALL FAMILIES + DATA HEALTH REPORT
+      const search = searchParams.get('search')?.trim() || '';
+      const filter = searchParams.get('filter') || 'all';
+      const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+      const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25', 10)));
+
+      const queryConditions = [];
+
+      if (search) {
+        const reg = new RegExp(search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        const matchedClients = await Lead.find({
+          $or: [
+            { name: reg },
+            { phone: reg },
+            { panNumber: reg },
+            { leadId: reg },
+            { clientCode: reg }
+          ]
+        }).select('_id').lean();
+        const matchedClientIds = matchedClients.map(c => c._id);
+
+        queryConditions.push({
+          $or: [
+            { familyId: reg },
+            { familyName: reg },
+            { primaryPhone: reg },
+            { city: reg },
+            { headClientId: { $in: matchedClientIds } },
+            { 'members.clientId': { $in: matchedClientIds } }
+          ]
+        });
+      }
+
+      if (filter === 'multi') {
+        queryConditions.push({ 'members.1': { $exists: true } });
+      } else if (filter === 'single') {
+        queryConditions.push({ 'members.1': { $exists: false } });
+      } else if (filter === 'issues') {
+        queryConditions.push({
+          $or: [
+            { headClientId: null },
+            { headClientId: { $exists: false } }
+          ]
+        });
+      }
+
+      const finalQuery = queryConditions.length === 0 ? {} : (queryConditions.length === 1 ? queryConditions[0] : { $and: queryConditions });
+
+      const total = await Family.countDocuments(finalQuery);
+      const families = await Family.find(finalQuery)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('headClientId', 'name leadId clientCode phone sipAmount investmentAmount panNumber city clientStatus')
+        .populate('members.clientId', 'name leadId clientCode phone sipAmount investmentAmount panNumber schemes clientStatus isFamilyHead familyRole')
+        .lean();
+
+      // Overall Health Diagnostic Report
+      const totalFamilies = await Family.countDocuments();
+      const totalConverted = await Lead.countDocuments({ response: 'Converted' });
+      const allFamiliesSummary = await Family.find().select('familyId headClientId members totalSip totalInvestment').lean();
+      
+      let totalLinked = 0;
+      let multiCount = 0;
+      let singleCount = 0;
+      let missingHeadCount = 0;
+      let totalHouseholdSip = 0;
+      let totalHouseholdWealth = 0;
+
+      allFamiliesSummary.forEach(f => {
+        const mCount = f.members?.length || 0;
+        totalLinked += mCount;
+        if (mCount >= 2) multiCount++;
+        else singleCount++;
+        if (!f.headClientId) missingHeadCount++;
+        totalHouseholdSip += (Number(f.totalSip) || 0);
+        totalHouseholdWealth += (Number(f.totalInvestment) || 0);
+      });
+
+      // Calculate health score:
+      const issuesCount = missingHeadCount;
+      const healthScore = Math.max(0, Math.min(100, Math.round(100 - (issuesCount * 5))));
+      const healthStatus = healthScore >= 95 ? 'Excellent' : (healthScore >= 80 ? 'Good' : 'Needs Attention');
+
+      const healthReport = {
+        totalFamilies,
+        totalConvertedClients: totalConverted,
+        totalLinkedClients: totalLinked,
+        coverageRate: totalConverted > 0 ? Math.round((totalLinked / totalConverted) * 100) : 0,
+        multiMemberFamilies: multiCount,
+        singleMemberFamilies: singleCount,
+        missingHeadCount,
+        totalHouseholdSip,
+        totalHouseholdWealth,
+        healthScore,
+        healthStatus,
+        isHealthy: issuesCount === 0
+      };
+
+      return Response.json({
+        success: true,
+        families,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit) || 1
+        },
+        healthReport
+      });
     }
 
     // Find suggested family members (clients sharing same phone or matching address who aren't in this family)
@@ -111,6 +233,15 @@ export async function POST(request) {
   await dbConnect();
   try {
     const body = await request.json();
+
+    if (body.action === 'syncAllTotals') {
+      const allFamilies = await Family.find().select('familyId').lean();
+      for (const f of allFamilies) {
+        await updateFamilyTotals(f.familyId);
+      }
+      return Response.json({ success: true, message: `Successfully synced & audited totals for ${allFamilies.length} families!` });
+    }
+
     const { mode, clientId, targetClientId, relationship = 'Other', newMember = {} } = body;
 
     if (!clientId) {

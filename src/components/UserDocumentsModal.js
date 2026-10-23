@@ -66,6 +66,7 @@ export default function UserDocumentsModal({ user, onClose, onUpdate }) {
   const handleDelete = async (docIndex) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
     try {
+      const docToDelete = allDocs[docIndex];
       const newDocsArray = [...allDocs];
       newDocsArray.splice(docIndex, 1);
       
@@ -76,6 +77,10 @@ export default function UserDocumentsModal({ user, onClose, onUpdate }) {
       });
       
       if (!res.ok) throw new Error('Failed to delete document');
+
+      if (docToDelete?.url) {
+        fetch(`/api/upload?url=${encodeURIComponent(docToDelete.url)}`, { method: 'DELETE' }).catch(() => {});
+      }
       
       addToast('Document deleted', 'success');
       if (onUpdate) onUpdate();

@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Home, Users, UserCheck, TrendingUp, Shield, Layers,
   CalendarClock, Calendar, MessageSquare, BarChart3,
-  FolderOpen, Settings, LogOut, Menu, X, Sprout, Globe
+  FolderOpen, Settings, LogOut, Menu, X, Sprout, Globe, Network
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Leads', staffLabel: 'My Leads', href: '/leads', icon: Users },
   { label: 'Website Leads', href: '/leads?source=Website', icon: Globe, isSubItem: true },
   { label: 'Clients', staffLabel: 'My Clients', href: '/clients', icon: UserCheck },
+  { label: 'Families', href: '/families', icon: Network },
   { label: 'Follow-ups', href: '/follow-ups', icon: CalendarClock },
   { label: 'Tasks', href: '/tasks', icon: Layers },
   { label: 'Calendar', href: '/calendar', icon: Calendar },
