@@ -32,6 +32,22 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  designation: {
+    type: String,
+    default: '',
+  },
+  salary: {
+    type: Number,
+    default: 0,
+  },
+  pf: {
+    type: Number,
+    default: 0,
+  },
+  professionalTax: {
+    type: Number,
+    default: 0,
+  },
   plainPassword: {
     type: String,
     default: '',
@@ -43,9 +59,17 @@ const UserSchema = new mongoose.Schema({
   }]
 }, {
   timestamps: true,
+  strict: false,
 });
 
 UserSchema.index({ role: 1 });
 
+if (mongoose.models?.User) {
+  try {
+    delete mongoose.models.User;
+  } catch (e) {
+    // Ignore error
+  }
+}
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

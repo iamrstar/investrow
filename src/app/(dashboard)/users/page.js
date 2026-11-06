@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff, FileText } from 'lucide-react';
+import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff, FileText, IndianRupee } from 'lucide-react';
 import UserDocumentsModal from '@/components/UserDocumentsModal';
+import SalarySlipModal from '@/components/SalarySlipModal';
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -18,6 +19,10 @@ export default function UsersPage() {
   const [showPasswords, setShowPasswords] = useState({}); // Track visibility per user ID
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [documentsUser, setDocumentsUser] = useState(null);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryEmployee, setSalaryEmployee] = useState(null);
+  const [salaryEmpId, setSalaryEmpId] = useState('');
+  const [salaryExistingSlip, setSalaryExistingSlip] = useState(null);
 
 
 
@@ -43,18 +48,23 @@ export default function UsersPage() {
   const handleSave = async (formData) => {
     try {
       const isUpdate = !!editingUser;
-      if (isUpdate && !confirm('Are you sure you want to update this user?')) return;
-      
       const url = isUpdate ? `/api/users/${editingUser._id}` : '/api/users';
       const method = isUpdate ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      const res = await fetch(url, { 
+        method, 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(formData) 
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      addToast(editingUser ? 'User updated!' : 'User created!', 'success');
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+      addToast(editingUser ? 'User updated successfully!' : 'User created successfully!', 'success');
       setShowModal(false);
       setEditingUser(null);
-      fetchUsers();
-    } catch (err) { addToast(err.message, 'error'); }
+      await fetchUsers();
+    } catch (err) { 
+      console.error(err);
+      addToast(err.message || 'Failed to save user', 'error'); 
+    }
   };
 
   const toggleActive = async (u) => {
@@ -120,7 +130,7 @@ export default function UsersPage() {
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Email</th>
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Mobile</th>
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Status</th>
-                <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right' }}>Action</th>
+                <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right', minWidth: 260, width: 260 }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +141,7 @@ export default function UsersPage() {
               ) : (
                 users.map((u, idx) => {
                   const empId = `EMP-${String(idx + 1).padStart(3, '0')}`;
-                  const roleLabel = u.role === 'admin' ? 'Director (Admin)' : (idx % 2 === 0 ? 'Sales Executive' : 'Relationship Manager');
+                  const roleLabel = u.designation || (u.role === 'admin' ? 'Director (Admin)' : (idx % 2 === 0 ? 'Sales Executive' : 'Relationship Manager'));
 
                   return (
                     <tr key={u._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
@@ -154,7 +164,12 @@ export default function UsersPage() {
                           }}>
                             {u.name ? u.name.charAt(0).toUpperCase() : 'E'}
                           </div>
-                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{u.name}</div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#0F172A' }}>{u.name}</div>
+                            {u.designation && (
+                              <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{u.designation}</div>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td style={{ padding: '14px 20px' }}>
@@ -190,31 +205,67 @@ export default function UsersPage() {
                           {u.isActive !== false ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                        <div className="table-actions" style={{ justifyContent: 'flex-end', display: 'flex', gap: 6 }}>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', minWidth: 260, width: 260, whiteSpace: 'nowrap' }}>
+                        <div className="table-actions" style={{ justifyContent: 'flex-end', display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+                          {isAdmin && (
+                            <button 
+                              type="button"
+                              className="btn-pill-action" 
+                              onClick={() => { 
+                                setSalaryExistingSlip(null);
+                                setSalaryEmployee(u); 
+                                setSalaryEmpId(empId); 
+                                setShowSalaryModal(true); 
+                              }}
+                              title="Mark Salary Released & Send Payslip"
+                              style={{
+                                width: 'auto',
+                                minWidth: 'max-content',
+                                height: 32,
+                                background: '#ECFDF5',
+                                color: '#059669',
+                                border: '1px solid #A7F3D0',
+                                padding: '0 12px',
+                                borderRadius: 8,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}
+                            >
+                              <IndianRupee size={14} style={{ flexShrink: 0 }} /> <span>Release Salary</span>
+                            </button>
+                          )}
                           <button 
+                            type="button"
                             className="btn btn-ghost btn-sm" 
                             onClick={() => { setDocumentsUser(u); setShowDocumentsModal(true); }}
                             title="Documents"
-                            style={{ color: '#0EA5E9', padding: 6 }}
+                            style={{ color: '#0EA5E9', padding: '6px 8px', flexShrink: 0 }}
                           >
                             <FileText size={16} />
                           </button>
                           {isAdmin && (
                             <>
                               <button 
+                                type="button"
                                 className="btn btn-ghost btn-sm" 
                                 onClick={() => { setEditingUser(u); setShowModal(true); }}
                                 title="Edit"
-                                style={{ color: '#0F172A', padding: 6 }}
+                                style={{ color: '#0F172A', padding: '6px 8px', flexShrink: 0 }}
                               >
                                 <Edit size={16} />
                               </button>
                               <button 
+                                type="button"
                                 className="btn btn-ghost btn-sm" 
                                 onClick={() => handleDelete(u._id)} 
                                 title="Delete"
-                                style={{ color: '#EF4444', padding: 6 }}
+                                style={{ color: '#EF4444', padding: '6px 8px', flexShrink: 0 }}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -234,6 +285,7 @@ export default function UsersPage() {
       {showModal && (
         <UserFormModal
           editUser={editingUser}
+          isAdmin={isAdmin}
           onClose={() => { setShowModal(false); setEditingUser(null); }}
           onSave={handleSave}
         />
@@ -246,17 +298,32 @@ export default function UsersPage() {
           onUpdate={fetchUsers}
         />
       )}
+
+      {showSalaryModal && salaryEmployee && (
+        <SalarySlipModal
+          employee={salaryEmployee}
+          empId={salaryEmpId}
+          existingSlip={salaryExistingSlip}
+          initialTab={salaryExistingSlip ? 'preview' : 'form'}
+          onClose={() => { setShowSalaryModal(false); setSalaryEmployee(null); setSalaryExistingSlip(null); }}
+          onSuccess={fetchUsers}
+        />
+      )}
     </div>
   );
 }
 
-function UserFormModal({ editUser, onClose, onSave }) {
+function UserFormModal({ editUser, isAdmin, onClose, onSave }) {
   const [form, setForm] = useState({
     name: editUser?.name || '',
     email: editUser?.email || '',
     password: '',
     role: editUser?.role || 'user',
     phone: editUser?.phone || '',
+    salary: editUser?.salary !== undefined ? editUser.salary : '',
+    designation: editUser?.designation || '',
+    pf: editUser?.pf !== undefined ? editUser.pf : '',
+    professionalTax: editUser?.professionalTax !== undefined ? editUser.professionalTax : '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -264,6 +331,10 @@ function UserFormModal({ editUser, onClose, onSave }) {
     e.preventDefault();
     const data = { ...form };
     if (!data.password && editUser) delete data.password;
+    data.salary = data.salary !== '' && data.salary !== undefined ? Number(data.salary) : 0;
+    data.pf = data.pf !== '' && data.pf !== undefined ? Number(data.pf) : 0;
+    data.professionalTax = data.professionalTax !== '' && data.professionalTax !== undefined ? Number(data.professionalTax) : 0;
+    data.designation = data.designation ? data.designation.trim() : '';
     setSaving(true);
     await onSave(data);
     setSaving(false);
@@ -306,8 +377,59 @@ function UserFormModal({ editUser, onClose, onSave }) {
                    <option value="admin">Admin</option>
                 </select>
               </div>
-
             </div>
+
+            {isAdmin && (
+              <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Designation</label>
+                    <input 
+                      className="form-input" 
+                      placeholder="e.g. Relationship Manager / Sales Executive" 
+                      value={form.designation} 
+                      onChange={e => setForm({ ...form, designation: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Default Monthly Salary (₹)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="form-input" 
+                      placeholder="e.g. 35000" 
+                      value={form.salary} 
+                      onChange={e => setForm({ ...form, salary: e.target.value })} 
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Default PF Deduction (₹)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="form-input" 
+                      placeholder="e.g. 1800 (optional)" 
+                      value={form.pf} 
+                      onChange={e => setForm({ ...form, pf: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Default Professional Tax (PT) (₹)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="form-input" 
+                      placeholder="e.g. 200 (optional)" 
+                      value={form.professionalTax} 
+                      onChange={e => setForm({ ...form, professionalTax: e.target.value })} 
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>

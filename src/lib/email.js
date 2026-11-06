@@ -1,19 +1,30 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
+import fs from 'fs';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: (process.env.SMTP_PORT === '465'), // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  requireTLS: process.env.SMTP_PORT === '587' || process.env.SMTP_PORT === '25',
-});
+let transporter = global.nodemailerTransporter;
+
+if (!transporter) {
+  transporter = nodemailer.createTransport({
+    pool: true, // Reuses 1 single persistent connection instead of logging in on every email
+    maxConnections: 1, // STRICT: Exactly 1 persistent connection to Google SMTP (single login)
+    maxMessages: 250, // Up to 250 messages per connection before recycling
+    rateLimit: 2, // Max 2 messages per second to avoid Google flood protection
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: (process.env.SMTP_PORT === '465'), // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    requireTLS: process.env.SMTP_PORT === '587' || process.env.SMTP_PORT === '25',
+  });
+
+  global.nodemailerTransporter = transporter;
+}
 
 const wrapTemplate = (content) => `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f9; padding: 20px;">
@@ -33,22 +44,31 @@ const wrapTemplate = (content) => `
   </div>
 `;
 
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-    
+    const mailAttachments = [];
+
+    if (fs.existsSync(logoPath)) {
+      mailAttachments.push({
+        filename: 'logo.png',
+        path: logoPath,
+        cid: 'logo' // matches src="cid:logo" in html
+      });
+    }
+
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      mailAttachments.push(...attachments);
+    }
+
     const info = await transporter.sendMail({
       from: `"${process.env.COMPANY_NAME || 'Investrow'}" <${process.env.SMTP_USER}>`,
       to,
       subject,
       html,
-      attachments: [{
-        filename: 'logo.png',
-        path: logoPath,
-        cid: 'logo' // matches src="cid:logo" in html
-      }]
+      attachments: mailAttachments
     });
-    console.log('Email sent: %s', info.messageId);
+    console.log('Email sent: %s to %s', info.messageId, to);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Email send error:', error);
@@ -156,8 +176,163 @@ export const templates = {
     `),
   }),
 
+  festiveGreeting: ({ clientName, festivalName, messageHtml, hasCardAttachment = false, bannerUrl, advisorName }) => {
+    let bannerBlock = '';
+    if (hasCardAttachment) {
+      bannerBlock = `
+        <div style="text-align: center; margin: 0 0 25px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
+          <img src="cid:festiveCard" alt="${festivalName || 'Festive'} Greetings Card" style="width: 100%; max-width: 540px; height: auto; display: block; margin: 0 auto; border-radius: 14px;" />
+        </div>
+      `;
+    } else if (bannerUrl && bannerUrl.startsWith('http') && !bannerUrl.includes('localhost')) {
+      bannerBlock = `
+        <div style="text-align: center; margin: 0 0 25px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
+          <img src="${bannerUrl}" alt="${festivalName || 'Festive'} Greetings Card" style="width: 100%; max-width: 540px; height: auto; display: block; margin: 0 auto; border-radius: 14px;" />
+        </div>
+      `;
+    }
+
+    return {
+      subject: `🪔 Happy ${festivalName || 'Festive Season'} & Wealth Wishes, ${clientName}!`,
+      html: wrapTemplate(`
+        ${bannerBlock}
+        <h2 style="color: #c2410c; margin-top: 0; font-size: 22px; font-weight: 800;">Shubh ${festivalName || 'Festive Season'}, ${clientName}! 🪔✨</h2>
+        <div style="font-size: 15px; color: #334155; line-height: 1.7; white-space: pre-line;">
+${messageHtml}
+        </div>
+        <div style="margin: 30px 0 20px 0; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b;">
+          <strong style="color: #92400e; font-size: 14px;">🌟 A Gift of Prosperity for Tomorrow:</strong>
+          <p style="margin: 6px 0 0 0; color: #78350f; font-size: 13.5px;">This festive season, gift your family the security of disciplined compounding. A small incremental SIP started today transforms into substantial wealth over time.</p>
+        </div>
+        <div style="text-align: center; margin: 30px 0 10px 0;">
+          <a href="https://investrow.in" 
+             style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);">
+            Explore Wealth Plans & SIPs
+          </a>
+        </div>
+        <p style="margin-top: 25px; font-size: 13px; color: #64748b;">Warm Regards,<br><strong style="color: #1e293b;">${advisorName || 'Team Investrow'}</strong><br>Investrow Financial Services</p>
+        <p style="font-size: 11px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 10px;">Mutual Fund investments are subject to market risks. Read all scheme related documents carefully.</p>
+      `)
+    };
+  },
+
   custom: (subject, content) => ({
     subject: subject || 'Message from Investrow',
     html: wrapTemplate(content || ''),
   }),
+
+  salarySlip: ({
+    employeeName,
+    employeeId,
+    designation,
+    month,
+    year,
+    paymentDate,
+    baseSalary = 0,
+    earnings = [],
+    deductions = [],
+    grossEarnings = 0,
+    totalDeductions = 0,
+    netPay = 0,
+    notes = '',
+  }) => {
+    const formatINR = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+    const formattedDate = paymentDate ? new Date(paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN');
+
+    // Build earnings rows
+    const allEarnings = [
+      { label: 'Basic Salary', amount: Number(baseSalary) },
+      ...earnings.filter(e => e.label && e.label.trim() !== '')
+    ];
+
+    const allDeductions = deductions.filter(d => d.label && d.label.trim() !== '');
+
+    const maxRows = Math.max(allEarnings.length, allDeductions.length, 1);
+    let rowsHtml = '';
+    for (let i = 0; i < maxRows; i++) {
+      const earn = allEarnings[i];
+      const ded = allDeductions[i];
+      const isEven = i % 2 === 0;
+      const bg = isEven ? '#ffffff' : '#f8fafc';
+
+      rowsHtml += `
+        <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+          <td style="padding: 10px 14px; color: #334155;">${earn ? earn.label : '-'}</td>
+          <td style="padding: 10px 14px; text-align: right; font-weight: 600; color: #0f172a;">${earn ? formatINR(earn.amount) : '-'}</td>
+          <td style="padding: 10px 14px; color: #334155; border-left: 1px solid #e2e8f0;">${ded ? ded.label : '-'}</td>
+          <td style="padding: 10px 14px; text-align: right; font-weight: 600; color: #dc2626;">${ded ? formatINR(ded.amount) : '-'}</td>
+        </tr>
+      `;
+    }
+
+    return {
+      subject: `Salary Statement for ${month} ${year} - ${employeeName}`,
+      html: wrapTemplate(`
+        <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 14px; margin-bottom: 20px;">
+          <span style="display: inline-block; background: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Confidential</span>
+          <h2 style="margin: 0; color: #0f172a; font-size: 20px; font-weight: 800;">Salary Payslip: ${month} ${year}</h2>
+        </div>
+
+        <p style="margin-top: 0; font-size: 14px; color: #475569;">
+          Dear <strong>${employeeName}</strong>,<br>
+          Your salary for the month of <strong>${month} ${year}</strong> has been processed and released. Below is the detailed breakdown of your earnings, allowances, and deductions.
+        </p>
+
+        <!-- Employee Details Card -->
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 13px;">
+          <tr>
+            <td style="padding: 10px 14px; color: #64748b; width: 25%;"><strong>Employee Name:</strong></td>
+            <td style="padding: 10px 14px; color: #0f172a; font-weight: 700; width: 25%;">${employeeName}</td>
+            <td style="padding: 10px 14px; color: #64748b; width: 25%;"><strong>Employee ID:</strong></td>
+            <td style="padding: 10px 14px; color: #0f172a; font-weight: 700; width: 25%;">${employeeId || 'N/A'}</td>
+          </tr>
+          <tr style="border-top: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;"><strong>Designation:</strong></td>
+            <td style="padding: 10px 14px; color: #0f172a; font-weight: 600;">${designation || 'Staff'}</td>
+            <td style="padding: 10px 14px; color: #64748b;"><strong>Pay Date:</strong></td>
+            <td style="padding: 10px 14px; color: #0f172a; font-weight: 600;">${formattedDate}</td>
+          </tr>
+        </table>
+
+        <!-- Salary Breakdown Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background: #0f172a; color: #ffffff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 10px 14px; text-align: left; width: 35%;">Earnings Item</th>
+              <th style="padding: 10px 14px; text-align: right; width: 15%;">Amount</th>
+              <th style="padding: 10px 14px; text-align: left; width: 35%; border-left: 1px solid #334155;">Deductions Item</th>
+              <th style="padding: 10px 14px; text-align: right; width: 15%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="background: #f1f5f9; font-weight: 700; font-size: 13px; border-top: 2px solid #cbd5e1;">
+              <td style="padding: 10px 14px; color: #0f172a;">Gross Earnings</td>
+              <td style="padding: 10px 14px; text-align: right; color: #059669;">${formatINR(grossEarnings)}</td>
+              <td style="padding: 10px 14px; color: #0f172a; border-left: 1px solid #cbd5e1;">Total Deductions</td>
+              <td style="padding: 10px 14px; text-align: right; color: #dc2626;">${formatINR(totalDeductions)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- Net Pay Box -->
+        <div style="margin: 24px 0 16px 0; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+          <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-bottom: 4px;">Net In-Hand Salary Payable</div>
+          <div style="font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">${formatINR(netPay)}</div>
+        </div>
+
+        ${notes ? `
+          <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 13px; color: #1e40af;">
+            <strong>Remarks / Notes:</strong> ${notes}
+          </div>
+        ` : ''}
+
+        <p style="font-size: 12px; color: #64748b; margin-top: 25px; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+          <em>Note: This is an official, computer-generated document issued by Investrow Financial Services. For any clarification regarding tax, calculations, or payroll, please get in touch with Accounts / Management.</em>
+        </p>
+      `),
+    };
+  },
 };

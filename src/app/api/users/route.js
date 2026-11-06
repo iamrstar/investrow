@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
+import SalarySlip from '@/models/SalarySlip';
 import { hashPassword } from '@/lib/auth';
 import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middleware';
 import ActivityLog from '@/models/ActivityLog';
@@ -36,23 +37,53 @@ export async function GET(request) {
 
   const filter = criteria.length === 0 ? {} : (criteria.length === 1 ? criteria[0] : { $and: criteria });
 
-  const users = await User.find(filter)
-    .select('-password')
-    .sort({ createdAt: -1 })
-    .lean();
+  let query = User.find(filter).select('-password');
+  if (authUser.role !== 'admin') {
+    query = query.select('-plainPassword -salary -pf -professionalTax');
+  }
+
+  const users = await query.sort({ createdAt: -1 }).lean();
+
+  // If admin, attach latest salary slip info
+  if (authUser.role === 'admin' && users.length > 0) {
+    try {
+      const userIds = users.map(u => u._id);
+      const latestSlips = await SalarySlip.aggregate([
+        { $match: { userId: { $in: userIds } } },
+        { $sort: { createdAt: -1 } },
+        { $group: {
+            _id: '$userId',
+            lastSlipMonth: { $first: '$month' },
+            lastSlipYear: { $first: '$year' },
+            lastNetPay: { $first: '$netPay' },
+            lastReleasedAt: { $first: '$releasedAt' },
+          }
+        }
+      ]);
+      const slipMap = {};
+      latestSlips.forEach(s => {
+        slipMap[s._id.toString()] = s;
+      });
+      users.forEach(u => {
+        u.lastSalarySlip = slipMap[u._id.toString()] || null;
+      });
+    } catch (e) {
+      console.error('Error fetching latest salary slips:', e);
+    }
+  }
 
   return Response.json({ users });
 }
 
 export async function POST(request) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
   if (!checkRole(authUser, ['admin'])) return forbidden();
 
   try {
     await dbConnect();
     const body = await request.json();
-    const { name, email, password, role, phone } = body;
+    const { name, email, password, role, phone, salary, designation, pf, professionalTax } = body;
 
     if (!name || !email || !password || !role) {
       return Response.json({ error: 'Name, email, password and role are required' }, { status: 400 });
@@ -72,6 +103,10 @@ export async function POST(request) {
       plainPassword: password, // Store plain password for admin
       role,
       phone: phone || '',
+      salary: salary !== undefined && salary !== '' ? Number(salary) : 0,
+      designation: designation || '',
+      pf: pf !== undefined && pf !== '' ? Number(pf) : 0,
+      professionalTax: professionalTax !== undefined && professionalTax !== '' ? Number(professionalTax) : 0,
       isActive: true,
     });
 
@@ -80,7 +115,7 @@ export async function POST(request) {
       action: `Created ${role}: ${name}`,
       entityType: 'User',
       entityId: user._id,
-      details: { name, email, role },
+      details: { name, email, role, salary: user.salary, designation: user.designation },
     });
 
     // Send Welcome Email

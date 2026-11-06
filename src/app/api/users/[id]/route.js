@@ -5,12 +5,16 @@ import { getAuthUser, checkRole, unauthorized, forbidden } from '@/lib/middlewar
 import ActivityLog from '@/models/ActivityLog';
 
 export async function GET(request, { params }) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
   const { id } = await params;
-  const user = await User.findById(id).select('-password').lean();
+  let query = User.findById(id).select('-password');
+  if (authUser.role !== 'admin') {
+    query = query.select('-plainPassword -salary -pf -professionalTax');
+  }
+  const user = await query.lean();
 
   if (!user) {
     return Response.json({ error: 'User not found' }, { status: 404 });
@@ -20,13 +24,14 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
   if (!checkRole(authUser, ['admin'])) return forbidden();
 
   try {
     await dbConnect();
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const body = await request.json();
     const updateData = {};
 
@@ -34,6 +39,10 @@ export async function PUT(request, { params }) {
     if (body.email) updateData.email = body.email.toLowerCase();
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.role) updateData.role = body.role;
+    if (body.salary !== undefined) updateData.salary = Number(body.salary) || 0;
+    if (body.designation !== undefined) updateData.designation = body.designation;
+    if (body.pf !== undefined) updateData.pf = Number(body.pf) || 0;
+    if (body.professionalTax !== undefined) updateData.professionalTax = Number(body.professionalTax) || 0;
 
     if (typeof body.isActive === 'boolean') updateData.isActive = body.isActive;
     if (body.password) {
@@ -43,7 +52,11 @@ export async function PUT(request, { params }) {
     
     if (body.documents) updateData.documents = body.documents;
 
-    const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(
+      id, 
+      { $set: updateData }, 
+      { new: true, runValidators: false }
+    ).select('-password');
 
     if (!user) {
       return Response.json({ error: 'User not found' }, { status: 404 });

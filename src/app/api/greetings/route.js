@@ -249,7 +249,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const authUser = await getAuthUser();
+  const authUser = await getAuthUser(request);
   if (!authUser) return unauthorized();
 
   await dbConnect();
@@ -258,21 +258,27 @@ export async function POST(request) {
     const body = await request.json();
     const { clientId, clientName, type, festivalName, message, channel } = body;
 
-    if (clientId) {
-      await ActivityLog.create({
-        userId: authUser.id,
-        action: type === 'birthday' ? 'Birthday Greeting Sent' : `Festival Greeting Sent (${festivalName || 'Festival'})`,
-        entityType: 'Lead',
-        entityId: clientId,
-        details: {
-          clientName,
-          type,
-          festivalName,
-          channel: channel || 'WhatsApp',
-          messageSnippet: message ? message.slice(0, 100) + '...' : '',
-          sentAt: new Date()
-        }
-      });
+    const currentUserId = authUser._id || authUser.id;
+
+    if (clientId && currentUserId) {
+      try {
+        await ActivityLog.create({
+          userId: currentUserId,
+          action: type === 'birthday' ? 'Birthday Greeting Sent' : `Festival Greeting Sent (${festivalName || 'Festival'})`,
+          entityType: 'Lead',
+          entityId: clientId,
+          details: {
+            clientName,
+            type,
+            festivalName,
+            channel: channel || 'WhatsApp',
+            messageSnippet: message ? message.slice(0, 100) + '...' : '',
+            sentAt: new Date()
+          }
+        });
+      } catch (logErr) {
+        console.warn('ActivityLog greeting record warning:', logErr.message);
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Greeting logged successfully' });

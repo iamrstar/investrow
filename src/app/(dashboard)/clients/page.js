@@ -651,7 +651,7 @@ function ClientsPageContent() {
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
       params.set('response', 'Converted');
-      params.set('limit', '1000'); // Get all
+      params.set('limit', '10000'); // Get all clients up to 10,000
       
       const res = await fetch(`/api/leads?${params}`);
       const data = await res.json();
@@ -659,20 +659,24 @@ function ClientsPageContent() {
       
       if (exportClients.length === 0) return addToast('No data to export', 'error');
 
-      // Simple CSV export
-      const headers = ['Name', 'Status', 'Phone', 'Email', 'Service', 'Call Status', 'Assigned To', 'Follow-up Date', 'Remarks', 'Created At'];
-      const csvData = exportClients.map(l => [
-        l.name,
-        l.clientStatus || 'Active',
-        l.phone,
-        l.email || '',
-        l.service,
-        l.callStatus,
-        l.assignedTo?.name || 'Unassigned',
-        l.followUpDate ? new Date(l.followUpDate).toLocaleDateString() : '',
-        (l.remarks || '').replace(/,/g, ';'),
-        new Date(l.createdAt).toLocaleDateString()
-      ]);
+      // Simple CSV export with AiSensy / WhatsApp compliant phone numbers (91XXXXXXXXXX)
+      const headers = ['Name', 'Phone', 'Email', 'Service', 'Status', 'Call Status', 'Assigned To', 'Follow-up Date', 'Remarks', 'Created At'];
+      const csvData = exportClients.map(l => {
+        let cleanPhone = (l.whatsappNumber || l.phone || '').toString().replace(/\D/g, '');
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        return [
+          `"${(l.name || '').replace(/"/g, '""')}"`,
+          `"${cleanPhone}"`,
+          `"${l.email || ''}"`,
+          `"${l.service || ''}"`,
+          `"${l.clientStatus || 'Active'}"`,
+          `"${l.callStatus || ''}"`,
+          `"${l.assignedTo?.name || 'Unassigned'}"`,
+          `"${l.followUpDate ? new Date(l.followUpDate).toLocaleDateString() : ''}"`,
+          `"${(l.remarks || '').replace(/"/g, '""')}"`,
+          `"${new Date(l.createdAt).toLocaleDateString()}"`
+        ];
+      });
 
       const csvContent = [headers, ...csvData].map(e => e.join(",")).join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

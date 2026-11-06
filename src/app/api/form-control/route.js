@@ -52,16 +52,29 @@ export async function GET(request) {
       settings = await FormControl.findOne({ singletonId: 'settings' });
       if (settings) {
         settings.singletonId = 'lead_settings';
-        await settings.save();
+        try {
+          await settings.save();
+        } catch (saveErr) {
+          settings = await FormControl.findOne({ singletonId: 'lead_settings' });
+        }
       }
     }
 
     if (!settings) {
-      settings = await FormControl.create({ ...getDefaultSettings(type), singletonId });
+      try {
+        settings = await FormControl.create({ ...getDefaultSettings(type), singletonId });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          // Concurrent request created it in the exact same millisecond
+          settings = await FormControl.findOne({ singletonId });
+        } else {
+          throw createErr;
+        }
+      }
     } else {
       // Sync missing default fields for existing settings
       const defaultDefs = getDefaultSettings(type).defaultFields;
-      const existingNames = new Set(settings.defaultFields.map(f => f.name));
+      const existingNames = new Set((settings.defaultFields || []).map(f => f.name));
       let updated = false;
       
       for (const defField of defaultDefs) {
@@ -72,11 +85,15 @@ export async function GET(request) {
       }
       
       if (updated) {
-        await settings.save();
+        try {
+          await settings.save();
+        } catch (saveErr) {
+          // If concurrent update occurred, reload
+          settings = await FormControl.findOne({ singletonId });
+        }
       }
     }
 
-    
     return Response.json({ success: true, settings });
   } catch (error) {
     console.error('Fetch form control error:', error);
@@ -143,7 +160,22 @@ export async function PUT(request) {
       }));
     }
 
-    await settings.save();
+    try {
+      await settings.save();
+    } catch (saveErr) {
+      if (saveErr.code === 11000) {
+        const existing = await FormControl.findOne({ singletonId });
+        if (existing) {
+          if (body.defaultFields) existing.defaultFields = settings.defaultFields;
+          if (body.globalCustomFields) existing.globalCustomFields = settings.globalCustomFields;
+          if (body.onboardingFields) existing.onboardingFields = settings.onboardingFields;
+          await existing.save();
+          settings = existing;
+        }
+      } else {
+        throw saveErr;
+      }
+    }
     
     return Response.json({ success: true, settings });
   } catch (error) {
