@@ -241,32 +241,3 @@ export async function POST(request) {
   }
 }
 
-    // Log Activity
-    await ActivityLog.create({
-      userId: authUser._id,
-      action: `Released salary slip to ${targetUser.name} for ${month} ${year} (₹${calculatedNet.toLocaleString('en-IN')})`,
-      entityType: 'User',
-      entityId: targetUser._id,
-      details: {
-        salarySlipId: salarySlip._id,
-        month,
-        year,
-        netPay: calculatedNet,
-        emailSent,
-        emailError,
-      },
-    });
-
-    return Response.json({
-      success: true,
-      message: `Salary slip for ${month} ${year} released successfully${emailSent ? ' and sent to ' + targetUser.email : ''}!`,
-      salarySlip,
-      emailSent,
-      emailError,
-    }, { status: 201 });
-  } catch (error) {
-    console.error('Salary slip release error:', error);
-    return Response.json({ error: error.message || 'Failed to release salary slip' }, { status: 500 });
-  }
-}
-

@@ -323,6 +323,11 @@ ${messageHtml}
           <div style="font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">${formatINR(netPay)}</div>
         </div>
 
+        <!-- Bank Transfer Note -->
+        <div style="margin: 18px 0; background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 8px; font-size: 13px; color: #92400e;">
+          <strong>Important Note:</strong> After releasing, it may take up to 72 hours to credit to your source bank account.
+        </div>
+
         ${notes ? `
           <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 13px; color: #1e40af;">
             <strong>Remarks / Notes:</strong> ${notes}

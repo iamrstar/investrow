@@ -998,7 +998,7 @@ export default function SalarySlipModal({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 22,
+                  marginBottom: 18,
                   boxShadow: '0 4px 15px rgba(5, 150, 105, 0.25)'
                 }}>
                   <div>
@@ -1015,6 +1015,26 @@ export default function SalarySlipModal({
                       ₹{netPay.toLocaleString('en-IN')}
                     </div>
                   </div>
+                </div>
+
+                {/* 72 Hours Bank Credit Note */}
+                <div style={{
+                  background: '#FFFBEB',
+                  border: '1px solid #FDE68A',
+                  borderLeft: '4px solid #F59E0B',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  marginBottom: 18,
+                  fontSize: '0.82rem',
+                  color: '#92400E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0, color: '#D97706' }} />
+                  <span>
+                    <strong>Important Note:</strong> After releasing, it may take up to 72 hours to credit to your source account.
+                  </span>
                 </div>
 
                 {/* Notes & Authorized Signatory */}

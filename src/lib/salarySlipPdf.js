@@ -194,7 +194,13 @@ export function generateSalarySlipPdf({
 
       doc.fontSize(18).fillColor('#ffffff').font('Helvetica-Bold').text(formatINR(netPay), 370, currentY + 16, { width: 170, align: 'right' });
 
-      currentY += 66;
+      currentY += 62;
+
+      // Bank Credit Note Card
+      doc.roundedRect(40, currentY, 515, 22, 4).fillAndStroke('#fffbeb', '#fde68a');
+      doc.fontSize(8).fillColor('#92400e').font('Helvetica-Bold').text('Important Note: ', 50, currentY + 7, { continued: true });
+      doc.font('Helvetica').text('After releasing, it may take up to 72 hours to credit to your source account.');
+      currentY += 30;
 
       // Remarks / Notes
       if (notes) {
