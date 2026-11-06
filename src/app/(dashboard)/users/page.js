@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff, FileText, IndianRupee } from 'lucide-react';
+import { Plus, Users, X, Edit, Trash2, Shield, UserCheck, UserX, Search, Eye, EyeOff, FileText, IndianRupee, History } from 'lucide-react';
 import UserDocumentsModal from '@/components/UserDocumentsModal';
 import SalarySlipModal from '@/components/SalarySlipModal';
+import SalaryHistoryModal from '@/components/SalaryHistoryModal';
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -23,6 +24,8 @@ export default function UsersPage() {
   const [salaryEmployee, setSalaryEmployee] = useState(null);
   const [salaryEmpId, setSalaryEmpId] = useState('');
   const [salaryExistingSlip, setSalaryExistingSlip] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyEmployee, setHistoryEmployee] = useState(null);
 
 
 
@@ -96,15 +99,27 @@ export default function UsersPage() {
             Manage staff credentials, assigned portfolios, and role permissions
           </p>
         </div>
-        {isAdmin && (
-          <button 
-            className="btn btn-primary" 
-            onClick={() => { setEditingUser(null); setShowModal(true); }}
-            style={{ background: '#0EA5E9', borderRadius: 10, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <Plus size={18} /> Add Employee
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {isAdmin && (
+            <button 
+              type="button"
+              className="btn btn-outline" 
+              onClick={() => { setHistoryEmployee(null); setShowHistoryModal(true); }}
+              style={{ background: '#FFFFFF', borderColor: '#CBD5E1', color: '#1E293B', borderRadius: 10, padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}
+            >
+              <History size={18} color="#6366F1" /> Payroll History
+            </button>
+          )}
+          {isAdmin && (
+            <button 
+              className="btn btn-primary" 
+              onClick={() => { setEditingUser(null); setShowModal(true); }}
+              style={{ background: '#0EA5E9', borderRadius: 10, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <Plus size={18} /> Add Employee
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="filters-bar" style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
@@ -130,7 +145,7 @@ export default function UsersPage() {
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Email</th>
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Mobile</th>
                 <th style={{ padding: '14px 20px', fontWeight: 700 }}>Status</th>
-                <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right', minWidth: 260, width: 260 }}>Action</th>
+                <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -205,12 +220,11 @@ export default function UsersPage() {
                           {u.isActive !== false ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'right', minWidth: 260, width: 260, whiteSpace: 'nowrap' }}>
-                        <div className="table-actions" style={{ justifyContent: 'flex-end', display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           {isAdmin && (
                             <button 
                               type="button"
-                              className="btn-pill-action" 
                               onClick={() => { 
                                 setSalaryExistingSlip(null);
                                 setSalaryEmployee(u); 
@@ -238,6 +252,17 @@ export default function UsersPage() {
                               }}
                             >
                               <IndianRupee size={14} style={{ flexShrink: 0 }} /> <span>Release Salary</span>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button 
+                              type="button"
+                              className="btn btn-ghost btn-sm" 
+                              onClick={() => { setHistoryEmployee(u); setShowHistoryModal(true); }}
+                              title="View Salary History"
+                              style={{ color: '#6366F1', padding: '6px 8px', flexShrink: 0 }}
+                            >
+                              <History size={16} />
                             </button>
                           )}
                           <button 
@@ -307,6 +332,13 @@ export default function UsersPage() {
           initialTab={salaryExistingSlip ? 'preview' : 'form'}
           onClose={() => { setShowSalaryModal(false); setSalaryEmployee(null); setSalaryExistingSlip(null); }}
           onSuccess={fetchUsers}
+        />
+      )}
+
+      {showHistoryModal && (
+        <SalaryHistoryModal
+          employee={historyEmployee}
+          onClose={() => { setShowHistoryModal(false); setHistoryEmployee(null); }}
         />
       )}
     </div>

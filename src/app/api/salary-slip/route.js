@@ -16,8 +16,10 @@ export async function GET(request) {
   const userId = searchParams.get('userId');
   const month = searchParams.get('month');
   const year = searchParams.get('year');
+  const search = searchParams.get('search');
   const download = searchParams.get('download');
   const slipId = searchParams.get('slipId');
+  const limit = Math.min(200, parseInt(searchParams.get('limit') || '100'));
 
   // Handle PDF Download
   if (download === 'pdf' && slipId) {
@@ -56,10 +58,19 @@ export async function GET(request) {
   if (month) filter.month = month;
   if (year) filter.year = Number(year);
 
+  if (search) {
+    filter.$or = [
+      { employeeName: { $regex: search, $options: 'i' } },
+      { employeeEmail: { $regex: search, $options: 'i' } },
+      { employeeId: { $regex: search, $options: 'i' } },
+      { designation: { $regex: search, $options: 'i' } },
+    ];
+  }
+
   try {
     const slips = await SalarySlip.find(filter)
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(limit)
       .lean();
 
     return Response.json({ success: true, slips });

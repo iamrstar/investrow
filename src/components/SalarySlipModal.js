@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   X, IndianRupee, Plus, Trash2, Send, CheckCircle2, 
-  AlertCircle, Eye, Edit3, Printer, Building2, Download 
+  AlertCircle, Eye, Edit3, Printer, Building2, Download, History, Calendar 
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
@@ -101,6 +101,45 @@ export default function SalarySlipModal({
   const [updateDefaultSalary, setUpdateDefaultSalary] = useState(false);
   const [sendEmailNotification, setSendEmailNotification] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [historySlips, setHistorySlips] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchEmployeeHistory = async () => {
+    if (!employee?._id) return;
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/salary-slip?userId=${employee._id}`);
+      const data = await res.json();
+      if (res.ok) {
+        setHistorySlips(data.slips || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchEmployeeHistory();
+    }
+  }, [activeTab, employee?._id]);
+
+  const loadSlipIntoView = (slip) => {
+    setMonth(slip.month);
+    setYear(slip.year);
+    if (slip.paymentDate) {
+      setPaymentDate(new Date(slip.paymentDate).toISOString().split('T')[0]);
+    }
+    setEmployeeId(slip.employeeId || empId || 'EMP-001');
+    setDesignation(slip.designation || employee.designation || 'Staff');
+    setBaseSalary(slip.baseSalary || 0);
+    setEarnings(slip.earnings?.map((e, i) => ({ id: Date.now() + i, label: e.label, amount: e.amount })) || []);
+    setDeductions(slip.deductions?.map((d, i) => ({ id: Date.now() + i, label: d.label, amount: d.amount })) || []);
+    setNotes(slip.notes || '');
+    setActiveTab('preview');
+  };
 
   // Quick addition handlers
   const addEarningRow = (label = '', amount = '') => {
@@ -278,7 +317,7 @@ export default function SalarySlipModal({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Tab Switcher Pills */}
-            <div style={{ display: 'flex', background: '#F1F5F9', padding: 4, borderRadius: 10 }}>
+            <div style={{ display: 'flex', background: '#F1F5F9', padding: 4, borderRadius: 10, gap: 2 }}>
               <button
                 type="button"
                 onClick={() => setActiveTab('form')}
@@ -320,6 +359,30 @@ export default function SalarySlipModal({
                 }}
               >
                 <Eye size={14} /> Preview Payslip
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('history');
+                  fetchEmployeeHistory();
+                }}
+                style={{
+                  border: 'none',
+                  background: activeTab === 'history' ? '#FFFFFF' : 'transparent',
+                  color: activeTab === 'history' ? '#6366F1' : '#64748B',
+                  fontWeight: activeTab === 'history' ? 700 : 500,
+                  fontSize: '0.8rem',
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <History size={14} /> Slip History
               </button>
             </div>
 
@@ -1125,6 +1188,174 @@ export default function SalarySlipModal({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Slip History */}
+        {activeTab === 'history' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <History size={18} color="#6366F1" /> Past Salary Slips &bull; {employee.name}
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748B' }}>
+                    View, inspect, or re-download official payslip statements released for this employee.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchEmployeeHistory}
+                  className="btn btn-outline btn-sm"
+                  style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem' }}
+                >
+                  <History size={14} /> Refresh
+                </button>
+              </div>
+
+              {loadingHistory ? (
+                <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="spinner" />
+                </div>
+              ) : historySlips.length === 0 ? (
+                <div style={{
+                  padding: '48px 24px',
+                  textAlign: 'center',
+                  background: '#F8FAFC',
+                  borderRadius: 12,
+                  border: '1px dashed #CBD5E1'
+                }}>
+                  <History size={36} color="#94A3B8" style={{ marginBottom: 12 }} />
+                  <h4 style={{ margin: '0 0 6px', color: '#1E293B', fontSize: '1rem' }}>No Salary Slips Released Yet</h4>
+                  <p style={{ margin: '0 0 16px', color: '#64748B', fontSize: '0.84rem' }}>
+                    There are no recorded salary slips released for {employee.name} yet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('form')}
+                    className="btn btn-primary btn-sm"
+                    style={{ borderRadius: 8, background: '#059669', borderColor: '#059669', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Plus size={14} /> Release First Salary Slip
+                  </button>
+                </div>
+              ) : (
+                <div style={{ border: '1px solid #E2E8F0', borderRadius: 12, overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569', textAlign: 'left' }}>
+                        <th style={{ padding: '12px 16px', fontWeight: 700 }}>Pay Period</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gross Earnings</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700 }}>Deductions</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700 }}>Net Disbursed</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700 }}>Release Date</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historySlips.map((slip, i) => (
+                        <tr key={slip._id || i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                          <td style={{ padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{
+                                background: '#EEF2FF',
+                                color: '#4F46E5',
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                fontWeight: 700,
+                                fontSize: '0.78rem'
+                              }}>
+                                {slip.month} {slip.year}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#334155', fontWeight: 600 }}>
+                            ₹{Number(slip.grossEarnings || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#DC2626', fontWeight: 600 }}>
+                            -₹{Number(slip.totalDeductions || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span style={{
+                              color: '#059669',
+                              fontWeight: 800,
+                              fontSize: '0.95rem'
+                            }}>
+                              ₹{Number(slip.netPay || 0).toLocaleString('en-IN')}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#64748B', fontSize: '0.8rem' }}>
+                            {slip.releasedAt ? new Date(slip.releasedAt).toLocaleDateString('en-IN', {
+                              day: '2-digit', month: 'short', year: 'numeric'
+                            }) : '-'}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => loadSlipIntoView(slip)}
+                                className="btn btn-outline btn-sm"
+                                style={{
+                                  borderRadius: 6,
+                                  fontSize: '0.75rem',
+                                  padding: '4px 10px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  color: '#0284C7',
+                                  borderColor: '#BAE6FD',
+                                  background: '#F0F9FF'
+                                }}
+                              >
+                                <Eye size={13} /> View Slip
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => window.open(`/api/salary-slip?download=pdf&slipId=${slip._id}`, '_blank')}
+                                className="btn btn-outline btn-sm"
+                                style={{
+                                  borderRadius: 6,
+                                  fontSize: '0.75rem',
+                                  padding: '4px 10px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  color: '#059669',
+                                  borderColor: '#A7F3D0',
+                                  background: '#ECFDF5'
+                                }}
+                              >
+                                <Download size={13} /> PDF
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid #E2E8F0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => setActiveTab('form')}
+                style={{ borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Edit3 size={15} /> Back to Edit Form
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={onClose}
+                style={{ borderRadius: 8 }}
+              >
+                Done
+              </button>
             </div>
           </div>
         )}
